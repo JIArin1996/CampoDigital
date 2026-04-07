@@ -1,20 +1,63 @@
-# Carpeta Contexto
+# Campo Digital - Documentación del Proyecto
 
-Esta carpeta contiene toda la documentación de diseño del sistema **Campo Digital**. Es el punto de partida para cualquier sesión de desarrollo.
+Sistema web de gestión integral para establecimientos rurales. Desarrollado para Uruguay, adaptable a cualquier país.
 
-## Archivos
+## Stack
+
+- **Frontend**: Next.js 14 + Tailwind CSS + shadcn/ui
+- **Base de datos**: Supabase (PostgreSQL)
+- **Hosting**: Vercel
+- **Control de versiones**: Git + GitHub
+
+## Archivos de contexto
 
 | Archivo | Contenido |
 |---------|-----------|
-| 01-VISION-DEL-SISTEMA.md | Qué es, qué resuelve, arquitectura, módulos, usuarios objetivo |
-| 02-MODELO-DE-DATOS.md | Todas las tablas, campos, tipos, validaciones, relaciones |
-| 03-HOJA-DE-RUTA.md | Fases de desarrollo, tareas, criterios de terminado |
-| 04-ESPECIFICACIONES-TECNICAS.md | Endpoints de API, estructura de componentes, PWA, performance |
-| 05-PROMPT-DE-INICIO.md | Prompts listos para arrancar a desarrollar con un agente de IA |
+| 01-VISION-DEL-SISTEMA.md | Qué es, arquitectura, stack, módulos, roadmap futuro |
+| 02-MODELO-DE-DATOS.md | Las 17 tablas, campos, relaciones, validaciones, triggers |
+| 03-HOJA-DE-RUTA.md | Fases de desarrollo, tareas pendientes, estado actual |
+| 04-ESPECIFICACIONES-TECNICAS.md | Estructura del proyecto, patrones de código, queries |
+| 05-PROMPT-DE-INICIO.md | Prompts listos para trabajar con agentes de IA |
 
-## Cómo usar
+## Cómo usar con un agente de IA
 
-1. Poné esta carpeta en la raíz del repositorio
-2. Cuando arranques una sesión en Antigravity (o cualquier IDE con IA), indicale que lea estos archivos primero
-3. Usá el prompt de `05-PROMPT-DE-INICIO.md` como primera instrucción
-4. A medida que el proyecto avance, actualizá la hoja de ruta marcando las tareas completadas
+1. Abrí Google Antigravity (o el agente que uses)
+2. Asegurate de que tenga acceso a esta carpeta `contexto/`
+3. Copiá el prompt correspondiente de `05-PROMPT-DE-INICIO.md`
+4. Pegalo como primera instrucción
+
+## Estado del proyecto
+
+### Base de datos (Supabase) ✓
+17 tablas creadas con todas las relaciones, constraints y triggers:
+- establecimientos, potreros, parcelas
+- animales, movimientos_ganado, pesajes, sanidad, reproduccion
+- lotes_agricolas, labores_agricolas
+- stock_insumos, movimientos_insumos
+- stock_maquinaria, mantenimiento_maquinaria
+- finanzas, personal, parametros
+
+### Frontend (Next.js) - En progreso
+- [ ] Setup inicial del proyecto
+- [ ] Conexión con Supabase
+- [ ] Módulo Establecimiento
+- [ ] Módulo Animales + Stock Ganadero
+
+## Jerarquía espacial
+
+```
+Establecimiento
+  └── Potrero (alambrado fijo)
+        └── Parcela (subdivisión eléctrica, opcional)
+```
+
+Los animales y lotes agrícolas se ubican en potrero O parcela (nunca los dos simultáneamente).
+
+## Reglas de desarrollo
+
+- TypeScript siempre
+- Comentarios en español
+- Mobile-first
+- Nunca borrar registros (baja lógica con estado = inactivo)
+- Todos los selects desde la tabla `parametros` de Supabase
+- shadcn/ui para componentes de UI

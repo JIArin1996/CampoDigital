@@ -1,149 +1,266 @@
 # Campo Digital - Especificaciones Técnicas
 
-## Google Apps Script - API Design
+## Stack
 
-### Estructura del proyecto en Apps Script
-
-```
-├── Code.gs              // Entry points: doGet(), doPost()
-├── Establecimientos.gs  // CRUD establecimientos y potreros
-├── Stock.gs             // Movimientos ganaderos + cálculo de stock
-├── Finanzas.gs          // Ingresos y egresos
-├── Agricultura.gs       // Lotes y labores
-├── Parametros.gs        // Lectura de parámetros
-├── Utils.gs             // Helpers: generación de IDs, validaciones, respuestas
-```
-
-### Endpoints
-
-Todos los endpoints pasan por `doGet()` y `doPost()`. Se usa un parámetro `action` para rutear.
-
-#### doGet (lectura)
-
-| action | Descripción | Parámetros opcionales |
-|--------|-------------|----------------------|
-| get_parametros | Lee todos los parámetros | - |
-| get_establecimiento | Datos del establecimiento | establecimiento_id |
-| get_potreros | Potreros de un establecimiento | establecimiento_id |
-| get_movimientos | Últimos N movimientos | establecimiento_id, limit, tipo, categoria |
-| get_stock | Stock actual por categoría | establecimiento_id |
-| get_finanzas | Movimientos financieros | establecimiento_id, periodo, tipo |
-| get_resumen_financiero | Totales por período | establecimiento_id, periodo |
-| get_lotes | Lotes agrícolas | establecimiento_id, zafra |
-| get_labores | Labores de un lote | lote_id |
-| get_dashboard | Datos consolidados para dashboard | establecimiento_id |
-
-#### doPost (escritura)
-
-| action | Descripción | Body (JSON) |
-|--------|-------------|-------------|
-| crear_establecimiento | Alta de establecimiento | {nombre, departamento, superficie_total, tipo, ...} |
-| crear_potrero | Alta de potrero | {establecimiento_id, nombre, superficie, uso_actual, ...} |
-| crear_movimiento | Registro de movimiento ganadero | {establecimiento_id, fecha, tipo_movimiento, categoria, cantidad, ...} |
-| crear_finanza | Registro financiero | {establecimiento_id, fecha, tipo, rubro, concepto, monto, ...} |
-| crear_lote | Alta de lote agrícola | {establecimiento_id, potrero_id, zafra, cultivo, ...} |
-| crear_labor | Registro de labor | {lote_id, fecha, tipo_labor, ...} |
-| editar_registro | Edición genérica | {hoja, id, campos: {campo: valor}} |
-| desactivar_registro | Baja lógica | {hoja, id} |
-
-### Formato de respuesta estándar
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "message": "Registro creado correctamente",
-  "id": "MOV-001"
-}
-```
-
-```json
-{
-  "success": false,
-  "error": "El nombre del establecimiento ya existe",
-  "field": "nombre"
-}
-```
-
-### CORS
-
-Apps Script requiere configuración especial para CORS. El deploy como web app con acceso "Anyone" evita la mayoría de problemas. Se usa `ContentService.createTextOutput()` con `setMimeType(ContentService.MimeType.JSON)`.
+| Capa | Tecnología | Versión |
+|------|-----------|---------|
+| Frontend | Next.js | 14+ (App Router) |
+| Estilos | Tailwind CSS | 3+ |
+| Componentes UI | shadcn/ui | latest |
+| Base de datos | Supabase (PostgreSQL) | - |
+| SDK cliente | @supabase/supabase-js | 2+ |
+| Hosting | Vercel | - |
+| Control de versiones | Git + GitHub | - |
 
 ---
 
-## Frontend - Estructura de componentes
+## Estructura del proyecto Next.js
 
 ```
-src/
-├── index.html
-├── app.js                    // Router principal
-├── services/
-│   └── api.js                // Wrapper fetch para Apps Script
+campo-digital/
+├── app/
+│   ├── layout.tsx               // Layout raíz
+│   ├── page.tsx                 // Dashboard (página principal)
+│   ├── establecimientos/
+│   │   ├── page.tsx             // Listado
+│   │   ├── nuevo/page.tsx       // Formulario alta
+│   │   └── [id]/page.tsx        // Detalle + potreros
+│   ├── animales/
+│   │   ├── page.tsx
+│   │   ├── nuevo/page.tsx
+│   │   └── [id]/page.tsx
+│   ├── movimientos/
+│   │   ├── page.tsx
+│   │   └── nuevo/page.tsx
+│   ├── sanidad/
+│   ├── pesajes/
+│   ├── reproduccion/
+│   ├── agricultura/
+│   ├── insumos/
+│   ├── maquinaria/
+│   ├── finanzas/
+│   └── personal/
 ├── components/
-│   ├── Layout.js             // Navbar, sidebar, container
-│   ├── Dashboard.js          // Vista principal
-│   ├── EstablecimientoForm.js
-│   ├── EstablecimientoView.js
-│   ├── PotreroForm.js
-│   ├── MovimientoForm.js
-│   ├── MovimientoList.js
-│   ├── StockView.js
-│   ├── FinanzaForm.js
-│   ├── FinanzaList.js
-│   ├── LoteForm.js
-│   ├── LaborForm.js
+│   ├── ui/                      // shadcn/ui components
+│   ├── layout/
+│   │   ├── Sidebar.tsx
+│   │   ├── Navbar.tsx
+│   │   └── PageContainer.tsx
+│   ├── forms/
+│   │   ├── EstablecimientoForm.tsx
+│   │   ├── PotreroForm.tsx
+│   │   ├── ParcelaForm.tsx
+│   │   ├── AnimalForm.tsx
+│   │   ├── MovimientoForm.tsx
+│   │   └── ...
 │   └── shared/
-│       ├── Select.js         // Select dinámico desde parámetros
-│       ├── DatePicker.js
-│       ├── NumberInput.js
-│       ├── Toast.js          // Notificaciones
-│       └── LoadingSpinner.js
-├── utils/
-│   ├── validators.js         // Validaciones de formulario
-│   └── formatters.js         // Formato de números, fechas, moneda
-└── styles/
-    └── main.css
+│       ├── DataTable.tsx        // Tabla reutilizable
+│       ├── SelectParametro.tsx  // Select dinámico desde parametros
+│       ├── StockBadge.tsx
+│       └── EmptyState.tsx
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts            // Cliente Supabase browser
+│   │   └── server.ts            // Cliente Supabase server
+│   ├── queries/
+│   │   ├── establecimientos.ts
+│   │   ├── animales.ts
+│   │   ├── movimientos.ts
+│   │   ├── stock.ts             // Cálculo de stock actual
+│   │   └── parametros.ts
+│   └── utils/
+│       ├── formatters.ts        // Fechas, moneda, números
+│       └── validators.ts
+├── types/
+│   └── database.ts              // Tipos TypeScript generados desde Supabase
+├── public/
+│   ├── manifest.json            // PWA
+│   └── icons/
+├── .env.local                   // Variables de entorno (no commitear)
+└── .env.example                 // Plantilla de variables (sí commitear)
 ```
 
-### Conexión con Apps Script
+---
 
-```javascript
-// services/api.js
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/DEPLOY_ID/exec';
+## Conexión con Supabase
 
-async function apiGet(action, params = {}) {
-  const url = new URL(APPS_SCRIPT_URL);
-  url.searchParams.set('action', action);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url);
-  return res.json();
-}
+```typescript
+// lib/supabase/client.ts
+import { createBrowserClient } from '@supabase/ssr'
 
-async function apiPost(action, data) {
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' }, // Apps Script quirk
-    body: JSON.stringify({ action, ...data })
-  });
-  return res.json();
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 }
 ```
 
-**Nota importante**: Google Apps Script no soporta `Content-Type: application/json` en POST desde clientes web. Se envía como `text/plain` y se parsea en el servidor con `JSON.parse(e.postData.contents)`.
+```typescript
+// lib/supabase/server.ts
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export function createClient() {
+  const cookieStore = cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll() } } }
+  )
+}
+```
+
+---
+
+## Variables de entorno
+
+```bash
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxxxxxxxxxxxxxxxxx
+```
+
+---
+
+## Patrón de queries
+
+```typescript
+// lib/queries/establecimientos.ts
+import { createClient } from '@/lib/supabase/client'
+
+export async function getEstablecimientos() {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .select('*')
+    .eq('estado', 'activo')
+    .order('nombre')
+  
+  if (error) throw error
+  return data
+}
+
+export async function createEstablecimiento(values: EstablecimientoInsert) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .insert(values)
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+```
+
+---
+
+## Cálculo de stock actual
+
+El stock no se guarda como número fijo. Se calcula siempre desde los movimientos:
+
+```typescript
+// lib/queries/stock.ts
+export async function getStockActual(
+  establecimiento_id: number,
+  ubicacion_tipo?: string,
+  ubicacion_id?: number
+) {
+  const supabase = createClient()
+  
+  // Se puede implementar como vista en Supabase o query directa
+  const { data, error } = await supabase
+    .from('movimientos_ganado')
+    .select('tipo_movimiento, categoria, cantidad, origen_tipo, origen_id, destino_tipo, destino_id')
+    .eq('establecimiento_id', establecimiento_id)
+  
+  if (error) throw error
+  
+  // Agrupar y sumar/restar por categoría y ubicación
+  const stock: Record<string, number> = {}
+  
+  for (const mov of data) {
+    const key = mov.categoria
+    if (!stock[key]) stock[key] = 0
+    
+    const esEntrada = ['Compra', 'Nacimiento'].includes(mov.tipo_movimiento) ||
+      (mov.tipo_movimiento === 'Traslado' && mov.destino_tipo === ubicacion_tipo && mov.destino_id === ubicacion_id)
+    
+    const esSalida = ['Venta', 'Muerte'].includes(mov.tipo_movimiento) ||
+      (mov.tipo_movimiento === 'Traslado' && mov.origen_tipo === ubicacion_tipo && mov.origen_id === ubicacion_id)
+    
+    if (esEntrada) stock[key] += mov.cantidad
+    if (esSalida) stock[key] -= mov.cantidad
+  }
+  
+  return stock
+}
+```
+
+---
+
+## Parámetros dinámicos
+
+```typescript
+// lib/queries/parametros.ts
+let cache: Record<string, string[]> = {}
+
+export async function getParametros(clave: string): Promise<string[]> {
+  if (cache[clave]) return cache[clave]
+  
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('parametros')
+    .select('valor')
+    .eq('clave', clave)
+    .eq('activo', true)
+    .order('orden')
+  
+  if (error) throw error
+  
+  const valores = data.map(d => d.valor)
+  cache[clave] = valores
+  return valores
+}
+
+// Componente SelectParametro
+// components/shared/SelectParametro.tsx
+export function SelectParametro({ clave, value, onChange, placeholder }) {
+  const [opciones, setOpciones] = useState<string[]>([])
+  
+  useEffect(() => {
+    getParametros(clave).then(setOpciones)
+  }, [clave])
+  
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {opciones.map(op => (
+          <SelectItem key={op} value={op}>{op}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+```
 
 ---
 
 ## PWA - Configuración mínima
 
 ```json
-// manifest.json
+// public/manifest.json
 {
   "name": "Campo Digital",
   "short_name": "CampoD",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1a7f4b",
+  "theme_color": "#166534",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
@@ -153,9 +270,22 @@ async function apiPost(action, data) {
 
 ---
 
+## Tipos TypeScript desde Supabase
+
+Supabase puede generar los tipos automáticamente desde la base de datos:
+
+```bash
+npx supabase gen types typescript --project-id TU_PROJECT_ID > types/database.ts
+```
+
+Esto genera tipos para todas las tablas que se usan en los queries con type safety completo.
+
+---
+
 ## Consideraciones de performance
 
-- Apps Script tiene un tiempo de cold start de ~2-5 segundos en la primera request
-- Cachear los parámetros en localStorage para evitar pedirlos en cada carga
-- Limitar las consultas de movimientos a los últimos 50 por defecto
-- El cálculo de stock actual se puede cachear en una hoja auxiliar si el volumen de movimientos crece mucho
+- Cachear parámetros en memoria al inicio (no cambian frecuentemente)
+- Limitar queries de movimientos a los últimos 100 por defecto, paginar el resto
+- El cálculo de stock se puede materializar como vista en Supabase si el volumen crece
+- Usar Server Components de Next.js para queries iniciales (más rápido en mobile)
+- Imágenes y assets en Vercel CDN

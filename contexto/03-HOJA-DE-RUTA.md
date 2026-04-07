@@ -1,175 +1,180 @@
 # Campo Digital - Hoja de Ruta de Desarrollo
 
-## Visión general del roadmap
+## Visión general
 
-El desarrollo sigue un enfoque incremental por fases. Cada fase entrega valor funcional completo (se puede usar desde el día 1 de cada fase). No se avanza a la siguiente fase hasta que la anterior esté estable.
+Desarrollo incremental por fases. Cada fase entrega valor funcional completo. No se avanza a la siguiente hasta que la anterior esté estable y testeada.
 
 ---
 
-## Fase 1 - Fundación + Stock Ganadero (MVP)
+## Estado actual
 
-**Objetivo**: Tener la estructura base y poder registrar movimientos ganaderos desde el celular.
+- [x] Modelo de datos definido (17 tablas)
+- [x] Base de datos creada en Supabase (PostgreSQL)
+- [x] Triggers y validaciones de integridad activos
+- [x] Stack técnico definido: Next.js + Tailwind + shadcn/ui + Supabase
+- [ ] Proyecto Next.js inicializado
+- [ ] Conexión frontend ↔ Supabase
+
+---
+
+## Fase 1 - Fundación + Establecimiento + Stock Ganadero (MVP)
+
+**Objetivo**: Poder registrar un establecimiento con su estructura y movimientos ganaderos desde el celular.
+
+**Duración estimada**: 2 semanas
+
+### 1.1 Setup del proyecto
+- [ ] Inicializar proyecto Next.js con Tailwind CSS y shadcn/ui
+- [ ] Configurar variables de entorno para Supabase
+- [ ] Implementar cliente Supabase en el frontend
+- [ ] Layout principal: navegación, sidebar, estructura responsive
+- [ ] Deploy inicial en Vercel (vacío pero funcional)
+
+### 1.2 Módulo Establecimiento
+- [ ] Formulario de alta de establecimiento
+- [ ] Vista de detalle del establecimiento
+- [ ] Formulario de alta de potreros
+- [ ] Formulario de alta de parcelas (dentro de un potrero)
+- [ ] Vista de estructura: establecimiento → potreros → parcelas
+- [ ] Validaciones: superficie, nombre único
+
+### 1.3 Módulo Animales
+- [ ] Formulario de alta de animal individual (caravana SNIG)
+- [ ] Listado de animales con filtros (categoría, estado, potrero/parcela)
+- [ ] Vista de ficha individual del animal
+- [ ] Baja lógica de animal (vendido/muerto/transferido)
+
+### 1.4 Módulo Stock Ganadero
+- [ ] Formulario de registro de movimiento (compra, venta, nacimiento, muerte, traslado, ajuste)
+- [ ] Listado de movimientos con filtros
+- [ ] Vista de stock actual por categoría y por ubicación
+- [ ] Historial de movimientos por animal individual
+
+### 1.5 Parámetros
+- [ ] Servicio para leer parámetros desde Supabase
+- [ ] Cache en memoria para evitar consultas repetidas
+- [ ] Todos los selects de la app alimentados desde parametros
+
+### Entregable fase 1
+App funcional donde se puede registrar un establecimiento con potreros/parcelas, dar de alta animales con SNIG y registrar movimientos ganaderos. Stock calculado en tiempo real desde los movimientos.
+
+---
+
+## Fase 2 - Sanidad, Pesajes y Reproducción
+
+**Objetivo**: Gestión completa del rodeo más allá del stock.
 
 **Duración estimada**: 1-2 semanas
 
 ### Tareas
+- [ ] Formulario de registro de evento sanitario (individual y grupal)
+- [ ] Historial sanitario por animal
+- [ ] Alerta de días de carencia activos
+- [ ] Formulario de pesaje (individual y por lote)
+- [ ] Historial de pesos y curva de evolución
+- [ ] Formulario de evento reproductivo
+- [ ] Historial reproductivo por vaca
+- [ ] Indicadores: % preñez, intervalo parto-concepción
 
-#### 1.1 Infraestructura base
-- [ ] Crear spreadsheet en Google Sheets con las hojas: establecimientos, potreros, movimientos_ganado, parametros
-- [ ] Poblar hoja de parámetros con valores iniciales (categorías, departamentos, tipos de movimiento, etc.)
-- [ ] Crear proyecto en Google Apps Script vinculado al spreadsheet
-- [ ] Implementar endpoint `doPost()` en Apps Script para recibir datos vía fetch
-- [ ] Implementar endpoint `doGet()` para leer datos (parámetros, stock actual, últimos movimientos)
-- [ ] Testear endpoints con Postman o curl
-
-#### 1.2 Frontend - Estructura base
-- [ ] Inicializar proyecto React (o HTML + vanilla JS)
-- [ ] Definir layout principal: navegación, módulos, estado de conexión
-- [ ] Implementar servicio de conexión con Apps Script (fetch wrapper)
-- [ ] Diseño mobile-first, responsive
-- [ ] Configurar como PWA (manifest.json, service worker básico)
-
-#### 1.3 Módulo Establecimiento
-- [ ] Formulario de alta de establecimiento (nombre, departamento, superficie, tipo)
-- [ ] Listado de establecimientos (solo 1 por ahora, pero la estructura soporta N)
-- [ ] Formulario de alta de potreros vinculados al establecimiento
-- [ ] Validaciones: nombre único, superficie > 0, suma potreros ≤ total
-- [ ] Visualización de datos del establecimiento y sus potreros
-
-#### 1.4 Módulo Stock Ganadero
-- [ ] Formulario de registro de movimientos (tipo, categoría, cantidad, peso, potrero, precio)
-- [ ] Validaciones: campos obligatorios, cantidad > 0, traslado con origen/destino
-- [ ] Listado de últimos movimientos (últimos 20, con filtros por tipo y categoría)
-- [ ] Cálculo de stock actual por categoría (suma de movimientos)
-- [ ] Vista de stock por potrero
-
-#### 1.5 Deploy
-- [ ] Publicar Apps Script como web app
-- [ ] Deploy frontend en GitHub Pages o Vercel
-- [ ] Test end-to-end: cargar datos desde celular, verificar en Sheets
-
-### Entregable
-App funcional donde se puede dar de alta un establecimiento con potreros y registrar movimientos ganaderos. Los datos se ven en Google Sheets en tiempo real.
+### Entregable fase 2
+Trazabilidad completa de cada animal: dónde está, cuánto pesa, qué vacunas tiene, si está preñada.
 
 ---
 
-## Fase 2 - Finanzas
+## Fase 3 - Finanzas
 
-**Objetivo**: Registrar ingresos y egresos, ver flujo de caja básico.
+**Objetivo**: Registrar todos los ingresos y egresos y ver el flujo de caja.
 
 **Duración estimada**: 1 semana
 
 ### Tareas
-
-#### 2.1 Backend
-- [ ] Agregar hoja "finanzas" al spreadsheet
-- [ ] Crear endpoints en Apps Script para CRUD de finanzas
-- [ ] Endpoint para resumen financiero (total ingresos, total egresos, saldo por período)
-
-#### 2.2 Frontend
-- [ ] Formulario de registro de ingreso/egreso (fecha, tipo, rubro, concepto, monto)
+- [ ] Formulario de ingreso/egreso
 - [ ] Listado de movimientos financieros con filtros (tipo, rubro, período)
 - [ ] Vista de resumen: total ingresos, total egresos, saldo
-- [ ] Opción de vincular un registro financiero a un movimiento ganadero existente
+- [ ] Soporte USD y UYU con tipo de cambio
+- [ ] Vinculación de registros financieros a movimientos ganaderos
 
-### Entregable
-Se pueden registrar todas las operaciones financieras del campo y ver un resumen de caja.
+### Entregable fase 3
+Registro completo de la actividad financiera del campo con vista de saldo.
 
 ---
 
-## Fase 3 - Agricultura
+## Fase 4 - Agricultura
 
-**Objetivo**: Gestionar lotes agrícolas y registrar labores por zafra.
+**Objetivo**: Gestionar lotes agrícolas y labores por zafra.
 
-**Duración estimada**: 1 semana
+**Duración estimada**: 1-2 semanas
 
 ### Tareas
-
-#### 3.1 Backend
-- [ ] Agregar hojas "lotes_agricolas" y "labores" al spreadsheet
-- [ ] Endpoints para CRUD de lotes y labores
-- [ ] Endpoint para resumen por zafra (superficie, cultivos, costos)
-
-#### 3.2 Frontend
-- [ ] Formulario de alta de lote agrícola (potrero, zafra, cultivo, superficie)
-- [ ] Formulario de registro de labores (tipo, insumo, dosis, costo)
+- [ ] Formulario de alta de lote agrícola (potrero/parcela, zafra, cultivo)
+- [ ] Formulario de registro de labor (tipo, insumo, dosis, costo)
 - [ ] Listado de lotes por zafra con estado
 - [ ] Historial de labores por lote
-- [ ] Filtro de potreros por uso "Agricultura" al crear lotes
+- [ ] Costo total por hectárea por lote
 
-### Entregable
-Se puede registrar la actividad agrícola completa: qué se sembró, qué se hizo, cuánto costó.
+### Entregable fase 4
+Registro completo de la actividad agrícola: qué se sembró, qué se hizo, cuánto costó.
 
 ---
 
-## Fase 4 - Dashboard
+## Fase 5 - Insumos y Maquinaria
 
-**Objetivo**: Tener una vista consolidada del establecimiento con indicadores clave.
+**Objetivo**: Inventario y trazabilidad de insumos y maquinaria.
 
 **Duración estimada**: 1 semana
 
 ### Tareas
+- [ ] ABM de insumos con stock calculado desde movimientos
+- [ ] Registro de entradas y salidas de insumos
+- [ ] Alerta de stock mínimo
+- [ ] ABM de maquinaria
+- [ ] Registro de mantenimientos
+- [ ] Alerta de próximo service por horas
 
-#### 4.1 Indicadores ganaderos
+### Entregable fase 5
+Inventario completo de insumos y maquinaria con trazabilidad de uso.
+
+---
+
+## Fase 6 - Dashboard
+
+**Objetivo**: Vista consolidada con indicadores clave al abrir la app.
+
+**Duración estimada**: 1 semana
+
+### Tareas
 - [ ] Stock actual total y por categoría
-- [ ] Últimos 5 movimientos
-- [ ] Carga animal (cabezas/ha)
-- [ ] Variación de stock último mes
-
-#### 4.2 Indicadores financieros
-- [ ] Saldo del mes actual
-- [ ] Ingresos vs egresos (último trimestre)
-- [ ] Top 3 rubros de egreso
-- [ ] Gráfico simple de evolución mensual
-
-#### 4.3 Indicadores agrícolas
+- [ ] Últimos 5 movimientos ganaderos
+- [ ] Saldo financiero del mes
 - [ ] Superficie sembrada zafra actual
-- [ ] Lotes en curso vs cosechados
-- [ ] Costo total por hectárea
+- [ ] Insumos bajo stock mínimo
+- [ ] Maquinaria fuera de servicio
+- [ ] Accesos directos a carga rápida
 
-#### 4.4 UX del dashboard
-- [ ] Vista principal al abrir la app
-- [ ] Accesos directos a carga rápida desde el dashboard
-- [ ] Refresh manual y auto-refresh cada 5 minutos
-
-### Entregable
+### Entregable fase 6
 Al abrir la app, el usuario ve de un vistazo cómo está su campo.
 
 ---
 
-## Fase 5 - Mejoras y escalado (post-MVP)
+## Fase 7 - Módulos avanzados (post-MVP)
 
-Ideas para iterar después del MVP funcional:
-
-- Soporte multi-establecimiento real (selector de campo)
-- Exportación a PDF de reportes básicos
-- Notificaciones (vacunas pendientes, vencimientos)
-- Integración con GIS (geolocalización de potreros)
-- Conexión con Power BI para dashboards avanzados
-- Sistema de usuarios y permisos (si se comparte con encargados)
-- Modo offline con sincronización posterior
-- API para integración con otros sistemas (SNIG, DICOSE)
-
----
-
-## Stack técnico confirmado
-
-| Componente | Tecnología | Costo |
-|-----------|-----------|-------|
-| Frontend | React + Tailwind (o HTML/CSS/JS vanilla) | Gratis |
-| Backend/API | Google Apps Script | Gratis |
-| Base de datos | Google Sheets | Gratis |
-| Hosting frontend | GitHub Pages o Vercel | Gratis |
-| IDE de desarrollo | Google Antigravity | Gratis (preview) |
-| Control de versiones | Git + GitHub | Gratis |
+- [ ] Gestión de usuarios y roles (Supabase Auth + RLS)
+- [ ] Multi-establecimiento real con selector
+- [ ] Módulo de reportes con gráficos (Recharts / Tremor)
+- [ ] Calendario con notificaciones automáticas (FullCalendar + Edge Functions)
+- [ ] Exportación a PDF
+- [ ] Agente IA con contexto de la base de datos
+- [ ] Chatbot WhatsApp (Twilio o Meta Cloud API)
+- [ ] Integración GIS para geolocalización de potreros
+- [ ] Modo offline con sincronización posterior
 
 ---
 
 ## Criterios de "terminado" por fase
 
 Una fase se considera terminada cuando:
-1. Todos los formularios funcionan y guardan datos en Sheets correctamente
-2. Las validaciones impiden datos inválidos
+1. Todos los formularios funcionan y guardan datos en Supabase correctamente
+2. Las validaciones impiden datos inválidos (tanto en frontend como en BD)
 3. Se puede usar desde el celular sin problemas
-4. Los datos en Sheets están limpios y son analizables
-5. Se hizo al menos un test end-to-end real (no solo en desarrollo)
+4. Se hizo al menos un test end-to-end real
+5. El código está commiteado en GitHub

@@ -1,70 +1,105 @@
-# Campo Digital - Sistema de Gestión Rural
+# Campo Digital - Visión del Sistema
 
 ## Qué es
 
-Sistema web liviano para gestionar establecimientos rurales (ganaderos, agrícolas o mixtos) de forma integral. Permite registrar información operativa desde cualquier dispositivo y deja los datos disponibles para análisis.
+Sistema web de gestión integral para establecimientos rurales (ganaderos, agrícolas o mixtos). Permite registrar y consultar toda la información operativa desde cualquier dispositivo y en cualquier lugar, dejando los datos disponibles para análisis externo.
 
 ## Problema que resuelve
 
-La información del establecimiento vive dispersa: cuadernos, planillas sueltas, la cabeza del encargado, WhatsApps perdidos. Cuando hay que tomar una decisión (vender, comprar, sembrar, presupuestar), no hay datos limpios ni accesibles. Este sistema centraliza todo en un lugar simple.
+La información del establecimiento vive dispersa: cuadernos, planillas sueltas, la cabeza del encargado, WhatsApps perdidos. Cuando hay que tomar una decisión (vender, comprar, sembrar, presupuestar), no hay datos limpios ni accesibles. Este sistema centraliza todo en un lugar simple, moderno y accesible desde el celular.
 
 ## Principios de diseño
 
 - **Simplicidad ante todo** - formularios cortos, pocos campos obligatorios, cero fricción
 - **Mobile-first** - pensado para usar desde el celular en el campo
-- **Datos abiertos** - Google Sheets como base de datos, siempre accesible para análisis externo
-- **Costo cero** - toda la infraestructura sobre servicios gratuitos de Google
-- **Baja lógica, nunca borrar** - los registros se desactivan, nunca se eliminan. La historia se preserva siempre
+- **Datos íntegros** - validaciones en base de datos, nunca stock negativo, nunca datos huérfanos
+- **Nunca borrar** - los registros se desactivan, nunca se eliminan. La historia se preserva siempre
+- **Escalable** - construido para crecer a multi-usuario, reportes avanzados e integraciones
 
 ## Arquitectura
 
 ```
-┌─────────────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
-│   Frontend (App)    │────>│  Google Apps Script   │────>│   Google Sheets     │
-│   React / HTML      │<────│  (API intermedia)     │<────│   (Base de datos)   │
-│   PWA mobile-first  │     │  Endpoints REST       │     │   1 spreadsheet     │
-└─────────────────────┘     └──────────────────────┘     │   por establecim.   │
-                                                          └─────────────────────┘
-         │                                                          │
-         v                                                          v
-┌─────────────────────┐                               ┌─────────────────────┐
-│   Dashboard         │                               │   Análisis externo  │
-│   (dentro de la app)│                               │   Power BI / Python │
-└─────────────────────┘                               └─────────────────────┘
+Usuario (celular / PC / tablet)
+  └── Next.js app (Vercel)
+        ├── Supabase JS SDK → PostgreSQL (datos)
+        ├── Supabase Auth → sesiones y usuarios (fase futura)
+        └── Supabase Storage → archivos (fase futura)
 ```
 
 ### Componentes
 
-- **Frontend**: React (o HTML simple). Responsive, mobile-first. Puede ser una PWA para instalar en el celular. Hosting gratuito en GitHub Pages o Vercel.
-- **Backend**: Google Apps Script como API intermedia. Recibe datos del formulario via fetch/POST y escribe en Sheets. Cero costo de servidor.
-- **Base de datos**: Google Sheets. Cada hoja es una tabla. Estructura normalizada con IDs para cruzar datos entre hojas.
-- **Análisis**: Los datos en Sheets quedan disponibles para conectar con Power BI, Python (pandas/gspread) o análisis directo en Sheets.
+- **Frontend**: Next.js + Tailwind CSS + shadcn/ui. Responsive, mobile-first. Hosting gratuito en Vercel.
+- **Base de datos**: Supabase (PostgreSQL). 17 tablas normalizadas con FK, constraints y triggers.
+- **Auth**: Supabase Auth (fase futura - actualmente un solo usuario).
+- **Análisis externo**: Los datos en Supabase se pueden conectar con Power BI via PostgreSQL connector o con Python via psycopg2/sqlalchemy.
+
+## Stack técnico
+
+| Componente | Tecnología | Costo |
+|-----------|-----------|-------|
+| Frontend | Next.js + Tailwind CSS + shadcn/ui | Gratis |
+| Base de datos | Supabase (PostgreSQL) | Gratis (hasta 500MB) |
+| Hosting frontend | Vercel | Gratis |
+| Control de versiones | Git + GitHub | Gratis |
+| IDE de desarrollo | Google Antigravity | Gratis (preview) |
+
+## Jerarquía espacial
+
+```
+Establecimiento
+  └── Potrero (división permanente, alambrado fijo)
+        └── Parcela (subdivisión temporal, ej: eléctrico) - opcional
+```
+
+- Un potrero puede no tener parcelas.
+- Animales y lotes agrícolas se ubican en el nivel más fino disponible (potrero o parcela).
+- Cuando un potrero tiene parcelas activas, los animales se asignan a nivel parcela.
 
 ## Módulos del sistema
 
-### 1. Establecimiento (base)
-Datos maestros del campo: nombre, superficie, ubicación, tipo, potreros.
-Es la "ficha técnica" y el punto de partida para todos los demás módulos.
+### 1. Establecimiento
+Datos maestros del campo y su estructura espacial: potreros y parcelas.
 
-### 2. Stock ganadero
-Existencias por categoría. Movimientos: compras, ventas, nacimientos, muertes, traslados entre potreros. Permite saber en todo momento cuántos animales hay, dónde están y cómo evolucionó el rodeo.
+### 2. Stock Ganadero
+Registro individual de animales con caravana SNIG. Movimientos (compra, venta, nacimiento, muerte, traslado, ajuste). El stock se calcula siempre desde los movimientos — nunca se guarda como número fijo.
 
-### 3. Agricultura
-Lotes, cultivos, labores realizadas (siembra, fertilización, cosecha). Seguimiento por zafra. Registro de insumos y costos por labor.
+### 3. Pesajes
+Historial de pesajes individuales o por lote. Base para seguimiento de ganancia de peso.
 
-### 4. Finanzas
-Registro de ingresos y egresos. Clasificación por rubro y asociación al establecimiento. Permite ver el flujo de caja y la rentabilidad por actividad.
+### 4. Sanidad
+Registro de vacunaciones, tratamientos y diagnósticos. Trazabilidad de productos con días de carencia.
 
-### 5. Dashboard
-Resumen visual: stock actual, últimos movimientos, saldo financiero, indicadores clave por período. Vista automática, sin carga manual.
+### 5. Reproducción
+Servicios, diagnósticos de preñez, partos, destetes. Registro individual o grupal.
 
-## Usuarios objetivo
+### 6. Agricultura
+Lotes agrícolas por zafra. Labores realizadas (siembra, fertilización, cosecha, etc.) con costos asociados.
 
-- Productores rurales que manejan 1 a 5 establecimientos
-- Encargados de campo que necesitan registrar información desde el terreno
-- Asesores técnicos que necesitan datos consolidados para tomar decisiones
-- Administradores de fideicomisos ganaderos
+### 7. Insumos
+Inventario de insumos con trazabilidad de entradas y salidas. Alertas de stock mínimo.
+
+### 8. Maquinaria
+Inventario de maquinaria e implementos con historial de mantenimientos.
+
+### 9. Finanzas
+Ingresos y egresos con clasificación por rubro. Soporte USD y UYU.
+
+### 10. Personal
+Registro de empleados y contratistas del establecimiento.
+
+### 11. Dashboard (fase futura)
+Vista consolidada con indicadores clave: stock actual, saldo financiero, superficie sembrada, últimos eventos.
+
+## Roadmap de módulos futuros
+
+| Módulo | Tecnología prevista |
+|--------|-------------------|
+| Reportes y gráficos | Recharts o Tremor |
+| Calendario + notificaciones | FullCalendar + Supabase Edge Functions |
+| Gestión de usuarios y roles | Supabase Auth + RLS |
+| Agente IA | Anthropic API con contexto de la BD |
+| Chatbot WhatsApp | Twilio o Meta Cloud API + webhook Next.js |
 
 ## País de referencia
 
-Uruguay. Los parámetros (departamentos, categorías ganaderas, DICOSE) están pensados para el contexto uruguayo, pero la estructura es adaptable a cualquier país.
+Uruguay. Parámetros pensados para el contexto uruguayo: departamentos, categorías ganaderas DICOSE, moneda USD/UYU. La estructura es adaptable a cualquier país.
