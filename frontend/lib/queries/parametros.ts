@@ -18,7 +18,7 @@ export async function getParametros(clave: string): Promise<string[]> {
     .from('parametros')
     .select('valor')
     .eq('clave', clave)
-    .eq('activo', true)
+    .neq('activo', false)
     .order('orden')
 
   if (error) throw error

@@ -38,6 +38,7 @@ export function SelectParametro({
   useEffect(() => {
     getParametros(clave)
       .then(setOpciones)
+      .catch((err) => console.error(`Error cargando parámetros "${clave}":`, err))
       .finally(() => setCargando(false))
   }, [clave])
 

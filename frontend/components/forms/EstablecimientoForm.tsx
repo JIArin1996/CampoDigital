@@ -57,13 +57,12 @@ export function EstablecimientoForm() {
     resolver: zodResolver(schema),
     defaultValues: {
       fecha_alta: today,
-      tipo: undefined,
       departamento: "",
     },
   })
 
   const departamento = watch("departamento")
-  const tipo = watch("tipo")
+  const tipoValue = watch("tipo") ?? ""
 
   const onSubmit = async (values: FormValues) => {
     setEnviando(true)
@@ -159,7 +158,7 @@ export function EstablecimientoForm() {
             Tipo <span className="text-destructive">*</span>
           </Label>
           <Select
-            value={tipo}
+            value={tipoValue}
             onValueChange={(val) =>
               setValue("tipo", val as FormValues["tipo"], { shouldValidate: true })
             }
