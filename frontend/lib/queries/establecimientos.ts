@@ -53,3 +53,73 @@ export async function updateEstablecimiento(id: number, values: EstablecimientoU
   if (error) throw error
   return data
 }
+
+// Obtiene los establecimientos inactivos
+export async function getEstablecimientosInactivos() {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .select('*')
+    .eq('estado', 'inactivo')
+    .order('nombre')
+
+  if (error) throw error
+  return data
+}
+
+// Reactiva un establecimiento inactivo
+export async function reactivarEstablecimiento(id: number) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .update({ estado: 'activo' })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Desactiva lógicamente un establecimiento
+export async function desactivarEstablecimiento(id: number) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .update({ estado: 'inactivo' })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Borra físicamente un establecimiento si no tiene dependencias
+export async function borrarEstablecimientoFisico(id: number) {
+  const supabase = createClient()
+  
+  const { count: potrerosCount, error: errorPotreros } = await supabase
+    .from('potreros')
+    .select('*', { count: 'exact', head: true })
+    .eq('establecimiento_id', id)
+  if (errorPotreros) throw errorPotreros
+
+  const { count: animalesCount, error: errorAnimales } = await supabase
+    .from('animales')
+    .select('*', { count: 'exact', head: true })
+    .eq('establecimiento_id', id)
+  if (errorAnimales) throw errorAnimales
+
+  if ((potrerosCount && potrerosCount > 0) || (animalesCount && animalesCount > 0)) {
+    throw new Error('No se puede eliminar definitivamente porque tiene potreros o animales asociados.')
+  }
+
+  const { error } = await supabase
+    .from('establecimientos')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}

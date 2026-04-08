@@ -66,3 +66,71 @@ export interface Parcela {
 }
 
 export type ParcelaInsert = Omit<Parcela, 'id' | 'created_at' | 'updated_at'>
+export type ParcelaUpdate = Partial<ParcelaInsert>
+
+// ── Animal ───────────────────────────────────────────────────────────────────
+
+export type EstadoAnimal = 'activo' | 'vendido' | 'muerto' | 'transferido'
+export type SexoAnimal = 'Macho' | 'Hembra'
+export type OrigenAnimal = 'Propio' | 'Comprado' | 'Nacido en campo'
+
+export interface Animal {
+  id: number
+  user_id: string | null
+  establecimiento_id: number
+  caravana_snig: string
+  caravana_propia: string | null
+  categoria: string
+  sexo: SexoAnimal
+  raza: string | null
+  fecha_nacimiento: string | null
+  madre_id: number | null
+  potrero_actual: number | null
+  parcela_actual: number | null
+  lote_actual: number | null
+  peso_entrada: number | null
+  fecha_peso_entrada: string | null
+  origen: OrigenAnimal | null
+  movimiento_origen_id: number | null
+  estado: EstadoAnimal
+  fecha_baja: string | null
+  observaciones: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type AnimalInsert = Omit<Animal, 'id' | 'created_at' | 'updated_at'>
+export type AnimalUpdate = Partial<AnimalInsert>
+
+// ── Movimiento Ganadero ──────────────────────────────────────────────────────
+
+export type TipoMovimiento = 'Compra' | 'Venta' | 'Nacimiento' | 'Muerte' | 'Traslado' | 'Ajuste'
+export type TipoUbicacion = 'potrero' | 'parcela'
+
+export interface MovimientoGanado {
+  id: number
+  user_id: string | null
+  establecimiento_id: number
+  fecha: string
+  tipo_movimiento: TipoMovimiento
+  categoria: string
+  cantidad: number
+  peso_promedio: number | null
+  peso_total: number | null
+  origen_tipo: TipoUbicacion | null
+  origen_id: number | null
+  destino_tipo: TipoUbicacion | null
+  destino_id: number | null
+  precio_unitario: number | null
+  precio_base: string | null
+  precio_total: number | null
+  contraparte: string | null
+  remito: string | null
+  guia_dgt: string | null
+  finanza_id: number | null
+  observaciones: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type MovimientoGanadoInsert = Omit<MovimientoGanado, 'id' | 'created_at' | 'updated_at'>

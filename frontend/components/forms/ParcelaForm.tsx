@@ -9,16 +9,9 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { SelectParametro } from "@/components/shared/SelectParametro"
-import { createPotrero, updatePotrero } from "@/lib/queries/potreros"
-import type { Potrero, UsoActual } from "@/types/database"
+import { createParcela, updateParcela } from "@/lib/queries/parcelas"
+import type { Parcela, UsoActual } from "@/types/database"
 
 // ── Esquema de validación ──────────────────────────────────────────────────
 
@@ -27,28 +20,24 @@ const schema = z.object({
   superficie: z
     .number("Ingresá un número válido")
     .positive("La superficie debe ser mayor a 0"),
-  uso_actual: z.enum(
-    ["Ganadería", "Agricultura", "Mixto", "Reserva", "Sin uso"],
-    "El uso es requerido"
-  ),
+  uso_actual: z.string().min(1, "El uso es requerido"),
   tipo_pastura: z.string().optional(),
-  aguada: z.boolean(),
-  sombra: z.boolean(),
   observaciones: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
 
-interface PotreroFormProps {
+interface ParcelaFormProps {
   establecimiento_id: number
-  initialData?: Potrero
+  potrero_id: number
+  initialData?: Parcela
   onSuccess: () => void
   onCancel: () => void
 }
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
-export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCancel }: PotreroFormProps) {
+export function ParcelaForm({ establecimiento_id, potrero_id, initialData, onSuccess, onCancel }: ParcelaFormProps) {
   const [enviando, setEnviando] = useState(false)
 
   const {
@@ -62,43 +51,44 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
     defaultValues: {
       nombre: initialData?.nombre || "",
       superficie: initialData?.superficie || undefined,
-      uso_actual: initialData?.uso_actual || undefined,
       tipo_pastura: initialData?.tipo_pastura || "",
-      aguada: initialData?.aguada ?? false,
-      sombra: initialData?.sombra ?? false,
+      uso_actual: initialData?.uso_actual || "",
       observaciones: initialData?.observaciones || "",
     },
   })
 
   const uso_actual = watch("uso_actual")
   const tipo_pastura = watch("tipo_pastura")
-  const aguada = watch("aguada")
-  const sombra = watch("sombra")
 
   const onSubmit = async (values: FormValues) => {
     setEnviando(true)
     try {
       if (initialData) {
-        await updatePotrero(initialData.id, {
-          ...values,
+        await updateParcela(initialData.id, {
+          nombre: values.nombre,
+          superficie: values.superficie,
+          uso_actual: values.uso_actual as UsoActual,
           tipo_pastura: values.tipo_pastura || null,
           observaciones: values.observaciones || null,
         })
-        toast.success("Potrero actualizado correctamente")
+        toast.success("Parcela actualizada correctamente")
       } else {
-        await createPotrero({
-          ...values,
+        await createParcela({
           establecimiento_id,
-          estado: "activo",
+          potrero_id,
+          nombre: values.nombre,
+          superficie: values.superficie,
+          uso_actual: values.uso_actual as UsoActual,
           tipo_pastura: values.tipo_pastura || null,
           observaciones: values.observaciones || null,
+          estado: "activo",
           user_id: null,
         })
-        toast.success("Potrero creado correctamente")
+        toast.success("Parcela creada correctamente")
       }
       onSuccess()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error al guardar"
+      const msg = err instanceof Error ? err.message : "Error al guardar la parcela"
       toast.error(msg)
     } finally {
       setEnviando(false)
@@ -110,12 +100,12 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
 
       {/* Nombre */}
       <div className="space-y-1.5">
-        <Label htmlFor="potrero-nombre">
+        <Label htmlFor="parcela-nombre">
           Nombre <span className="text-destructive">*</span>
         </Label>
         <Input
-          id="potrero-nombre"
-          placeholder="Ej: Potrero 1"
+          id="parcela-nombre"
+          placeholder="Ej: Parcela Eléctrico 1"
           aria-invalid={!!errors.nombre}
           {...register("nombre")}
         />
@@ -127,14 +117,14 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
       {/* Superficie + Uso actual */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="potrero-superficie">
+          <Label htmlFor="parcela-superficie">
             Superficie (ha) <span className="text-destructive">*</span>
           </Label>
           <Input
-            id="potrero-superficie"
+            id="parcela-superficie"
             type="number"
             step="0.01"
-            placeholder="Ej: 50"
+            placeholder="Ej: 10.5"
             aria-invalid={!!errors.superficie}
             {...register("superficie", { valueAsNumber: true })}
           />
@@ -147,25 +137,12 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
           <Label>
             Uso actual <span className="text-destructive">*</span>
           </Label>
-          <Select
-            value={uso_actual}
-            onValueChange={(val) =>
-              setValue("uso_actual", val as FormValues["uso_actual"], {
-                shouldValidate: true,
-              })
-            }
-          >
-            <SelectTrigger className="w-full" aria-invalid={!!errors.uso_actual}>
-              <SelectValue placeholder="Seleccionar" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Ganadería">Ganadería</SelectItem>
-              <SelectItem value="Agricultura">Agricultura</SelectItem>
-              <SelectItem value="Mixto">Mixto</SelectItem>
-              <SelectItem value="Reserva">Reserva</SelectItem>
-              <SelectItem value="Sin uso">Sin uso</SelectItem>
-            </SelectContent>
-          </Select>
+          <SelectParametro
+            clave="uso_subdivision"
+            value={uso_actual ?? ""}
+            onChange={(val) => setValue("uso_actual", val, { shouldValidate: true })}
+            placeholder="Seleccionar"
+          />
           {errors.uso_actual && (
             <p className="text-sm text-destructive">{errors.uso_actual.message}</p>
           )}
@@ -183,34 +160,11 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
         />
       </div>
 
-      {/* Aguada y Sombra */}
-      <div className="flex gap-6">
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-input accent-primary"
-            checked={aguada}
-            onChange={(e) => setValue("aguada", e.target.checked)}
-          />
-          <span className="text-sm">Aguada</span>
-        </label>
-
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-input accent-primary"
-            checked={sombra}
-            onChange={(e) => setValue("sombra", e.target.checked)}
-          />
-          <span className="text-sm">Sombra</span>
-        </label>
-      </div>
-
       {/* Observaciones */}
       <div className="space-y-1.5">
-        <Label htmlFor="potrero-obs">Observaciones</Label>
+        <Label htmlFor="parcela-obs">Observaciones</Label>
         <textarea
-          id="potrero-obs"
+          id="parcela-obs"
           rows={2}
           placeholder="Notas adicionales..."
           className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"

@@ -41,3 +41,46 @@ export async function updatePotrero(id: number, values: PotreroUpdate) {
   if (error) throw error
   return data
 }
+
+// Desactiva lógicamente un potrero
+export async function desactivarPotrero(id: number) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('potreros')
+    .update({ estado: 'inactivo' })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Borra físicamente un potrero si no tiene dependencias
+export async function borrarPotreroFisico(id: number) {
+  const supabase = createClient()
+  
+  const { count: parcelasCount, error: errPar } = await supabase
+    .from('parcelas')
+    .select('*', { count: 'exact', head: true })
+    .eq('potrero_id', id)
+  if (errPar) throw errPar
+
+  const { count: animalesCount, error: errAni } = await supabase
+    .from('animales')
+    .select('*', { count: 'exact', head: true })
+    .eq('potrero_actual', id)
+  if (errAni) throw errAni
+
+  if ((parcelasCount && parcelasCount > 0) || (animalesCount && animalesCount > 0)) {
+    throw new Error('No se puede eliminar el potrero porque tiene parcelas o animales asociados.')
+  }
+
+  const { error } = await supabase
+    .from('potreros')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}

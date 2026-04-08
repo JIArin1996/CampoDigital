@@ -18,7 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { SelectParametro } from "@/components/shared/SelectParametro"
-import { createEstablecimiento } from "@/lib/queries/establecimientos"
+import { createEstablecimiento, updateEstablecimiento } from "@/lib/queries/establecimientos"
+import type { Establecimiento } from "@/types/database"
 
 // ── Esquema de validación ──────────────────────────────────────────────────
 
@@ -41,7 +42,11 @@ type FormValues = z.infer<typeof schema>
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
-export function EstablecimientoForm() {
+interface EstablecimientoFormProps {
+  initialData?: Establecimiento
+}
+
+export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = {}) {
   const router = useRouter()
   const [enviando, setEnviando] = useState(false)
 
@@ -56,8 +61,16 @@ export function EstablecimientoForm() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      fecha_alta: today,
-      departamento: "",
+      nombre: initialData?.nombre || "",
+      departamento: initialData?.departamento || "",
+      localidad: initialData?.localidad || "",
+      superficie_total: initialData?.superficie_total || undefined,
+      tipo: initialData?.tipo || undefined,
+      propietario: initialData?.propietario || "",
+      rut: initialData?.rut || "",
+      dicose: initialData?.dicose || "",
+      fecha_alta: initialData?.fecha_alta ? initialData.fecha_alta.split("T")[0] : today,
+      observaciones: initialData?.observaciones || "",
     },
   })
 
@@ -67,18 +80,31 @@ export function EstablecimientoForm() {
   const onSubmit = async (values: FormValues) => {
     setEnviando(true)
     try {
-      await createEstablecimiento({
-        ...values,
-        estado: "activo",
-        localidad: values.localidad || null,
-        propietario: values.propietario || null,
-        rut: values.rut || null,
-        dicose: values.dicose || null,
-        observaciones: values.observaciones || null,
-        user_id: null,
-      })
-      toast.success("Establecimiento creado correctamente")
-      router.push("/establecimientos")
+      if (initialData) {
+        await updateEstablecimiento(initialData.id, {
+          ...values,
+          localidad: values.localidad || null,
+          propietario: values.propietario || null,
+          rut: values.rut || null,
+          dicose: values.dicose || null,
+          observaciones: values.observaciones || null,
+        })
+        toast.success("Establecimiento actualizado correctamente")
+        router.push(`/establecimientos/${initialData.id}`)
+      } else {
+        await createEstablecimiento({
+          ...values,
+          estado: "activo",
+          localidad: values.localidad || null,
+          propietario: values.propietario || null,
+          rut: values.rut || null,
+          dicose: values.dicose || null,
+          observaciones: values.observaciones || null,
+          user_id: null,
+        })
+        toast.success("Establecimiento creado correctamente")
+        router.push("/establecimientos")
+      }
       router.refresh()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al guardar"
