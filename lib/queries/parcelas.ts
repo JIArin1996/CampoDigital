@@ -1,6 +1,20 @@
 import { createClient } from '@/lib/supabase/client'
 import type { ParcelaInsert, ParcelaUpdate } from '@/types/database'
 
+// Obtiene todas las parcelas activas de un establecimiento (para selectors)
+export async function getParcelasEstablecimiento(establecimiento_id: number) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('parcelas')
+    .select('id, nombre, potrero_id, superficie')
+    .eq('establecimiento_id', establecimiento_id)
+    .eq('estado', 'activo')
+    .order('nombre')
+
+  if (error) throw error
+  return data as { id: number; nombre: string; potrero_id: number; superficie: number }[]
+}
+
 // Obtiene todas las parcelas activas de un potrero
 export async function getParcelas(potrero_id: number) {
   const supabase = createClient()

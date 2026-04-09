@@ -9,7 +9,7 @@ export async function getAnimales(
   const supabase = createClient()
   let query = supabase
     .from('animales')
-    .select('*, potrero:potreros(nombre), parcela:parcelas(nombre)')
+    .select('*, potrero:potreros(nombre), parcela:parcelas(nombre), lote:lotes_manejo!lote_actual(id, nombre)')
     .eq('establecimiento_id', establecimiento_id)
 
   if (filtros?.estado) {
@@ -34,7 +34,7 @@ export async function getAnimal(id: number) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('animales')
-    .select('*, potrero:potreros(nombre), parcela:parcelas(nombre), establecimiento:establecimientos(nombre)')
+    .select('*, potrero:potreros(nombre), parcela:parcelas(nombre), lote:lotes_manejo!lote_actual(id, nombre), establecimiento:establecimientos(nombre)')
     .eq('id', id)
     .single()
 
@@ -72,10 +72,11 @@ export async function updateAnimal(id: number, values: AnimalUpdate) {
 // Baja lógica
 export async function darBajaAnimal(id: number, estado: string, fecha_baja: string) {
   return updateAnimal(id, {
-    estado: estado as any, // 'vendido' | 'muerto' | 'transferido'
+    estado: estado as any,
     fecha_baja,
     potrero_actual: null,
-    parcela_actual: null
+    parcela_actual: null,
+    lote_actual: null,
   })
 }
 

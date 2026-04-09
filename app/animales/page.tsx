@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { AnimalesClientWrapper } from "@/components/animales/AnimalesClientWrapper"
 

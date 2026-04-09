@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { PotreroForm } from "@/components/forms/PotreroForm"
 import { ParcelaForm } from "@/components/forms/ParcelaForm"
+import { DicosePropiedadSection } from "@/components/establecimientos/DicosePropiedadSection"
 import { desactivarParcela } from "@/lib/queries/parcelas"
 import { desactivarPotrero, borrarPotreroFisico } from "@/lib/queries/potreros"
 import { desactivarEstablecimiento, borrarEstablecimientoFisico } from "@/lib/queries/establecimientos"
@@ -28,6 +29,7 @@ interface EstablecimientoDetalleProps {
   establecimiento: Establecimiento
   potreros: Potrero[]
   parcelas: Parcela[]
+  onRefresh?: () => void
 }
 
 // Colores por uso actual del potrero
@@ -43,8 +45,10 @@ export function EstablecimientoDetalle({
   establecimiento,
   potreros,
   parcelas,
+  onRefresh,
 }: EstablecimientoDetalleProps) {
   const router = useRouter()
+  const recargar = () => onRefresh ? onRefresh() : router.refresh()
   const [dialogAbierto, setDialogAbierto] = useState(false)
   const [dialogParcelaAbierto, setDialogParcelaAbierto] = useState(false)
   const [potreroActivoParaParcela, setPotreroActivoParaParcela] = useState<number | null>(null)
@@ -64,7 +68,7 @@ export function EstablecimientoDetalle({
     setDialogAbierto(false)
     setPotreroAEditar(null)
     // Recarga los datos del Server Component
-    router.refresh()
+    recargar()
   }
 
   const abrirDialogPotrero = (potrero?: Potrero) => {
@@ -77,7 +81,7 @@ export function EstablecimientoDetalle({
     try {
       await desactivarParcela(parcelaId);
       toast.success("Parcela desactivada correctamente");
-      router.refresh();
+      recargar();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Error al desactivar la parcela");
     }
@@ -87,7 +91,7 @@ export function EstablecimientoDetalle({
     setDialogParcelaAbierto(false)
     setPotreroActivoParaParcela(null)
     setParcelaAEditar(null)
-    router.refresh()
+    recargar()
   }
 
   const abrirDialogParcela = (potreroId: number, parcela?: Parcela) => {
@@ -128,7 +132,7 @@ export function EstablecimientoDetalle({
     try {
       await desactivarPotrero(id)
       toast.success("Potrero desactivado correctamente")
-      router.refresh()
+      recargar()
     } catch (err: any) {
       toast.error(err.message || "Error al desactivar potrero")
     }
@@ -140,7 +144,7 @@ export function EstablecimientoDetalle({
       await borrarPotreroFisico(id)
       toast.success("Potrero eliminado definitivamente")
       setDeleteModalPotrero(null)
-      router.refresh()
+      recargar()
     } catch (err: any) {
       toast.error(err.message || "No se pudo eliminar")
       setDeleteModalPotrero(null)
@@ -185,6 +189,12 @@ export function EstablecimientoDetalle({
                 <dd className="font-medium">{establecimiento.localidad}</dd>
               </div>
             )}
+            {establecimiento.paraje && (
+              <div>
+                <dt className="text-muted-foreground">Paraje</dt>
+                <dd className="font-medium">{establecimiento.paraje}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-muted-foreground">Superficie total</dt>
               <dd className="font-medium">{establecimiento.superficie_total} ha</dd>
@@ -195,10 +205,10 @@ export function EstablecimientoDetalle({
                 <dd className="font-medium">{establecimiento.propietario}</dd>
               </div>
             )}
-            {establecimiento.dicose && (
+            {establecimiento.dicose_fisico && (
               <div>
-                <dt className="text-muted-foreground">DICOSE</dt>
-                <dd className="font-medium font-mono">{establecimiento.dicose}</dd>
+                <dt className="text-muted-foreground">DICOSE Físico</dt>
+                <dd className="font-medium font-mono">{establecimiento.dicose_fisico}</dd>
               </div>
             )}
             <div>
@@ -213,6 +223,13 @@ export function EstablecimientoDetalle({
               {establecimiento.observaciones}
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Sección DICOSE Propiedad */}
+      <Card>
+        <CardContent className="pt-5">
+          <DicosePropiedadSection establecimiento_id={establecimiento.id} />
         </CardContent>
       </Card>
 

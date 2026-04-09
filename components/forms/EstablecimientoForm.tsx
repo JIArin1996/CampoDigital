@@ -27,13 +27,17 @@ const schema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
   departamento: z.string().min(1, "El departamento es requerido"),
   localidad: z.string().optional(),
+  paraje: z.string().optional(),
   superficie_total: z
     .number("Ingresá un número válido")
     .positive("La superficie debe ser mayor a 0"),
   tipo: z.enum(["Ganadero", "Agrícola", "Mixto"], "El tipo es requerido"),
   propietario: z.string().optional(),
   rut: z.string().optional(),
-  dicose: z.string().optional(),
+  dicose_fisico: z
+    .string()
+    .optional()
+    .refine(v => !v || /^\d{9}$/.test(v), "Debe tener exactamente 9 dígitos numéricos"),
   fecha_alta: z.string().min(1, "La fecha de alta es requerida"),
   observaciones: z.string().optional(),
 })
@@ -61,16 +65,19 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      nombre: initialData?.nombre || "",
-      departamento: initialData?.departamento || "",
-      localidad: initialData?.localidad || "",
-      superficie_total: initialData?.superficie_total || undefined,
-      tipo: initialData?.tipo || undefined,
-      propietario: initialData?.propietario || "",
-      rut: initialData?.rut || "",
-      dicose: initialData?.dicose || "",
-      fecha_alta: initialData?.fecha_alta ? initialData.fecha_alta.split("T")[0] : today,
-      observaciones: initialData?.observaciones || "",
+      nombre: initialData?.nombre ?? "",
+      departamento: initialData?.departamento ?? "",
+      localidad: initialData?.localidad ?? "",
+      paraje: initialData?.paraje ?? "",
+      superficie_total: initialData?.superficie_total ?? undefined,
+      tipo: initialData?.tipo ?? undefined,
+      propietario: initialData?.propietario ?? "",
+      rut: initialData?.rut ?? "",
+      dicose_fisico: initialData?.dicose_fisico ?? "",
+      fecha_alta: initialData?.fecha_alta
+        ? initialData.fecha_alta.split("T")[0]
+        : today,
+      observaciones: initialData?.observaciones ?? "",
     },
   })
 
@@ -84,9 +91,10 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         await updateEstablecimiento(initialData.id, {
           ...values,
           localidad: values.localidad || null,
+          paraje: values.paraje || null,
           propietario: values.propietario || null,
           rut: values.rut || null,
-          dicose: values.dicose || null,
+          dicose_fisico: values.dicose_fisico || null,
           observaciones: values.observaciones || null,
         })
         toast.success("Establecimiento actualizado correctamente")
@@ -96,9 +104,10 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
           ...values,
           estado: "activo",
           localidad: values.localidad || null,
+          paraje: values.paraje || null,
           propietario: values.propietario || null,
           rut: values.rut || null,
-          dicose: values.dicose || null,
+          dicose_fisico: values.dicose_fisico || null,
           observaciones: values.observaciones || null,
           user_id: null,
         })
@@ -107,8 +116,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
       }
       router.refresh()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error al guardar"
-      toast.error(msg)
+      toast.error(err instanceof Error ? err.message : "Error al guardar")
     } finally {
       setEnviando(false)
     }
@@ -117,7 +125,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
 
-      {/* Fila 1: Nombre */}
+      {/* Nombre */}
       <div className="space-y-1.5">
         <Label htmlFor="nombre">
           Nombre <span className="text-destructive">*</span>
@@ -133,7 +141,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         )}
       </div>
 
-      {/* Fila 2: Departamento + Localidad */}
+      {/* Departamento + Localidad */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>
@@ -142,7 +150,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
           <SelectParametro
             clave="departamentos"
             value={departamento}
-            onChange={(val) => setValue("departamento", val, { shouldValidate: true })}
+            onChange={val => setValue("departamento", val, { shouldValidate: true })}
             placeholder="Seleccionar departamento"
           />
           {errors.departamento && (
@@ -152,15 +160,22 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
 
         <div className="space-y-1.5">
           <Label htmlFor="localidad">Localidad</Label>
-          <Input
-            id="localidad"
-            placeholder="Ej: Tacuarembó"
-            {...register("localidad")}
-          />
+          <Input id="localidad" placeholder="Ej: Tacuarembó" {...register("localidad")} />
         </div>
       </div>
 
-      {/* Fila 3: Superficie + Tipo */}
+      {/* Paraje */}
+      <div className="space-y-1.5">
+        <Label htmlFor="paraje">Paraje</Label>
+        <Input
+          id="paraje"
+          placeholder="Ej: Paso del Cerro"
+          {...register("paraje")}
+        />
+        <p className="text-xs text-muted-foreground">Referencia geográfica del DICOSE Físico (opcional)</p>
+      </div>
+
+      {/* Superficie + Tipo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="superficie_total">
@@ -185,12 +200,12 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
           </Label>
           <Select
             value={tipoValue}
-            onValueChange={(val) =>
-              setValue("tipo", val as FormValues["tipo"], { shouldValidate: true })
-            }
+            onValueChange={val => setValue("tipo", val as FormValues["tipo"], { shouldValidate: true })}
           >
             <SelectTrigger className="w-full" aria-invalid={!!errors.tipo}>
-              <SelectValue placeholder="Seleccionar tipo" />
+              <SelectValue>
+                {(v: string | null) => v || <span className="text-muted-foreground">Seleccionar tipo</span>}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="Ganadero">Ganadero</SelectItem>
@@ -204,15 +219,11 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
       </div>
 
-      {/* Fila 4: Propietario + Fecha de alta */}
+      {/* Propietario + Fecha de alta */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="propietario">Propietario</Label>
-          <Input
-            id="propietario"
-            placeholder="Nombre del propietario"
-            {...register("propietario")}
-          />
+          <Input id="propietario" placeholder="Nombre del propietario" {...register("propietario")} />
         </div>
 
         <div className="space-y-1.5">
@@ -231,7 +242,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
       </div>
 
-      {/* Fila 5: RUT + DICOSE */}
+      {/* RUT + DICOSE Físico */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="rut">RUT</Label>
@@ -239,16 +250,23 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="dicose">DICOSE</Label>
+          <Label htmlFor="dicose_fisico">DICOSE Físico</Label>
           <Input
-            id="dicose"
-            placeholder="Ej: 01.234.567"
-            {...register("dicose")}
+            id="dicose_fisico"
+            placeholder="Ej: 123456789"
+            maxLength={9}
+            aria-invalid={!!errors.dicose_fisico}
+            {...register("dicose_fisico")}
           />
+          {errors.dicose_fisico ? (
+            <p className="text-sm text-destructive">{errors.dicose_fisico.message}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">9 dígitos numéricos</p>
+          )}
         </div>
       </div>
 
-      {/* Fila 6: Observaciones */}
+      {/* Observaciones */}
       <div className="space-y-1.5">
         <Label htmlFor="observaciones">Observaciones</Label>
         <textarea
@@ -265,15 +283,11 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         <Button type="submit" disabled={enviando}>
           {enviando ? "Guardando..." : "Guardar"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={enviando}
-        >
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={enviando}>
           Cancelar
         </Button>
       </div>
+
     </form>
   )
 }

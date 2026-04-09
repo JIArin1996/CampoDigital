@@ -54,6 +54,33 @@ export async function updateEstablecimiento(id: number, values: EstablecimientoU
   return data
 }
 
+// Obtiene los establecimientos inactivos
+export async function getEstablecimientosInactivos() {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .select('*')
+    .eq('estado', 'inactivo')
+    .order('nombre')
+
+  if (error) throw error
+  return data
+}
+
+// Reactiva un establecimiento inactivo
+export async function reactivarEstablecimiento(id: number) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('establecimientos')
+    .update({ estado: 'activo' })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 // Desactiva lógicamente un establecimiento
 export async function desactivarEstablecimiento(id: number) {
   const supabase = createClient()

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Calendar, Tag, MapPin, Scale, Info, Edit, Trash2 } from "lucide-react"
+import { Tag, MapPin, Scale, Info, Edit, Trash2, Layers, History } from "lucide-react"
 import { toast } from "sonner"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,15 +13,71 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { darBajaAnimal } from "@/lib/queries/animales"
+import {
+  getLotesManejo,
+  asignarAnimalALote,
+  quitarAnimalDeLote,
+  getHistorialLoteAnimal,
+  type LoteManejo,
+} from "@/lib/queries/lotes_manejo"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 
-export function AnimalDetalle({ animal }: { animal: any }) {
+export function AnimalDetalle({ animal: initialAnimal }: { animal: any }) {
   const router = useRouter()
+  const [animal, setAnimal] = useState(initialAnimal)
   const [modalBaja, setModalBaja] = useState(false)
   const [estadoBaja, setEstadoBaja] = useState("vendido")
   const [fechaBaja, setFechaBaja] = useState(() => new Date().toISOString().split("T")[0])
   const [enviando, setEnviando] = useState(false)
+
+  // Lote state
+  const [lotes, setLotes] = useState<LoteManejo[]>([])
+  const [historialLote, setHistorialLote] = useState<any[]>([])
+  const [modalLote, setModalLote] = useState(false)
+  const [loteSeleccionado, setLoteSeleccionado] = useState("")
+  const [fechaLote, setFechaLote] = useState(() => new Date().toISOString().split("T")[0])
+  const [procesandoLote, setProcesandoLote] = useState(false)
+
+  useEffect(() => {
+    if (animal.establecimiento_id) {
+      getLotesManejo(animal.establecimiento_id).then(setLotes).catch(() => {})
+    }
+    getHistorialLoteAnimal(animal.id).then(setHistorialLote).catch(() => {})
+  }, [animal.id, animal.establecimiento_id])
+
+  const handleAsignarLote = async () => {
+    if (!loteSeleccionado) { toast.error("Seleccioná un lote"); return }
+    setProcesandoLote(true)
+    try {
+      await asignarAnimalALote(animal.id, Number(loteSeleccionado), fechaLote)
+      const loteObj = lotes.find(l => l.id === Number(loteSeleccionado))
+      setAnimal((prev: any) => ({ ...prev, lote_actual: Number(loteSeleccionado), lote: loteObj ? { id: loteObj.id, nombre: loteObj.nombre } : null }))
+      setHistorialLote(await getHistorialLoteAnimal(animal.id))
+      toast.success("Animal asignado al lote")
+      setModalLote(false)
+      setLoteSeleccionado("")
+    } catch (e: any) {
+      toast.error(e.message || "Error al asignar lote")
+    } finally {
+      setProcesandoLote(false)
+    }
+  }
+
+  const handleQuitarLote = async () => {
+    if (!window.confirm("¿Quitar al animal de su lote actual?")) return
+    setProcesandoLote(true)
+    try {
+      await quitarAnimalDeLote(animal.id, new Date().toISOString().split("T")[0])
+      setAnimal((prev: any) => ({ ...prev, lote_actual: null, lote: null }))
+      setHistorialLote(await getHistorialLoteAnimal(animal.id))
+      toast.success("Animal quitado del lote")
+    } catch (e: any) {
+      toast.error(e.message || "Error al quitar del lote")
+    } finally {
+      setProcesandoLote(false)
+    }
+  }
 
   const handleBaja = async () => {
     setEnviando(true)
@@ -167,6 +223,73 @@ export function AnimalDetalle({ animal }: { animal: any }) {
         </Card>
       </div>
 
+      {/* LOTE DE MANEJO */}
+      {isActivo && (
+        <Card>
+          <CardHeader className="pb-3 border-b border-border/40">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center text-muted-foreground">
+                <Layers className="h-4 w-4 mr-2 text-primary" /> Lote de Manejo
+              </CardTitle>
+              <div className="flex gap-2">
+                {animal.lote ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setModalLote(true)} disabled={procesandoLote}>
+                      Cambiar lote
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={handleQuitarLote} disabled={procesandoLote}>
+                      Quitar del lote
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setModalLote(true)} disabled={procesandoLote || lotes.length === 0}>
+                    Asignar a lote
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4 text-sm">
+            {animal.lote ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                  {animal.lote.nombre}
+                </span>
+                <span className="text-xs text-muted-foreground">lote actual</span>
+              </div>
+            ) : (
+              <p className="text-muted-foreground italic text-sm">
+                {lotes.length === 0
+                  ? "No hay lotes creados. Creá uno en el módulo de Animales → Lotes."
+                  : "Sin lote asignado"}
+              </p>
+            )}
+
+            {/* Historial */}
+            {historialLote.length > 0 && (
+              <div className="mt-4 border-t pt-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <History className="h-3.5 w-3.5" /> Historial
+                </p>
+                <ul className="space-y-1.5">
+                  {historialLote.map((h: any) => (
+                    <li key={h.id} className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{h.lote?.nombre ?? "Lote eliminado"}</span>
+                      <span>
+                        {new Date(h.fecha_entrada + "T00:00:00").toLocaleDateString("es-UY")}
+                        {h.fecha_salida
+                          ? ` → ${new Date(h.fecha_salida + "T00:00:00").toLocaleDateString("es-UY")}`
+                          : " → actual"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
        {/* OBSERVACIONES */}
        {animal.observaciones && (
          <Card>
@@ -178,6 +301,46 @@ export function AnimalDetalle({ animal }: { animal: any }) {
            </CardContent>
          </Card>
        )}
+
+      {/* Modal Asignar / Cambiar Lote */}
+      <Dialog open={modalLote} onOpenChange={open => { setModalLote(open); if (!open) setLoteSeleccionado("") }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{animal.lote ? "Cambiar Lote" : "Asignar a Lote"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Lote de Manejo <span className="text-destructive">*</span></Label>
+              <Select value={loteSeleccionado} onValueChange={v => v !== null && setLoteSeleccionado(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(val: string | null) =>
+                      val
+                        ? (lotes.find(l => l.id.toString() === val)?.nombre ?? val)
+                        : <span className="text-muted-foreground">Seleccionar lote...</span>
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {lotes.map(l => (
+                    <SelectItem key={l.id} value={l.id.toString()}>{l.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Fecha de Entrada</Label>
+              <Input type="date" value={fechaLote} onChange={e => setFechaLote(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button variant="outline" onClick={() => setModalLote(false)} disabled={procesandoLote}>Cancelar</Button>
+            <Button onClick={handleAsignarLote} disabled={procesandoLote || !loteSeleccionado}>
+              {procesandoLote ? "Procesando..." : "Confirmar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Dar de Baja */}
       <Dialog open={modalBaja} onOpenChange={setModalBaja}>
