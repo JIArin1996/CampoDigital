@@ -1,8 +1,30 @@
 import { createClient } from '@/lib/supabase/client'
-import type { MovimientoGanado, MovimientoGanadoInsert, TipoMovimiento } from '@/types/database'
+import type {
+  MovimientoGanado,
+  MovimientoGanadoInsert,
+  LoteMovimiento,
+  LoteMovimientoInsert,
+  TipoMovimiento,
+} from '@/types/database'
 
-// ── Consultas ────────────────────────────────────────────────────────────────
+// ── Lotes de movimiento ───────────────────────────────────────────────────────
 
+// Crea el registro agrupador del evento. Debe llamarse ANTES de createMovimientosBatch.
+export async function createLoteMovimiento(values: LoteMovimientoInsert): Promise<LoteMovimiento> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('lotes_movimiento')
+    .insert(values)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as LoteMovimiento
+}
+
+// ── Movimientos individuales ──────────────────────────────────────────────────
+
+// Obtiene todos los movimientos del establecimiento, con filtros opcionales.
 export async function getMovimientos(
   establecimiento_id: number,
   filtros?: {
@@ -28,9 +50,8 @@ export async function getMovimientos(
   return data as MovimientoGanado[]
 }
 
-// ── Inserción ────────────────────────────────────────────────────────────────
-
-export async function createMovimiento(values: MovimientoGanadoInsert) {
+// Inserta un único movimiento (carga manual).
+export async function createMovimiento(values: MovimientoGanadoInsert): Promise<MovimientoGanado> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('movimientos_ganado')
@@ -40,4 +61,17 @@ export async function createMovimiento(values: MovimientoGanadoInsert) {
 
   if (error) throw error
   return data as MovimientoGanado
+}
+
+// Inserta N movimientos de una sola vez (carga masiva por Excel).
+// No retorna los registros creados para evitar payloads innecesariamente grandes.
+export async function createMovimientosBatch(rows: MovimientoGanadoInsert[]): Promise<void> {
+  if (rows.length === 0) return
+
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('movimientos_ganado')
+    .insert(rows)
+
+  if (error) throw error
 }

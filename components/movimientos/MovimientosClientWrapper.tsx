@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getMovimientos } from "@/lib/queries/movimientos"
 import { getDicosePropiedad } from "@/lib/queries/dicose_propiedad"
+import { getPotreros } from "@/lib/queries/potreros"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { MovimientoForm } from "@/components/forms/MovimientoForm"
 import { MovimientosTable } from "./MovimientosTable"
-import type { MovimientoGanado } from "@/types/database"
+import type { MovimientoGanado, Potrero } from "@/types/database"
 import type { DicosePropiedad } from "@/lib/queries/dicose_propiedad"
 
 export function MovimientosClientWrapper() {
@@ -24,6 +25,7 @@ export function MovimientosClientWrapper() {
 
   const [movimientos, setMovimientos] = useState<MovimientoGanado[]>([])
   const [dicoseList, setDicoseList] = useState<DicosePropiedad[]>([])
+  const [potreros, setPotreros] = useState<Potrero[]>([])
   const [cargando, setCargando] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -32,12 +34,14 @@ export function MovimientosClientWrapper() {
 
     setCargando(true)
     try {
-      const [movs, dicose] = await Promise.all([
+      const [movs, dicose, pots] = await Promise.all([
         getMovimientos(establecimientoId),
         getDicosePropiedad(establecimientoId),
+        getPotreros(establecimientoId),
       ])
       setMovimientos(movs)
       setDicoseList(dicose)
+      setPotreros(pots as Potrero[])
     } catch (error) {
       console.error("Error cargando movimientos:", error)
     } finally {
@@ -79,17 +83,19 @@ export function MovimientosClientWrapper() {
 
       {/* Modal de registro */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Registrar Movimiento</DialogTitle>
             <DialogDescription>
               Ingresá los datos del movimiento ganadero.
             </DialogDescription>
           </DialogHeader>
-          {establecimientoId > 0 && (
+          {establecimientoActivo && establecimientoId > 0 && (
             <MovimientoForm
               establecimiento_id={establecimientoId}
+              establecimiento={establecimientoActivo}
               dicoseList={dicoseList}
+              potreros={potreros}
               onSuccess={() => {
                 setModalOpen(false)
                 cargarDatos()

@@ -139,7 +139,7 @@ export type AnimalUpdate = Partial<AnimalInsert>
 
 // ── Movimiento Ganadero ──────────────────────────────────────────────────────
 
-export type TipoMovimiento = 'Ingreso' | 'Egreso' | 'Traslado' | 'Afectacion' | 'Reclasificacion'
+export type TipoMovimiento = 'Ingreso' | 'Egreso' | 'Traslado' | 'Afectacion'
 
 export type SubtipoMovimiento =
   | 'Nacimiento'
@@ -149,17 +149,40 @@ export type SubtipoMovimiento =
   | 'Venta en Consignacion'
   | 'Muerte'
   | 'Traslado entre Establecimientos'
+  | 'Cambio de Potrero'
   | 'Afectacion a Fideicomiso'
-  | 'Cambio de Categoria'
+  | 'Afectacion a Capitalizacion'
+  | 'Afectacion a Consignacion sin Movimiento'
 
 // Mapa tipo → subtipos válidos para usar en formularios
 export const SUBTIPOS_POR_TIPO: Record<TipoMovimiento, SubtipoMovimiento[]> = {
-  Ingreso:         ['Nacimiento', 'Compra'],
-  Egreso:          ['Venta a Productor', 'Venta a Frigorifico', 'Venta en Consignacion', 'Muerte'],
-  Traslado:        ['Traslado entre Establecimientos'],
-  Afectacion:      ['Afectacion a Fideicomiso'],
-  Reclasificacion: ['Cambio de Categoria'],
+  Ingreso:    ['Nacimiento', 'Compra'],
+  Egreso:     ['Venta a Productor', 'Venta a Frigorifico', 'Venta en Consignacion', 'Muerte'],
+  Traslado:   ['Traslado entre Establecimientos', 'Cambio de Potrero'],
+  Afectacion: ['Afectacion a Fideicomiso', 'Afectacion a Capitalizacion', 'Afectacion a Consignacion sin Movimiento'],
 }
+
+// ── Lote de Movimiento ────────────────────────────────────────────────────────
+
+export interface LoteMovimiento {
+  id: number
+  user_id: string | null
+  establecimiento_id: number
+  fecha: string
+  tipo_movimiento: TipoMovimiento
+  subtipo: SubtipoMovimiento
+  cantidad_animales: number | null
+  contraparte: string | null
+  precio_total_lote: number | null
+  origen_carga: 'Manual' | 'Excel'
+  observaciones: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type LoteMovimientoInsert = Omit<LoteMovimiento, 'id' | 'created_at' | 'updated_at'>
+
+// ── Movimiento Ganadero ───────────────────────────────────────────────────────
 
 export interface MovimientoGanado {
   id: number
@@ -171,10 +194,23 @@ export interface MovimientoGanado {
   fecha: string
   tipo_movimiento: TipoMovimiento
   subtipo: SubtipoMovimiento | null
+  // DICOSE asociados al movimiento
   dicose_propiedad_id: number | null
+  dicose_propiedad_origen: string | null  // código DICOSE Propiedad origen/vendedor/actual
+  dicose_propiedad_destino: string | null // código DICOSE Propiedad destino/comprador/nuevo titular
+  dicose_fisico_origen: string | null     // DICOSE Físico origen/vendedor (9 dígitos)
+  dicose_fisico_destino: string | null    // DICOSE Físico destino/comprador (9 dígitos)
+  // Ubicación
   potrero_id: number | null
   establecimiento_destino_id: number | null
-  peso_kg: number | null
+  // Documentación
+  serie_guia: string | null
+  numero_autorizacion: string | null
+  numero_tropa: string | null             // solo Venta a Frigorífico
+  // Pesos y precios
+  cantidad: number | null
+  peso_promedio: number | null
+  peso_total: number | null
   precio_unitario: number | null
   precio_total: number | null
   contraparte: string | null

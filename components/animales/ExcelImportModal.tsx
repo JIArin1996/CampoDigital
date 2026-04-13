@@ -100,7 +100,8 @@ export function ExcelImportModal({ open, onOpenChange }: ExcelImportModalProps) 
           edad_meses_ingreso: edadMeses,
           fecha_ingreso: hoy,
           es_toro: false,
-          categoria_actual: categoriaActual,
+          categoria: categoriaActual,        // columna real en Supabase (NOT NULL)
+          categoria_actual: categoriaActual, // columna futura, pendiente de migración
           raza: row.raza ? String(row.raza).trim() : null,
           fecha_nacimiento: row.fecha_nacimiento ? String(row.fecha_nacimiento).trim() : null,
           peso_entrada: row.peso_entrada ? Number(row.peso_entrada) : null,

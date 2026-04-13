@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { AnimalInsert, AnimalUpdate } from '@/types/database'
+import type { Animal, AnimalInsert, AnimalUpdate, EstadoAnimal } from '@/types/database'
 
 // Obtiene los animales de un establecimiento, con filtros opcionales
 export async function getAnimales(
@@ -89,5 +89,80 @@ export async function createAnimalesBulk(values: AnimalInsert[]) {
     .select()
 
   if (error) throw error
-  return data
+  return data as Animal[]
+}
+
+// Busca animales por caravana SNIG dentro de un establecimiento.
+// Retorna solo los que existen — comparar longitud con el array de entrada para detectar faltantes.
+export async function getAnimalesPorCaravanas(
+  establecimiento_id: number,
+  caravanas: string[]
+): Promise<Animal[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('animales')
+    .select('id, caravana_snig, estado, potrero_actual, dicose_propiedad_id, establecimiento_id')
+    .eq('establecimiento_id', establecimiento_id)
+    .in('caravana_snig', caravanas)
+
+  if (error) throw error
+  return data as Animal[]
+}
+
+// Actualiza el estado de múltiples animales a la vez (ventas, muerte).
+export async function updateAnimalesEstadoBatch(
+  ids: number[],
+  estado: EstadoAnimal,
+  fecha_baja: string
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('animales')
+    .update({ estado, fecha_baja, potrero_actual: null, parcela_actual: null, lote_actual: null })
+    .in('id', ids)
+
+  if (error) throw error
+}
+
+// Actualiza el potrero de múltiples animales (cambio de potrero).
+export async function updateAnimalesPotrerosBatch(
+  ids: number[],
+  potrero_id: number
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('animales')
+    .update({ potrero_actual: potrero_id })
+    .in('id', ids)
+
+  if (error) throw error
+}
+
+// Actualiza el DICOSE Propiedad de múltiples animales (afectaciones).
+export async function updateAnimalesDicosePropiedadBatch(
+  ids: number[],
+  dicose_propiedad_id: number
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('animales')
+    .update({ dicose_propiedad_id })
+    .in('id', ids)
+
+  if (error) throw error
+}
+
+// Traslada múltiples animales a otro establecimiento (actualiza establecimiento + DICOSE Propiedad).
+export async function updateAnimalesTrasladoBatch(
+  ids: number[],
+  establecimiento_id: number,
+  dicose_propiedad_id: number
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('animales')
+    .update({ establecimiento_id, dicose_propiedad_id, potrero_actual: null })
+    .in('id', ids)
+
+  if (error) throw error
 }
