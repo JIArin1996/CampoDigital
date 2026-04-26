@@ -14,7 +14,7 @@ export interface Establecimiento {
   tipo: 'Ganadero' | 'Agrícola' | 'Mixto'
   propietario: string | null
   rut: string | null
-  dicose: string | null
+  dicose_fisico: string | null
   fecha_alta: string
   estado: EstadoBase
   observaciones: string | null
@@ -104,7 +104,35 @@ export type AnimalUpdate = Partial<AnimalInsert>
 
 // ── Movimiento Ganadero ──────────────────────────────────────────────────────
 
+// Tipos internos de la DB (compatibles con el trigger existente)
 export type TipoMovimiento = 'Compra' | 'Venta' | 'Nacimiento' | 'Muerte' | 'Traslado' | 'Ajuste'
+
+// Subtipos funcionales según los requerimientos del negocio
+export type SubtipoMovimiento =
+  | 'Nacimiento'
+  | 'Compra'
+  | 'Venta a Productor'
+  | 'Venta a Frigorífico'
+  | 'Venta en Consignación'
+  | 'Traslado entre Establecimientos'
+  | 'Cambio de Potrero'
+  | 'Afectación a Fideicomiso'
+  | 'Afectación a Capitalización'
+  | 'Afectación a Consignación sin Movimiento'
+
+export const SUBTIPO_A_TIPO: Record<SubtipoMovimiento, TipoMovimiento> = {
+  'Nacimiento': 'Nacimiento',
+  'Compra': 'Compra',
+  'Venta a Productor': 'Venta',
+  'Venta a Frigorífico': 'Venta',
+  'Venta en Consignación': 'Venta',
+  'Traslado entre Establecimientos': 'Traslado',
+  'Cambio de Potrero': 'Traslado',
+  'Afectación a Fideicomiso': 'Ajuste',
+  'Afectación a Capitalización': 'Ajuste',
+  'Afectación a Consignación sin Movimiento': 'Ajuste',
+}
+
 export type TipoUbicacion = 'potrero' | 'parcela'
 
 export interface MovimientoGanado {

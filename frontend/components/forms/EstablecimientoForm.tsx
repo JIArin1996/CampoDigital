@@ -33,8 +33,7 @@ const schema = z.object({
   tipo: z.enum(["Ganadero", "Agrícola", "Mixto"], "El tipo es requerido"),
   propietario: z.string().optional(),
   rut: z.string().optional(),
-  dicose: z.string().optional(),
-  fecha_alta: z.string().min(1, "La fecha de alta es requerida"),
+  dicose_fisico: z.string().min(1, "El DICOSE Físico es requerido"),
   observaciones: z.string().optional(),
 })
 
@@ -49,8 +48,6 @@ interface EstablecimientoFormProps {
 export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = {}) {
   const router = useRouter()
   const [enviando, setEnviando] = useState(false)
-
-  const today = new Date().toISOString().split("T")[0]
 
   const {
     register,
@@ -68,14 +65,15 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
       tipo: initialData?.tipo || undefined,
       propietario: initialData?.propietario || "",
       rut: initialData?.rut || "",
-      dicose: initialData?.dicose || "",
-      fecha_alta: initialData?.fecha_alta ? initialData.fecha_alta.split("T")[0] : today,
+      dicose_fisico: initialData?.dicose_fisico || "",
       observaciones: initialData?.observaciones || "",
     },
   })
 
   const departamento = watch("departamento")
   const tipoValue = watch("tipo") ?? ""
+
+  const today = new Date().toISOString().split("T")[0]
 
   const onSubmit = async (values: FormValues) => {
     setEnviando(true)
@@ -86,7 +84,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
           localidad: values.localidad || null,
           propietario: values.propietario || null,
           rut: values.rut || null,
-          dicose: values.dicose || null,
+          dicose_fisico: values.dicose_fisico,
           observaciones: values.observaciones || null,
         })
         toast.success("Establecimiento actualizado correctamente")
@@ -95,10 +93,11 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         await createEstablecimiento({
           ...values,
           estado: "activo",
+          fecha_alta: today,
           localidad: values.localidad || null,
           propietario: values.propietario || null,
           rut: values.rut || null,
-          dicose: values.dicose || null,
+          dicose_fisico: values.dicose_fisico,
           observaciones: values.observaciones || null,
           user_id: null,
         })
@@ -117,7 +116,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
 
-      {/* Fila 1: Nombre */}
+      {/* Nombre */}
       <div className="space-y-1.5">
         <Label htmlFor="nombre">
           Nombre <span className="text-destructive">*</span>
@@ -133,7 +132,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         )}
       </div>
 
-      {/* Fila 2: Departamento + Localidad */}
+      {/* Departamento + Localidad */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>
@@ -160,7 +159,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
       </div>
 
-      {/* Fila 3: Superficie + Tipo */}
+      {/* Superficie + Tipo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="superficie_total">
@@ -186,7 +185,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
           <Select
             value={tipoValue}
             onValueChange={(val) =>
-              setValue("tipo", val as FormValues["tipo"], { shouldValidate: true })
+              val && setValue("tipo", val as FormValues["tipo"], { shouldValidate: true })
             }
           >
             <SelectTrigger className="w-full" aria-invalid={!!errors.tipo}>
@@ -204,34 +203,17 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
       </div>
 
-      {/* Fila 4: Propietario + Fecha de alta */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="propietario">Propietario</Label>
-          <Input
-            id="propietario"
-            placeholder="Nombre del propietario"
-            {...register("propietario")}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="fecha_alta">
-            Fecha de alta <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="fecha_alta"
-            type="date"
-            aria-invalid={!!errors.fecha_alta}
-            {...register("fecha_alta")}
-          />
-          {errors.fecha_alta && (
-            <p className="text-sm text-destructive">{errors.fecha_alta.message}</p>
-          )}
-        </div>
+      {/* Propietario */}
+      <div className="space-y-1.5">
+        <Label htmlFor="propietario">Propietario</Label>
+        <Input
+          id="propietario"
+          placeholder="Nombre del propietario"
+          {...register("propietario")}
+        />
       </div>
 
-      {/* Fila 5: RUT + DICOSE */}
+      {/* RUT + DICOSE Físico */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="rut">RUT</Label>
@@ -239,16 +221,22 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="dicose">DICOSE</Label>
+          <Label htmlFor="dicose_fisico">
+            DICOSE Físico <span className="text-destructive">*</span>
+          </Label>
           <Input
-            id="dicose"
-            placeholder="Ej: 01.234.567"
-            {...register("dicose")}
+            id="dicose_fisico"
+            placeholder="9 dígitos"
+            aria-invalid={!!errors.dicose_fisico}
+            {...register("dicose_fisico")}
           />
+          {errors.dicose_fisico && (
+            <p className="text-sm text-destructive">{errors.dicose_fisico.message}</p>
+          )}
         </div>
       </div>
 
-      {/* Fila 6: Observaciones */}
+      {/* Observaciones */}
       <div className="space-y-1.5">
         <Label htmlFor="observaciones">Observaciones</Label>
         <textarea

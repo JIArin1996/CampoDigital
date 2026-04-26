@@ -1,12 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, MapPin, Ruler, TreePine, Droplets, Trash2, Edit2 } from "lucide-react"
+import { Plus, MapPin, Ruler, TreePine, Droplets, Trash2, Edit2, IdCard } from "lucide-react"
 import Link from "next/link"
 import { buttonVariants } from "@/components/ui/button"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,12 +16,20 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { PotreroForm } from "@/components/forms/PotreroForm"
 import { ParcelaForm } from "@/components/forms/ParcelaForm"
 import { desactivarParcela } from "@/lib/queries/parcelas"
 import { desactivarPotrero, borrarPotreroFisico } from "@/lib/queries/potreros"
 import { desactivarEstablecimiento, borrarEstablecimientoFisico } from "@/lib/queries/establecimientos"
+import {
+  getDicosesPropiedad,
+  createDicosePropiedad,
+  deleteDicosePropiedad,
+  type DicosePropiedad,
+} from "@/lib/queries/dicoses_propiedad"
+import { validarDicosePropiedad } from "@/lib/utils/snig"
 import type { Establecimiento, Potrero, Parcela } from "@/types/database"
 import { toast } from "sonner"
 import { DeleteConfirmationModal } from "@/components/shared/DeleteConfirmationModal"
@@ -47,7 +57,7 @@ export function EstablecimientoDetalle({
   onRefresh,
 }: EstablecimientoDetalleProps) {
   const router = useRouter()
-  const recargar = () => onRefresh ? onRefresh() : recargar()
+  const recargar = () => onRefresh?.()
   const [dialogAbierto, setDialogAbierto] = useState(false)
   const [dialogParcelaAbierto, setDialogParcelaAbierto] = useState(false)
   const [potreroActivoParaParcela, setPotreroActivoParaParcela] = useState<number | null>(null)
@@ -59,6 +69,53 @@ export function EstablecimientoDetalle({
   const [deleteModalEstablecimiento, setDeleteModalEstablecimiento] = useState(false)
   const [deleteModalPotrero, setDeleteModalPotrero] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // DICOSE Propiedad
+  const [dicoses, setDicoses] = useState<DicosePropiedad[]>([])
+  const [modalDicose, setModalDicose] = useState(false)
+  const [nuevoDicose, setNuevoDicose] = useState('')
+  const [nuevaRazonSocial, setNuevaRazonSocial] = useState('')
+  const [nuevoDomicilio, setNuevoDomicilio] = useState('')
+  const [guardandoDicose, setGuardandoDicose] = useState(false)
+
+  useEffect(() => {
+    getDicosesPropiedad(establecimiento.id)
+      .then(setDicoses)
+      .catch(() => {})
+  }, [establecimiento.id])
+
+  const guardarDicose = async () => {
+    if (!nuevoDicose.trim()) { toast.error('Ingresá el número de DICOSE Propiedad'); return }
+    if (!validarDicosePropiedad(nuevoDicose.trim())) { toast.error('Formato inválido (9 dígitos o 2 letras + 7 números)'); return }
+    setGuardandoDicose(true)
+    try {
+      const nuevo = await createDicosePropiedad({
+        establecimiento_id: establecimiento.id,
+        dicose_propiedad: nuevoDicose.trim(),
+        razon_social: nuevaRazonSocial.trim() || null,
+        domicilio_constituido: nuevoDomicilio.trim() || null,
+        estado: 'activo',
+      })
+      setDicoses(prev => [...prev, nuevo])
+      setNuevoDicose(''); setNuevaRazonSocial(''); setNuevoDomicilio('')
+      setModalDicose(false)
+      toast.success('DICOSE Propiedad agregado')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar')
+    } finally {
+      setGuardandoDicose(false)
+    }
+  }
+
+  const eliminarDicose = async (id: number) => {
+    try {
+      await deleteDicosePropiedad(id)
+      setDicoses(prev => prev.filter(d => d.id !== id))
+      toast.success('DICOSE Propiedad eliminado')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar')
+    }
+  }
 
   // Calcula la superficie total ocupada por potreros
   const superficieOcupada = potreros.reduce((sum, p) => sum + p.superficie, 0)
@@ -198,10 +255,10 @@ export function EstablecimientoDetalle({
                 <dd className="font-medium">{establecimiento.propietario}</dd>
               </div>
             )}
-            {establecimiento.dicose && (
+            {establecimiento.dicose_fisico && (
               <div>
                 <dt className="text-muted-foreground">DICOSE</dt>
-                <dd className="font-medium font-mono">{establecimiento.dicose}</dd>
+                <dd className="font-medium font-mono">{establecimiento.dicose_fisico}</dd>
               </div>
             )}
             <div>
@@ -330,6 +387,111 @@ export function EstablecimientoDetalle({
           </div>
         )}
       </div>
+
+      {/* Sección DICOSE Propiedad */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-semibold flex items-center gap-2">
+              <IdCard className="h-4 w-4" />
+              DICOSE Propiedad
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Titulares de propiedad del ganado en este establecimiento
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setModalDicose(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Agregar
+          </Button>
+        </div>
+
+        {dicoses.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center">
+            <IdCard className="mx-auto h-7 w-7 text-muted-foreground/50 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              No hay DICOSE Propiedad registrados. Agregá al menos uno antes de registrar ingresos.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {dicoses.map(d => (
+              <div key={d.id} className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                <div>
+                  <span className="font-mono font-medium">{d.dicose_propiedad}</span>
+                  {d.razon_social && (
+                    <span className="ml-3 text-sm text-muted-foreground">{d.razon_social}</span>
+                  )}
+                  {d.domicilio_constituido && (
+                    <span className="ml-2 text-xs text-muted-foreground">— {d.domicilio_constituido}</span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => eliminarDicose(d.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal agregar DICOSE Propiedad */}
+      <Dialog open={modalDicose} onOpenChange={setModalDicose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo DICOSE Propiedad</DialogTitle>
+            <DialogDescription>
+              Registrá un titular de propiedad para este establecimiento.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="dicose-num">DICOSE Propiedad <span className="text-destructive">*</span></Label>
+              <Input
+                id="dicose-num"
+                placeholder="9 dígitos o 2 letras + 7 números"
+                value={nuevoDicose}
+                onChange={e => setNuevoDicose(e.target.value)}
+                className="font-mono"
+              />
+              {nuevoDicose && !validarDicosePropiedad(nuevoDicose.trim()) && (
+                <p className="text-xs text-destructive">Formato inválido</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="razon-social">Razón Social</Label>
+              <Input
+                id="razon-social"
+                placeholder="Nombre o razón social del titular"
+                value={nuevaRazonSocial}
+                onChange={e => setNuevaRazonSocial(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="domicilio">Domicilio / Paraje</Label>
+              <Input
+                id="domicilio"
+                placeholder="Dirección o paraje"
+                value={nuevoDomicilio}
+                onChange={e => setNuevoDomicilio(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button onClick={guardarDicose} disabled={guardandoDicose}>
+                {guardandoDicose ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button variant="outline" onClick={() => setModalDicose(false)} disabled={guardandoDicose}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog para agregar potrero */}
       <Dialog open={dialogAbierto} onOpenChange={(open) => {

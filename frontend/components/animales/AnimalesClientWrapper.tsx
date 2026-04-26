@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { getAnimales } from "@/lib/queries/animales"
+import * as XLSX from "xlsx"
+import { getAnimales, deleteAnimalesBulk } from "@/lib/queries/animales"
+import { getPotreros } from "@/lib/queries/potreros"
+import { getDicosesPropiedad, type DicosePropiedad } from "@/lib/queries/dicoses_propiedad"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import type { Potrero } from "@/types/database"
 import {
   Select,
   SelectContent,
@@ -11,13 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import { SelectParametro } from "@/components/shared/SelectParametro"
 import { Input } from "@/components/ui/input"
 import { buttonVariants, Button } from "@/components/ui/button"
-import { Plus, Upload, Layers, ListFilter, CheckSquare } from "lucide-react"
-import { ExcelImportModal } from "@/components/animales/ExcelImportModal"
+import { Plus, Download, Layers, ListFilter, CheckSquare, Trash2 } from "lucide-react"
 import { LotesSection } from "@/components/animales/LotesSection"
 import { AsignarLoteModal } from "@/components/animales/AsignarLoteModal"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 type Tab = "animales" | "lotes"
@@ -27,10 +38,13 @@ export function AnimalesClientWrapper() {
   const establecimientoId = establecimientoActivo?.id ?? 0
 
   const [tab, setTab] = useState<Tab>("animales")
-  const [modalImport, setModalImport] = useState(false)
   const [modalAsignar, setModalAsignar] = useState(false)
+  const [modalEliminar, setModalEliminar] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
 
   const [animales, setAnimales] = useState<any[]>([])
+  const [potreros, setPotreros] = useState<Potrero[]>([])
+  const [dicoses, setDicoses] = useState<DicosePropiedad[]>([])
   const [cargando, setCargando] = useState(false)
 
   // Selección para bulk actions
@@ -40,6 +54,8 @@ export function AnimalesClientWrapper() {
   const [filtroSnig, setFiltroSnig] = useState("")
   const [filtroCategoria, setFiltroCategoria] = useState("")
   const [filtroEstado, setFiltroEstado] = useState("activo")
+  const [filtroPotrero, setFiltroPotrero] = useState("")
+  const [filtroDicose, setFiltroDicose] = useState("")
 
   const cargar = () => {
     if (establecimientoId <= 0) { setAnimales([]); return }
@@ -47,17 +63,30 @@ export function AnimalesClientWrapper() {
     getAnimales(establecimientoId, {
       categoria: filtroCategoria || undefined,
       estado: filtroEstado || undefined,
+      potrero_id: filtroPotrero ? Number(filtroPotrero) : undefined,
     })
       .then(data => { setAnimales(data); setSeleccionados([]) })
       .catch(() => setAnimales([]))
       .finally(() => setCargando(false))
   }
 
-  useEffect(() => { cargar() }, [establecimientoId, filtroCategoria, filtroEstado])
+  useEffect(() => {
+    if (establecimientoId <= 0) return
+    getPotreros(establecimientoId).then(data => setPotreros(data as Potrero[])).catch(() => {})
+    getDicosesPropiedad(establecimientoId).then(setDicoses).catch(() => {})
+  }, [establecimientoId])
+
+  useEffect(() => { cargar() }, [establecimientoId, filtroCategoria, filtroEstado, filtroPotrero])
 
   const animalesMostrados = animales.filter(a => {
-    if (!filtroSnig) return true
-    return a.caravana_snig.includes(filtroSnig) || a.caravana_propia?.includes(filtroSnig)
+    if (filtroSnig && !a.caravana_snig.includes(filtroSnig) && !a.caravana_propia?.includes(filtroSnig)) return false
+    if (filtroDicose) {
+      try {
+        const obs = a.observaciones ? JSON.parse(a.observaciones.slice(a.observaciones.indexOf('{'))) : {}
+        if (obs.dicose_propiedad !== filtroDicose) return false
+      } catch { return false }
+    }
+    return true
   })
 
   const todosSeleccionados =
@@ -75,6 +104,40 @@ export function AnimalesClientWrapper() {
     setSeleccionados(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     )
+  }
+
+  const descargarExcel = () => {
+    const filas = animalesMostrados.map(a => ({
+      'Caravana SNIG': a.caravana_snig,
+      'Caravana Propia': a.caravana_propia ?? '',
+      'Categoría': a.categoria,
+      'Sexo': a.sexo === 'Hembra' ? 'H' : 'M',
+      'Raza': a.raza ?? '',
+      'Potrero': a.potrero?.nombre ?? '',
+      'Parcela': a.parcela?.nombre ?? '',
+      'Lote': a.lote?.nombre ?? '',
+      'Estado': a.estado,
+      'Fecha Nacimiento': a.fecha_nacimiento ?? '',
+      'Peso Entrada (kg)': a.peso_entrada ?? '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(filas)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Animales')
+    XLSX.writeFile(wb, `animales_${new Date().toISOString().split('T')[0]}.xlsx`)
+  }
+
+  const eliminarSeleccionados = async () => {
+    setEliminando(true)
+    try {
+      await deleteAnimalesBulk(seleccionados)
+      toast.success(`${seleccionados.length} animal(es) eliminado(s)`)
+      setModalEliminar(false)
+      cargar()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar')
+    } finally {
+      setEliminando(false)
+    }
   }
 
   return (
@@ -112,9 +175,9 @@ export function AnimalesClientWrapper() {
         <>
           {/* Acciones superiores */}
           <div className="flex justify-end gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => setModalImport(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Importar Excel
+            <Button variant="outline" onClick={descargarExcel}>
+              <Download className="h-4 w-4 mr-2" />
+              Descargar Excel
             </Button>
             <Link href="/animales/nuevo" className={buttonVariants({ variant: "default" })}>
               <Plus className="h-4 w-4 mr-2" />
@@ -122,33 +185,40 @@ export function AnimalesClientWrapper() {
             </Link>
           </div>
 
-          <ExcelImportModal open={modalImport} onOpenChange={v => { setModalImport(v); if (!v) cargar() }} />
-
           {/* Filtros */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 border rounded-lg bg-card">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 border rounded-lg bg-card">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Buscar SNIG / Propia</label>
-              <Input
-                placeholder="Nº caravana..."
-                value={filtroSnig}
-                onChange={e => setFiltroSnig(e.target.value)}
-              />
+              <label className="text-xs font-medium text-muted-foreground">SNIG / Caravana</label>
+              <Input placeholder="Buscar..." value={filtroSnig} onChange={e => setFiltroSnig(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Categoría</label>
-              <SelectParametro
-                clave="categorias_ganado"
-                value={filtroCategoria}
-                onChange={setFiltroCategoria}
-                placeholder="Todas"
-              />
+              <SelectParametro clave="categorias_ganado" value={filtroCategoria} onChange={setFiltroCategoria} placeholder="Todas" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Ubicación</label>
+              <Select value={filtroPotrero} onValueChange={v => setFiltroPotrero(v ?? '')}>
+                <SelectTrigger><SelectValue placeholder="Todos los potreros" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {potreros.map(p => <SelectItem key={p.id} value={p.id.toString()}>{p.nombre}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">DICOSE Propiedad</label>
+              <Select value={filtroDicose} onValueChange={v => setFiltroDicose(v ?? '')}>
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos</SelectItem>
+                  {dicoses.map(d => <SelectItem key={d.id} value={d.dicose_propiedad}><span className="font-mono">{d.dicose_propiedad}</span>{d.razon_social && <span className="ml-2 text-xs text-muted-foreground">{d.razon_social}</span>}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Estado</label>
-              <Select value={filtroEstado} onValueChange={v => v !== null && setFiltroEstado(v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
+              <Select value={filtroEstado} onValueChange={v => v && setFiltroEstado(v)}>
+                <SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="activo">Activos</SelectItem>
@@ -174,6 +244,14 @@ export function AnimalesClientWrapper() {
                 <Button size="sm" onClick={() => setModalAsignar(true)}>
                   <Layers className="h-4 w-4 mr-1.5" />
                   Asignar a Lote
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setModalEliminar(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  Eliminar
                 </Button>
               </div>
             </div>
@@ -299,6 +377,36 @@ export function AnimalesClientWrapper() {
             establecimientoId={establecimientoId}
             onSuccess={() => { cargar(); setSeleccionados([]) }}
           />
+
+          <Dialog open={modalEliminar} onOpenChange={setModalEliminar}>
+            <DialogContent className="sm:max-w-[440px]">
+              <DialogHeader>
+                <DialogTitle>¿Eliminar animales?</DialogTitle>
+                <DialogDescription>
+                  Esta acción es permanente e irreversible. Se eliminarán{' '}
+                  <strong>{seleccionados.length} animal{seleccionados.length !== 1 ? 'es' : ''}</strong>{' '}
+                  de la base de datos.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex gap-3 justify-end pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setModalEliminar(false)}
+                  disabled={eliminando}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={eliminarSeleccionados}
+                  disabled={eliminando}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" />
+                  {eliminando ? 'Eliminando...' : `Eliminar ${seleccionados.length} animal${seleccionados.length !== 1 ? 'es' : ''}`}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
 
