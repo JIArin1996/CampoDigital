@@ -12,8 +12,8 @@ Desarrollo incremental por fases. Cada fase entrega valor funcional completo. No
 - [x] Base de datos creada en Supabase (PostgreSQL)
 - [x] Triggers y validaciones de integridad activos
 - [x] Stack técnico definido: Next.js + Tailwind + shadcn/ui + Supabase
-- [ ] Proyecto Next.js inicializado
-- [ ] Conexión frontend ↔ Supabase
+- [x] Proyecto Next.js inicializado
+- [x] Conexión frontend ↔ Supabase
 
 ---
 
@@ -24,36 +24,36 @@ Desarrollo incremental por fases. Cada fase entrega valor funcional completo. No
 **Duración estimada**: 2 semanas
 
 ### 1.1 Setup del proyecto
-- [ ] Inicializar proyecto Next.js con Tailwind CSS y shadcn/ui
-- [ ] Configurar variables de entorno para Supabase
-- [ ] Implementar cliente Supabase en el frontend
-- [ ] Layout principal: navegación, sidebar, estructura responsive
+- [x] Inicializar proyecto Next.js con Tailwind CSS y shadcn/ui
+- [x] Configurar variables de entorno para Supabase
+- [x] Implementar cliente Supabase en el frontend
+- [x] Layout principal: navegación, sidebar, estructura responsive
 - [ ] Deploy inicial en Vercel (vacío pero funcional)
 
 ### 1.2 Módulo Establecimiento
-- [ ] Formulario de alta de establecimiento
-- [ ] Vista de detalle del establecimiento
-- [ ] Formulario de alta de potreros
-- [ ] Formulario de alta de parcelas (dentro de un potrero)
-- [ ] Vista de estructura: establecimiento → potreros → parcelas
-- [ ] Validaciones: superficie, nombre único
+- [x] Formulario de alta de establecimiento
+- [x] Vista de detalle del establecimiento
+- [x] Formulario de alta de potreros
+- [x] Formulario de alta de parcelas (dentro de un potrero)
+- [x] Vista de estructura: establecimiento → potreros → parcelas
+- [x] Validaciones: superficie, nombre único
 
 ### 1.3 Módulo Animales
-- [ ] Formulario de alta de animal individual (caravana SNIG)
-- [ ] Listado de animales con filtros (categoría, estado, potrero/parcela)
-- [ ] Vista de ficha individual del animal
-- [ ] Baja lógica de animal (vendido/muerto/transferido)
+- [x] Formulario de alta de animal individual (caravana SNIG)
+- [x] Listado de animales con filtros (categoría, estado, potrero/parcela)
+- [x] Vista de ficha individual del animal
+- [x] Baja lógica de animal (vendido/muerto/transferido)
 
 ### 1.4 Módulo Stock Ganadero
-- [ ] Formulario de registro de movimiento (compra, venta, nacimiento, muerte, traslado, ajuste)
-- [ ] Listado de movimientos con filtros
-- [ ] Vista de stock actual por categoría y por ubicación
+- [x] Formulario de registro de movimiento (compra, venta, nacimiento, muerte, traslado, ajuste)
+- [x] Listado de movimientos con filtros
+- [x] Vista de stock actual por categoría y por ubicación
 - [ ] Historial de movimientos por animal individual
 
 ### 1.5 Parámetros
-- [ ] Servicio para leer parámetros desde Supabase
-- [ ] Cache en memoria para evitar consultas repetidas
-- [ ] Todos los selects de la app alimentados desde parametros
+- [x] Servicio para leer parámetros desde Supabase
+- [x] Cache en memoria para evitar consultas repetidas
+- [x] Todos los selects de la app alimentados desde parametros
 
 ### Entregable fase 1
 App funcional donde se puede registrar un establecimiento con potreros/parcelas, dar de alta animales con SNIG y registrar movimientos ganaderos. Stock calculado en tiempo real desde los movimientos.
