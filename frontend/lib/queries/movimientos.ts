@@ -1,13 +1,34 @@
 import { createClient } from '@/lib/supabase/client'
-import type { MovimientoGanado, MovimientoGanadoInsert, TipoMovimiento } from '@/types/database'
+import type {
+  MovimientoGanado,
+  MovimientoGanadoInsert,
+  LoteMovimiento,
+  LoteMovimientoInsert,
+  TipoMovimiento,
+} from '@/types/database'
 
-// ── Consultas ────────────────────────────────────────────────────────────────
+// ── Lotes de movimiento ───────────────────────────────────────────────────────
 
+// Crea el registro agrupador del evento. Debe llamarse ANTES de createMovimientosBatch.
+export async function createLoteMovimiento(values: LoteMovimientoInsert): Promise<LoteMovimiento> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('lotes_movimiento')
+    .insert(values)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as LoteMovimiento
+}
+
+// ── Movimientos individuales ──────────────────────────────────────────────────
+
+// Obtiene todos los movimientos del establecimiento, con filtros opcionales.
 export async function getMovimientos(
   establecimiento_id: number,
   filtros?: {
     tipo?: TipoMovimiento
-    categoria?: string
     fecha_desde?: string
     fecha_hasta?: string
   }
@@ -20,8 +41,7 @@ export async function getMovimientos(
     .order('fecha', { ascending: false })
     .order('created_at', { ascending: false })
 
-  if (filtros?.tipo) query = query.eq('tipo_movimiento', filtros.tipo)
-  if (filtros?.categoria) query = query.eq('categoria', filtros.categoria)
+  if (filtros?.tipo)        query = query.eq('tipo_movimiento', filtros.tipo)
   if (filtros?.fecha_desde) query = query.gte('fecha', filtros.fecha_desde)
   if (filtros?.fecha_hasta) query = query.lte('fecha', filtros.fecha_hasta)
 
@@ -30,7 +50,8 @@ export async function getMovimientos(
   return data as MovimientoGanado[]
 }
 
-export async function createMovimiento(values: MovimientoGanadoInsert) {
+// Inserta un único movimiento (carga manual).
+export async function createMovimiento(values: MovimientoGanadoInsert): Promise<MovimientoGanado> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('movimientos_ganado')
@@ -42,46 +63,15 @@ export async function createMovimiento(values: MovimientoGanadoInsert) {
   return data as MovimientoGanado
 }
 
-// ── Cálculo de stock ─────────────────────────────────────────────────────────
+// Inserta N movimientos de una sola vez (carga masiva por Excel).
+// No retorna los registros creados para evitar payloads innecesariamente grandes.
+export async function createMovimientosBatch(rows: MovimientoGanadoInsert[]): Promise<void> {
+  if (rows.length === 0) return
 
-export interface StockEntry {
-  categoria: string
-  ubicacion_tipo: string
-  ubicacion_id: number
-  cantidad: number
-}
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('movimientos_ganado')
+    .insert(rows)
 
-export function calcularStock(movimientos: MovimientoGanado[]): StockEntry[] {
-  const mapa = new Map<string, StockEntry>()
-
-  const delta = (cat: string, tipo: string, id: number, qty: number) => {
-    const key = `${cat}|${tipo}|${id}`
-    const entry = mapa.get(key) ?? { categoria: cat, ubicacion_tipo: tipo, ubicacion_id: id, cantidad: 0 }
-    entry.cantidad += qty
-    mapa.set(key, entry)
-  }
-
-  for (const m of movimientos) {
-    const q = m.cantidad
-    switch (m.tipo_movimiento) {
-      case 'Compra':
-      case 'Nacimiento':
-        if (m.destino_tipo && m.destino_id) delta(m.categoria, m.destino_tipo, m.destino_id, +q)
-        break
-      case 'Venta':
-      case 'Muerte':
-        if (m.origen_tipo && m.origen_id) delta(m.categoria, m.origen_tipo, m.origen_id, -q)
-        break
-      case 'Traslado':
-        if (m.origen_tipo && m.origen_id) delta(m.categoria, m.origen_tipo, m.origen_id, -q)
-        if (m.destino_tipo && m.destino_id) delta(m.categoria, m.destino_tipo, m.destino_id, +q)
-        break
-      case 'Ajuste':
-        if (m.destino_tipo && m.destino_id) delta(m.categoria, m.destino_tipo, m.destino_id, +q)
-        if (m.origen_tipo && m.origen_id) delta(m.categoria, m.origen_tipo, m.origen_id, -q)
-        break
-    }
-  }
-
-  return Array.from(mapa.values()).filter(e => e.cantidad !== 0)
+  if (error) throw error
 }

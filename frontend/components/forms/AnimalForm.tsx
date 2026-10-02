@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -18,44 +18,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { SelectParametro } from "@/components/shared/SelectParametro"
 import { createAnimal, updateAnimal } from "@/lib/queries/animales"
 import { getPotreros } from "@/lib/queries/potreros"
 import { getParcelas } from "@/lib/queries/parcelas"
-import type { Potrero, Parcela, SexoAnimal, OrigenAnimal, Animal } from "@/types/database"
+import { getDicosePropiedad } from "@/lib/queries/dicose_propiedad"
+import { calcularCategoria, calcularCategoriaPreview } from "@/lib/utils/categorias"
+import type { Potrero, Parcela, SexoAnimal, Animal } from "@/types/database"
+import type { DicosePropiedad } from "@/lib/queries/dicose_propiedad"
+
+// ── Schema de validación ──────────────────────────────────────────────────────
 
 const schema = z.object({
-  caravana_snig: z.string().min(1, "La caravana SNIG es requerida"),
+  caravana_snig: z
+    .string()
+    .min(1, "La caravana SNIG es requerida")
+    .regex(/^\d{15}$/, "Debe tener 15 dígitos")
+    .refine(v => v.startsWith("8580000"), "Debe comenzar con 8580000"),
   caravana_propia: z.string().optional(),
-  categoria: z.string().min(1, "Requerido"),
   sexo: z.enum(["Macho", "Hembra"], "Requerido"),
+  edad_meses_ingreso: z
+    .number("Ingresá un número")
+    .int("Debe ser entero")
+    .min(0, "No puede ser negativo"),
+  es_toro: z.boolean().optional(),
+  dicose_propiedad_id: z
+    .number("Requerido")
+    .int()
+    .positive("Seleccioná un DICOSE Propiedad"),
   raza: z.string().optional(),
   fecha_nacimiento: z.string().optional(),
-  
-  // Ubicación dinámica
   potrero_actual: z.number().optional(),
   parcela_actual: z.number().optional(),
-
-  peso_entrada: z.number().positive("Debe ser mayor a 0").optional().or(z.literal("")),
+  peso_entrada: z.number().positive().optional().or(z.literal("")),
   fecha_peso_entrada: z.string().optional(),
-  origen: z.enum(["Propio", "Comprado", "Nacido en campo"]).optional().or(z.literal("")),
   observaciones: z.string().optional(),
-}).superRefine((data, ctx) => {
 })
 
 type FormValues = z.infer<typeof schema>
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface AnimalFormProps {
   initialData?: Animal
 }
 
+// ── Componente ────────────────────────────────────────────────────────────────
+
 export function AnimalForm({ initialData }: AnimalFormProps) {
   const router = useRouter()
   const { establecimientoActivo } = useEstablecimiento()
   const [enviando, setEnviando] = useState(false)
-  
+
   const [potreros, setPotreros] = useState<Potrero[]>([])
   const [parcelas, setParcelas] = useState<Parcela[]>([])
+  const [dicoseList, setDicoseList] = useState<DicosePropiedad[]>([])
 
   const {
     register,
@@ -66,67 +82,120 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      caravana_snig: initialData?.caravana_snig || "",
-      caravana_propia: initialData?.caravana_propia || "",
-      categoria: initialData?.categoria || "",
-      sexo: initialData?.sexo || undefined,
-      raza: initialData?.raza || "",
-      fecha_nacimiento: initialData?.fecha_nacimiento || "",
-      potrero_actual: initialData?.potrero_actual || undefined,
-      parcela_actual: initialData?.parcela_actual || undefined,
-      peso_entrada: initialData?.peso_entrada || undefined,
-      fecha_peso_entrada: initialData?.fecha_peso_entrada || "",
-      origen: initialData?.origen || undefined,
-      observaciones: initialData?.observaciones || "",
+      caravana_snig: initialData?.caravana_snig ?? "",
+      caravana_propia: initialData?.caravana_propia ?? "",
+      sexo: initialData?.sexo ?? undefined,
+      edad_meses_ingreso: initialData?.edad_meses_ingreso ?? undefined,
+      es_toro: initialData?.es_toro ?? false,
+      dicose_propiedad_id: initialData?.dicose_propiedad_id ?? undefined,
+      raza: initialData?.raza ?? "",
+      fecha_nacimiento: initialData?.fecha_nacimiento ?? "",
+      potrero_actual: initialData?.potrero_actual ?? undefined,
+      parcela_actual: initialData?.parcela_actual ?? undefined,
+      peso_entrada: initialData?.peso_entrada ?? undefined,
+      fecha_peso_entrada: initialData?.fecha_peso_entrada ?? "",
+      observaciones: initialData?.observaciones ?? "",
     },
   })
 
   const formData = watch()
-  
-  // Carga de Potreros al cambiar Establecimiento
+  const sexo = watch("sexo")
+  const edadMeses = watch("edad_meses_ingreso")
+  const esToro = watch("es_toro")
+  const potreroActual = watch("potrero_actual")
+  const dicosePropiedadId = watch("dicose_propiedad_id")
+
+  // Categoría calculada en tiempo real para mostrar como preview
+  const categoriaPreview = useMemo(() => {
+    if (!sexo || edadMeses === undefined || edadMeses === null || isNaN(edadMeses)) return null
+    if (initialData?.fecha_ingreso) {
+      // En edición: usar la fecha de ingreso real del animal
+      return calcularCategoria(sexo, edadMeses, initialData.fecha_ingreso, esToro)
+    }
+    // En creación: la fecha de ingreso será hoy
+    return calcularCategoriaPreview(sexo, edadMeses, esToro)
+  }, [sexo, edadMeses, esToro, initialData?.fecha_ingreso])
+
+  // Carga potreros cuando cambia el establecimiento activo
   useEffect(() => {
     if (!establecimientoActivo) return
-    
     getPotreros(establecimientoActivo.id)
-      .then(setPotreros)
-      .catch(err => toast.error("Error cargando potreros"))
-  }, [establecimientoActivo])
+      .then(data => setPotreros(data as Potrero[]))
+      .catch(() => toast.error("Error cargando potreros"))
+  }, [establecimientoActivo?.id])
 
-  // Carga superficial de parcelas para el potrero seleccionado
+  // Carga parcelas cuando se selecciona un potrero
   useEffect(() => {
-    if (formData.potrero_actual) {
-      getParcelas(formData.potrero_actual)
-        .then(setParcelas)
+    if (potreroActual) {
+      getParcelas(potreroActual)
+        .then(data => setParcelas(data as Parcela[]))
         .catch(() => {})
     } else {
       setParcelas([])
     }
-  }, [formData.potrero_actual])
+  }, [potreroActual])
+
+  // Carga DICOSE Propiedad del establecimiento activo
+  useEffect(() => {
+    if (!establecimientoActivo) return
+    getDicosePropiedad(establecimientoActivo.id)
+      .then(setDicoseList)
+      .catch(() => toast.error("Error cargando DICOSE Propiedad"))
+  }, [establecimientoActivo?.id])
+
+  // Si el sexo cambia a Hembra, limpiar es_toro
+  useEffect(() => {
+    if (sexo === "Hembra") {
+      setValue("es_toro", false)
+    }
+  }, [sexo, setValue])
 
   const onSubmit = async (values: FormValues) => {
+    // Potrero con parcelas: exige que se elija parcela
     if (values.potrero_actual && parcelas.length > 0 && !values.parcela_actual) {
       toast.error("Este potrero tiene parcelas activas. Debes elegir una parcela.")
       return
     }
 
+    // es_toro solo válido para machos
+    if (values.es_toro && values.sexo !== "Macho") {
+      toast.error("Solo los machos pueden marcarse como Toro.")
+      return
+    }
+
     setEnviando(true)
     try {
-      if (!establecimientoActivo) throw new Error("No hay contexto de establecimiento activo")
+      if (!establecimientoActivo) throw new Error("No hay establecimiento activo seleccionado")
+
+      const fechaIngreso = initialData?.fecha_ingreso ?? new Date().toISOString().split("T")[0]
+      const categoriaActual = calcularCategoria(
+        values.sexo,
+        values.edad_meses_ingreso,
+        fechaIngreso,
+        values.es_toro
+      )
+
+      // Lógica potrero vs parcela: si el potrero tiene parcelas, la ubicación
+      // se guarda en parcela_actual y potrero_actual queda null (y viceversa)
+      const potreroFinal = parcelas.length > 0 ? null : (values.potrero_actual ?? null)
+      const parcelaFinal = parcelas.length > 0 ? (values.parcela_actual ?? null) : null
 
       if (initialData) {
         await updateAnimal(initialData.id, {
           establecimiento_id: establecimientoActivo.id,
+          dicose_propiedad_id: values.dicose_propiedad_id,
           caravana_snig: values.caravana_snig,
           caravana_propia: values.caravana_propia || null,
-          categoria: values.categoria,
           sexo: values.sexo as SexoAnimal,
+          edad_meses_ingreso: values.edad_meses_ingreso,
+          es_toro: values.es_toro ?? false,
+          categoria_actual: categoriaActual,
           raza: values.raza || null,
           fecha_nacimiento: values.fecha_nacimiento || null,
-          potrero_actual: parcelas.length > 0 ? null : (values.potrero_actual || null),
-          parcela_actual: parcelas.length > 0 ? (values.parcela_actual || null) : null,
+          potrero_actual: potreroFinal,
+          parcela_actual: parcelaFinal,
           peso_entrada: values.peso_entrada ? Number(values.peso_entrada) : null,
           fecha_peso_entrada: values.fecha_peso_entrada || null,
-          origen: (values.origen as OrigenAnimal) || null,
           observaciones: values.observaciones || null,
         })
         toast.success("Animal actualizado correctamente")
@@ -134,33 +203,37 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
       } else {
         await createAnimal({
           establecimiento_id: establecimientoActivo.id,
+          dicose_propiedad_id: values.dicose_propiedad_id,
           caravana_snig: values.caravana_snig,
           caravana_propia: values.caravana_propia || null,
-          categoria: values.categoria,
           sexo: values.sexo as SexoAnimal,
+          edad_meses_ingreso: values.edad_meses_ingreso,
+          fecha_ingreso: fechaIngreso,
+          es_toro: values.es_toro ?? false,
+          categoria_actual: categoriaActual,
           raza: values.raza || null,
           fecha_nacimiento: values.fecha_nacimiento || null,
-          potrero_actual: parcelas.length > 0 ? null : (values.potrero_actual || null),
-          parcela_actual: parcelas.length > 0 ? (values.parcela_actual || null) : null,
+          potrero_actual: potreroFinal,
+          parcela_actual: parcelaFinal,
+          lote_actual: null,
           peso_entrada: values.peso_entrada ? Number(values.peso_entrada) : null,
           fecha_peso_entrada: values.fecha_peso_entrada || null,
-          origen: (values.origen as OrigenAnimal) || null,
-          observaciones: values.observaciones || null,
           estado: "activo",
           fecha_baja: null,
           madre_id: null,
           movimiento_origen_id: null,
+          observaciones: values.observaciones || null,
           user_id: null,
         })
         toast.success("Animal registrado correctamente")
         router.push("/animales")
       }
       router.refresh()
-    } catch (err: any) {
-      if (err.message && err.message.includes("unique")) {
-         toast.error("El SNIG ingresado ya está registrado en este establecimiento.")
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes("unique")) {
+        toast.error("El SNIG ingresado ya está registrado en el sistema.")
       } else {
-         toast.error(err.message || "Error al guardar")
+        toast.error(err instanceof Error ? err.message : "Error al guardar")
       }
     } finally {
       setEnviando(false)
@@ -169,88 +242,212 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-3xl">
-      
-      {/* SECCIÓN 1: IDENTIFICACIÓN */}
+
+      {/* ── SECCIÓN 1: IDENTIFICACIÓN ──────────────────────────────────────── */}
       <div className="bg-card p-5 rounded-lg border">
-        <h3 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">Identificación</h3>
-        
+        <h3 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">
+          Identificación
+        </h3>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* Caravana SNIG */}
           <div className="space-y-1.5">
-            <Label htmlFor="caravana_snig">Caravana SNIG <span className="text-destructive">*</span></Label>
-            <Input id="caravana_snig" placeholder="Ej: 12345678" {...register("caravana_snig")} aria-invalid={!!errors.caravana_snig} />
-            {errors.caravana_snig && <p className="text-sm text-destructive">{errors.caravana_snig.message}</p>}
+            <Label htmlFor="caravana_snig">
+              Caravana SNIG <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="caravana_snig"
+              placeholder="858000012345678"
+              maxLength={15}
+              aria-invalid={!!errors.caravana_snig}
+              {...register("caravana_snig")}
+            />
+            {errors.caravana_snig && (
+              <p className="text-sm text-destructive">{errors.caravana_snig.message}</p>
+            )}
           </div>
 
+          {/* Caravana Propia */}
           <div className="space-y-1.5">
             <Label htmlFor="caravana_propia">Caravana Propia</Label>
-            <Input id="caravana_propia" placeholder="Opcional (Ej: Moco)" {...register("caravana_propia")} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Categoría <span className="text-destructive">*</span></Label>
-            <SelectParametro 
-              clave="categorias_ganado" 
-              value={formData.categoria ?? ""} 
-              onChange={(val) => setValue("categoria", val, { shouldValidate: true })} 
+            <Input
+              id="caravana_propia"
+              placeholder="Opcional (ej: Moco)"
+              {...register("caravana_propia")}
             />
-            {errors.categoria && <p className="text-sm text-destructive">{errors.categoria.message}</p>}
           </div>
 
+          {/* Sexo */}
           <div className="space-y-1.5">
             <Label>Sexo <span className="text-destructive">*</span></Label>
-            <Select value={formData.sexo} onValueChange={(val) => setValue("sexo", val as any, { shouldValidate: true })}>
+            <Select
+              value={sexo ?? ""}
+              onValueChange={v => v && setValue("sexo", v as SexoAnimal, { shouldValidate: true })}
+            >
               <SelectTrigger aria-invalid={!!errors.sexo}>
-                <SelectValue placeholder="Seleccionar sexo" />
+                <SelectValue>
+                  {(v: string | null) => v || <span className="text-muted-foreground">Seleccionar...</span>}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Hembra">Hembra</SelectItem>
                 <SelectItem value="Macho">Macho</SelectItem>
               </SelectContent>
             </Select>
-            {errors.sexo && <p className="text-sm text-destructive">{errors.sexo.message}</p>}
+            {errors.sexo && (
+              <p className="text-sm text-destructive">{errors.sexo.message}</p>
+            )}
           </div>
 
+          {/* Edad al ingreso */}
           <div className="space-y-1.5">
-            <Label>Raza</Label>
-            <SelectParametro 
-              clave="razas" 
-              value={formData.raza ?? ""} 
-              onChange={(val) => setValue("raza", val)} 
-              placeholder="Opcional"
+            <Label htmlFor="edad_meses_ingreso">
+              Edad al ingreso (meses) <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="edad_meses_ingreso"
+              type="number"
+              min={0}
+              placeholder="Ej: 14"
+              aria-invalid={!!errors.edad_meses_ingreso}
+              {...register("edad_meses_ingreso", { valueAsNumber: true })}
+            />
+            {errors.edad_meses_ingreso && (
+              <p className="text-sm text-destructive">{errors.edad_meses_ingreso.message}</p>
+            )}
+          </div>
+
+          {/* Checkbox es_toro — solo visible para Machos */}
+          {sexo === "Macho" && (
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input accent-primary"
+                  checked={esToro ?? false}
+                  onChange={e => setValue("es_toro", e.target.checked)}
+                />
+                <span className="text-sm">Es Toro</span>
+                <span className="text-xs text-muted-foreground">
+                  (sobreescribe la categoría automática)
+                </span>
+              </label>
+            </div>
+          )}
+
+          {/* Categoría calculada — solo lectura */}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Categoría calculada</Label>
+            <div className="flex h-9 w-full rounded-lg border border-input bg-muted/40 px-3 items-center text-sm">
+              {categoriaPreview ? (
+                <span className="font-medium">{categoriaPreview}</span>
+              ) : (
+                <span className="text-muted-foreground italic">
+                  Completá sexo y edad para calcular
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Se calcula automáticamente y se actualiza con el tiempo.
+            </p>
+          </div>
+
+          {/* Raza */}
+          <div className="space-y-1.5">
+            <Label htmlFor="raza">Raza</Label>
+            <Input
+              id="raza"
+              placeholder="Ej: Hereford"
+              {...register("raza")}
             />
           </div>
 
+          {/* Fecha de nacimiento */}
           <div className="space-y-1.5">
             <Label htmlFor="fecha_nacimiento">Fecha de nacimiento</Label>
-            <Input id="fecha_nacimiento" type="date" {...register("fecha_nacimiento")} />
+            <Input
+              id="fecha_nacimiento"
+              type="date"
+              {...register("fecha_nacimiento")}
+            />
           </div>
+
+          {/* DICOSE Propiedad */}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>
+              DICOSE Propiedad <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={dicosePropiedadId?.toString() ?? ""}
+              onValueChange={v => v && setValue("dicose_propiedad_id", Number(v), { shouldValidate: true })}
+            >
+              <SelectTrigger aria-invalid={!!errors.dicose_propiedad_id}>
+                <SelectValue>
+                  {(v: string | null) => {
+                    if (!v) return <span className="text-muted-foreground">Seleccionar titular...</span>
+                    const d = dicoseList.find(d => d.id.toString() === v)
+                    return d ? `${d.codigo} — ${d.titular}` : v
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {dicoseList.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    No hay DICOSE Propiedad registrados
+                  </div>
+                )}
+                {dicoseList.map(d => (
+                  <SelectItem key={d.id} value={d.id.toString()}>
+                    {d.codigo} — {d.titular}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.dicose_propiedad_id && (
+              <p className="text-sm text-destructive">{errors.dicose_propiedad_id.message}</p>
+            )}
+          </div>
+
         </div>
       </div>
 
-      {/* SECCIÓN 2: UBICACIÓN */}
-      <div className="bg-card p-5 rounded-lg border disabled:opacity-50 transition-opacity">
-        <h3 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">Ubicación Actual</h3>
-        
+      {/* ── SECCIÓN 2: UBICACIÓN ACTUAL ────────────────────────────────────── */}
+      <div className="bg-card p-5 rounded-lg border">
+        <h3 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">
+          Ubicación Actual
+        </h3>
+
         {!establecimientoActivo ? (
-           <p className="text-sm text-muted-foreground">Seleccione un establecimiento activo en el menú lateral para ver las ubicaciones.</p>
+          <p className="text-sm text-muted-foreground">
+            Seleccioná un establecimiento en el menú lateral para ver las ubicaciones.
+          </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            {/* Potrero */}
             <div className="space-y-1.5">
               <Label>Potrero</Label>
-              <Select 
-                value={formData.potrero_actual ? formData.potrero_actual.toString() : "none"}
-                onValueChange={(val) => {
-                  if (val === "none") {
+              <Select
+                value={formData.potrero_actual?.toString() ?? "none"}
+                onValueChange={v => {
+                  if (v === "none") {
                     setValue("potrero_actual", undefined)
                     setValue("parcela_actual", undefined)
                   } else {
-                    setValue("potrero_actual", Number(val))
+                    setValue("potrero_actual", Number(v))
                     setValue("parcela_actual", undefined)
                   }
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar potrero" />
+                  <SelectValue>
+                    {(v: string | null) => {
+                      if (!v || v === "none") return <span className="text-muted-foreground">Sin ubicar</span>
+                      const p = potreros.find(p => p.id.toString() === v)
+                      return p ? p.nombre : v
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sin ubicar</SelectItem>
@@ -261,15 +458,24 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
               </Select>
             </div>
 
+            {/* Parcela — visible solo si el potrero tiene parcelas */}
             {parcelas.length > 0 && (
-              <div className="space-y-1.5 fade-in animate-in">
-                <Label>Parcela <span className="text-destructive">*</span></Label>
-                <Select 
-                  value={formData.parcela_actual ? formData.parcela_actual.toString() : ""}
-                  onValueChange={(val) => setValue("parcela_actual", Number(val))}
+              <div className="space-y-1.5">
+                <Label>
+                  Parcela <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={formData.parcela_actual?.toString() ?? ""}
+                  onValueChange={v => setValue("parcela_actual", Number(v))}
                 >
                   <SelectTrigger className="border-primary/50">
-                    <SelectValue placeholder="Seleccionar parcela" />
+                    <SelectValue>
+                      {(v: string | null) => {
+                        if (!v) return <span className="text-muted-foreground">Seleccionar parcela...</span>
+                        const p = parcelas.find(p => p.id.toString() === v)
+                        return p ? p.nombre : v
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {parcelas.map(p => (
@@ -277,40 +483,41 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Este potrero está subdividido. Debe elegir parcela.</p>
+                <p className="text-xs text-muted-foreground">
+                  Este potrero está subdividido. Debe elegir una parcela.
+                </p>
               </div>
             )}
+
           </div>
         )}
       </div>
 
-      {/* SECCIÓN 3: INGRESO AL SISTEMA Y OPS */}
+      {/* ── SECCIÓN 3: INFORMACIÓN DE INGRESO ─────────────────────────────── */}
       <div className="bg-card p-5 rounded-lg border">
-        <h3 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">Información de Ingreso</h3>
+        <h3 className="font-medium mb-4 text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">
+          Información de Ingreso
+        </h3>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="peso_entrada">Peso entrada (kg)</Label>
-            <Input id="peso_entrada" type="number" step="0.5" {...register("peso_entrada", { valueAsNumber: true })} />
+            <Input
+              id="peso_entrada"
+              type="number"
+              step="0.5"
+              placeholder="Ej: 320"
+              {...register("peso_entrada", { valueAsNumber: true })}
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="fecha_peso_entrada">Fecha de pesaje</Label>
-            <Input id="fecha_peso_entrada" type="date" {...register("fecha_peso_entrada")} />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Origen</Label>
-            <Select value={formData.origen} onValueChange={(val) => setValue("origen", val as any)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Propio">Propio</SelectItem>
-                <SelectItem value="Comprado">Comprado</SelectItem>
-                <SelectItem value="Nacido en campo">Nacido en campo</SelectItem>
-              </SelectContent>
-            </Select>
+            <Input
+              id="fecha_peso_entrada"
+              type="date"
+              {...register("fecha_peso_entrada")}
+            />
           </div>
         </div>
 
@@ -319,7 +526,8 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
           <textarea
             id="observaciones"
             rows={2}
-            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"
+            placeholder="Notas adicionales..."
+            className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"
             {...register("observaciones")}
           />
         </div>
@@ -327,18 +535,14 @@ export function AnimalForm({ initialData }: AnimalFormProps) {
 
       {/* Botones */}
       <div className="flex justify-end gap-3 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          disabled={enviando}
-        >
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={enviando}>
           Cancelar
         </Button>
         <Button type="submit" disabled={enviando}>
-          {enviando ? "Cargando..." : "Registrar Animal"}
+          {enviando ? "Guardando..." : initialData ? "Actualizar Animal" : "Registrar Animal"}
         </Button>
       </div>
+
     </form>
   )
 }

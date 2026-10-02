@@ -9,6 +9,7 @@ import { Download, Upload, AlertCircle, FileSpreadsheet } from "lucide-react"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { createAnimalesBulk } from "@/lib/queries/animales"
 import { toast } from "sonner"
+import { calcularCategoriaPreview } from "@/lib/utils/categorias"
 import type { AnimalInsert, SexoAnimal, OrigenAnimal } from "@/types/database"
 
 interface ExcelImportModalProps {
@@ -27,15 +28,14 @@ export function ExcelImportModal({ open, onOpenChange }: ExcelImportModalProps) 
   const handleDownloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet([
       {
-        caravana_snig: "12345678",
+        caravana_snig: "858000012345678",
         caravana_propia: "A1",
-        categoria: "Vaca de Invernada",
         sexo: "Hembra",
+        edad_meses_ingreso: 28,
         raza: "Angus",
         fecha_nacimiento: "2020-05-15",
         peso_entrada: 350,
-        origen: "Comprado",
-        observaciones: "Alimentación inicial"
+        observaciones: "Ejemplo de importación"
       }
     ])
     const wb = XLSX.utils.book_new()
@@ -75,44 +75,43 @@ export function ExcelImportModal({ open, onOpenChange }: ExcelImportModalProps) 
           newErrores.push({ fila: rowNum, mensaje: "caravana_snig es requerida." })
           return
         }
-        if (!row.categoria) {
-          newErrores.push({ fila: rowNum, mensaje: "categoria es requerida." })
-          return
-        }
-        
-        let sexoRaw = String(row.sexo || "").trim()
+
+        const sexoRaw = String(row.sexo || "").trim()
         if (sexoRaw !== "Macho" && sexoRaw !== "Hembra") {
           newErrores.push({ fila: rowNum, mensaje: "sexo debe ser Macho o Hembra." })
           return
         }
 
-        let origenVal: OrigenAnimal | null = null
-        if (row.origen) {
-           const o = String(row.origen).trim()
-           if (o === "Propio" || o === "Comprado" || o === "Nacido en campo") {
-             origenVal = o as OrigenAnimal
-           } else {
-             newErrores.push({ fila: rowNum, mensaje: "origen inválido." })
-             return
-           }
+        const edadMeses = Number(row.edad_meses_ingreso)
+        if (!row.edad_meses_ingreso || isNaN(edadMeses) || edadMeses < 0) {
+          newErrores.push({ fila: rowNum, mensaje: "edad_meses_ingreso es requerida y debe ser un número >= 0." })
+          return
         }
+
+        const hoy = new Date().toISOString().split("T")[0]
+        const categoriaActual = calcularCategoriaPreview(sexoRaw, edadMeses, false)
 
         insertData.push({
           establecimiento_id: establecimientoActivo.id,
+          dicose_propiedad_id: null,
           caravana_snig: String(row.caravana_snig).trim(),
           caravana_propia: row.caravana_propia ? String(row.caravana_propia).trim() : null,
-          categoria: String(row.categoria).trim(),
           sexo: sexoRaw as SexoAnimal,
+          edad_meses_ingreso: edadMeses,
+          fecha_ingreso: hoy,
+          es_toro: false,
+          categoria: categoriaActual,        // columna real en Supabase (NOT NULL)
+          categoria_actual: categoriaActual, // columna futura, pendiente de migración
           raza: row.raza ? String(row.raza).trim() : null,
           fecha_nacimiento: row.fecha_nacimiento ? String(row.fecha_nacimiento).trim() : null,
           peso_entrada: row.peso_entrada ? Number(row.peso_entrada) : null,
-          fecha_peso_entrada: row.peso_entrada && !row.fecha_peso_entrada ? new Date().toISOString().split('T')[0] : (row.fecha_peso_entrada ? String(row.fecha_peso_entrada).trim() : null),
-          origen: origenVal,
+          fecha_peso_entrada: row.peso_entrada && !row.fecha_peso_entrada
+            ? hoy
+            : (row.fecha_peso_entrada ? String(row.fecha_peso_entrada).trim() : null),
           observaciones: row.observaciones ? String(row.observaciones) : null,
           estado: 'activo',
           fecha_baja: null,
           madre_id: null,
-          movimiento_origen_id: null,
           potrero_actual: null,
           parcela_actual: null,
           lote_actual: null,

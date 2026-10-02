@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { PotreroForm } from "@/components/forms/PotreroForm"
 import { ParcelaForm } from "@/components/forms/ParcelaForm"
+import { DicosePropiedadSection } from "@/components/establecimientos/DicosePropiedadSection"
 import { desactivarParcela } from "@/lib/queries/parcelas"
 import { desactivarPotrero, borrarPotreroFisico } from "@/lib/queries/potreros"
 import { desactivarEstablecimiento, borrarEstablecimientoFisico } from "@/lib/queries/establecimientos"
@@ -47,7 +48,7 @@ export function EstablecimientoDetalle({
   onRefresh,
 }: EstablecimientoDetalleProps) {
   const router = useRouter()
-  const recargar = () => onRefresh ? onRefresh() : recargar()
+  const recargar = () => onRefresh ? onRefresh() : router.refresh()
   const [dialogAbierto, setDialogAbierto] = useState(false)
   const [dialogParcelaAbierto, setDialogParcelaAbierto] = useState(false)
   const [potreroActivoParaParcela, setPotreroActivoParaParcela] = useState<number | null>(null)
@@ -188,6 +189,12 @@ export function EstablecimientoDetalle({
                 <dd className="font-medium">{establecimiento.localidad}</dd>
               </div>
             )}
+            {establecimiento.paraje && (
+              <div>
+                <dt className="text-muted-foreground">Paraje</dt>
+                <dd className="font-medium">{establecimiento.paraje}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-muted-foreground">Superficie total</dt>
               <dd className="font-medium">{establecimiento.superficie_total} ha</dd>
@@ -198,10 +205,10 @@ export function EstablecimientoDetalle({
                 <dd className="font-medium">{establecimiento.propietario}</dd>
               </div>
             )}
-            {establecimiento.dicose && (
+            {establecimiento.dicose_fisico && (
               <div>
-                <dt className="text-muted-foreground">DICOSE</dt>
-                <dd className="font-medium font-mono">{establecimiento.dicose}</dd>
+                <dt className="text-muted-foreground">DICOSE Físico</dt>
+                <dd className="font-medium font-mono">{establecimiento.dicose_fisico}</dd>
               </div>
             )}
             <div>
@@ -216,6 +223,13 @@ export function EstablecimientoDetalle({
               {establecimiento.observaciones}
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Sección DICOSE Propiedad */}
+      <Card>
+        <CardContent className="pt-5">
+          <DicosePropiedadSection establecimiento_id={establecimiento.id} />
         </CardContent>
       </Card>
 
