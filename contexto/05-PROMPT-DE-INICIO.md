@@ -20,7 +20,7 @@ ANTES DE ESCRIBIR CÓDIGO, leé todos los archivos en la carpeta contexto/:
 CONTEXTO RÁPIDO:
 - App web mobile-first para gestionar establecimientos rurales (ganadería, agricultura, finanzas)
 - Base de datos: Supabase (PostgreSQL) - ya creada con 17 tablas
-- Frontend: Next.js 14 + Tailwind CSS + shadcn/ui
+- Frontend: Next.js 16 (App Router) + React 19 + Tailwind CSS 4 + shadcn/ui + Zod 4
 - Hosting: Vercel
 - País: Uruguay (categorías ganaderas, departamentos, DICOSE, moneda USD/UYU)
 - Un solo usuario por ahora, con user_id en tablas para futuro multi-usuario

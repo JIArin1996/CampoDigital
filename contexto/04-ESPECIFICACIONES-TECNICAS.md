@@ -4,8 +4,10 @@
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Frontend | Next.js | 14+ (App Router) |
-| Estilos | Tailwind CSS | 3+ |
+| Frontend | Next.js | 16 (App Router) |
+| UI runtime | React | 19 |
+| Estilos | Tailwind CSS | 4 |
+| Validación | Zod + react-hook-form | 4 / 7 |
 | Componentes UI | shadcn/ui | latest |
 | Base de datos | Supabase (PostgreSQL) | - |
 | SDK cliente | @supabase/supabase-js | 2+ |

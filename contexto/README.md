@@ -4,7 +4,7 @@ Sistema web de gestión integral para establecimientos rurales. Desarrollado par
 
 ## Stack
 
-- **Frontend**: Next.js 14 + Tailwind CSS + shadcn/ui
+- **Frontend**: Next.js 16 (App Router) + React 19 + Tailwind CSS 4 + shadcn/ui + Zod 4
 - **Base de datos**: Supabase (PostgreSQL)
 - **Hosting**: Vercel
 - **Control de versiones**: Git + GitHub
