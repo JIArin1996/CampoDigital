@@ -1,6 +1,6 @@
 # Campo Digital — Diseño de la base, Etapa 3
 
-Estado: **borrador para revisión**. No hay migraciones escritas. Base: `00-ENFOQUE-V2.md` y `MODELO-DE-DATOS-V2.md`.
+Estado: **aprobado el 2026-10-15**, con las decisiones y agregados de la sección 9. Migraciones en `supabase/migrations/20261015000100_*` a `20261015000300_*`; pruebas de RLS en `supabase/tests/etapa3_rls.sql`. Base: `00-ENFOQUE-V2.md` y `MODELO-DE-DATOS-V2.md`.
 
 Marcas: **[Decidido]** sale de esos documentos o de decisiones ya tomadas; **[Propuesta]** es diseño a validar. Los fragmentos SQL son ilustrativos: muestran la forma, no son la migración final.
 
@@ -8,7 +8,7 @@ Marcas: **[Decidido]** sale de esos documentos o de decisiones ya tomadas; **[Pr
 
 ## 1. Criterios generales
 
-### 1.1 Tipo de id: `uuid` en todas las tablas [Propuesta]
+### 1.1 Tipo de id: `uuid` en todas las tablas [Decidido]
 
 Toda clave primaria es `id uuid primary key default gen_random_uuid()`, y toda clave foránea es `uuid`. No hay ningún `bigint` en el esquema.
 
@@ -26,9 +26,11 @@ Costo: índices algo más grandes y URL más largas. Con el volumen de un establ
 |---|---|---|---|
 | id | uuid | todas | `default gen_random_uuid()` |
 | establecimiento_id | uuid | todas menos `establecimientos` | base del RLS y de los índices |
-| created_by | uuid | todas | `default auth.uid()`, `references auth.users on delete set null`. Solo auditoría [Decidido] |
+| created_by | uuid | todas | `default auth.uid()`. Solo auditoría [Decidido]. **Sin clave foránea** a `auth.users` (ver abajo) |
 | created_at | timestamptz | todas | `default now()` |
 | updated_at | timestamptz | tablas editables | trigger `set_updated_at`. No existe en tablas inmutables |
+
+**Por qué `created_by` no tiene clave foránea.** Con `references auth.users on delete set null`, borrar un usuario haría un `update` sobre sus filas. En las tablas inmutables, ese `update` lo frena el trigger de la sección 5, así que el usuario no se podría borrar nunca. Y en las editables se perdería el dato de quién cargó. Sin clave foránea, `created_by` guarda el id aunque el usuario ya no exista, que es lo que se quiere de una auditoría.
 
 ### 1.3 Mismo establecimiento garantizado por la base [Propuesta]
 
@@ -122,7 +124,7 @@ No estaba en la lista de la Etapa 3, pero **tiene que entrar**: el reseteo de `p
 | establecimiento_id | uuid | |
 | nombre | text | `unique (establecimiento_id, nombre)` |
 | superficie | numeric(10,2) | `> 0` |
-| uso_actual | text | ver pregunta abierta 3 |
+| uso_actual | text | opcional. Valores de catálogo en `parametros` (clave `uso_potrero`): Ganadería, Forestación, Reserva, Sin uso. Sin `check` ni enum, para poder sumar valores sin migrar [Decidido] |
 | tipo_pastura | text | opcional (lista en `parametros`) |
 | aguada, sombra | boolean | opcional |
 | estado | text | `activo` o `inactivo` |
@@ -144,6 +146,14 @@ Listas **globales** y simples, sin relaciones: departamentos, tipos de pastura y
 | activo | boolean | |
 
 `unique (clave, valor)`. Lo puede leer cualquier usuario autenticado; se escribe solo por migración. No lleva `establecimiento_id` porque es global (excepción explícita a 1.2).
+
+Valores iniciales [Decidido]:
+
+| Clave | Valores |
+|---|---|
+| `departamentos` | los 19 departamentos de Uruguay |
+| `tipos_pastura` | Campo natural, Campo natural mejorado, Pradera, Verdeo de invierno, Verdeo de verano |
+| `uso_potrero` | Ganadería, Forestación, Reserva, Sin uso |
 
 ### 2.7 lotes
 
@@ -206,6 +216,22 @@ Restricciones:
 
 PK: `(operacion_id, lote_id, rol)`. Las tablas entran en la Etapa 3. Las funciones que las escriben (dividir, juntar y recategorizar) son de la Etapa 5.
 
+### 2.9 bis lote_cambios_estado (inmutable) [Propuesta]
+
+Registro de cierres y reaperturas, para que `reabrir_lote` "deje evento" [Decidido]. No puede ir en `lote_eventos`, porque esa tabla registra cabezas por categoría (`cabezas <> 0`) y un cierre o una reapertura no mueve cabezas.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| id | uuid pk | |
+| establecimiento_id | uuid | |
+| lote_id | uuid | FK compuesta a lotes |
+| tipo | text | `cierre` o `reapertura` |
+| fecha | date | |
+| motivo | text | opcional |
+| created_by, created_at | | |
+
+La escriben `cerrar_lote` y `reabrir_lote`, y en la Etapa 5 `unir_lotes` cuando cierra el lote absorbido.
+
 ### 2.10 Relaciones
 
 ```
@@ -219,9 +245,28 @@ establecimientos ─┬─< personas
                   ├─< rubros
                   ├─< lotes >── especies, potreros (opcional)
                   │     └─< lote_eventos >── categorias_animales
-                  └─< operaciones_lote ──< operacion_lote_vinculos >── lotes
-                                    └──< lote_eventos (operacion_lote_id)
+                  ├─< operaciones_lote ──< operacion_lote_vinculos >── lotes
+                  │                 └──< lote_eventos (operacion_lote_id)
+                  └─< lote_cambios_estado >── lotes
 ```
+
+### 2.10 bis Bajas y borrados: ninguna cascada hacia los eventos [Decidido]
+
+- **Ninguna clave foránea tiene `on delete cascade` hacia `lote_eventos`**, ni hacia `operaciones_lote`, `operacion_lote_vinculos` o `lote_cambios_estado`. Todas son `on delete restrict` (o la acción por defecto, `no action`, que también impide borrar). Lo mismo valdrá para `actividades` en la Etapa 6a.
+- **`establecimientos` y `lotes` se dan de baja de forma lógica**: `estado = 'inactivo'` y `estado = 'cerrado'`. No tienen política de `delete` y `authenticated` no tiene permiso de `delete` sobre ninguna tabla.
+- La única cascada del esquema es `membresias.user_id → auth.users on delete cascade`: si se borra un usuario de Supabase, se borran sus membresías. No toca datos del campo.
+- `personas.user_id → auth.users` es `on delete set null`: la persona queda, sin vínculo a un usuario.
+
+| Desde | Hacia | Al borrar el padre |
+|---|---|---|
+| todas las tablas (`establecimiento_id`) | establecimientos | restrict |
+| membresias.user_id | auth.users | cascade |
+| personas.user_id | auth.users | set null |
+| categorias_animales, lotes (especie) | especies | restrict |
+| lotes.potrero_id | potreros | restrict |
+| lote_eventos, operacion_lote_vinculos, lote_cambios_estado (lote) | lotes | restrict |
+| lote_eventos.categoria_id | categorias_animales | restrict |
+| lote_eventos, operacion_lote_vinculos (operación) | operaciones_lote | restrict |
 
 ### 2.11 Índices [Propuesta]
 
@@ -281,13 +326,15 @@ end;
 $$;
 ```
 
-El resto de los campos del establecimiento se completa después con un `update` normal, que ya pasa por RLS como editor.
+En la migración, la función suma parámetros opcionales para todos los datos descriptivos (localidad, superficie, sistema productivo, DICOSE, etc.), así la app crea el establecimiento completo en una sola llamada. Después se edita con un `update` normal, que pasa por RLS como editor.
 
 `_cargar_catalogos_base` carga el set de Santa Remigia, que es el set inicial documentado: especies Vacunos y Ovinos, sus categorías, y los rubros vacunos, ovinos, forestación tercerizada y general. Después cada establecimiento lo ajusta [Propuesta].
 
-**Quién puede crear establecimientos.** Cualquier usuario con sesión, y solo ve los suyos. Para que no entre cualquiera, se recomienda **desactivar el registro abierto** en Supabase Auth: los usuarios se invitan por mail desde el panel hasta la Etapa 9 [Propuesta].
+Los nombres compuestos del documento ("terneros/as", "corderos/as", "borregos/as") se cargan como **dos categorías separadas** (Terneros y Terneras, etc.) [Propuesta]. Motivo: la parición da de alta "terneros y terneras" por separado (`MODELO-DE-DATOS-V2.md`, sección 6), y en una cría los machos y las hembras siguen caminos distintos. Quedan 7 categorías vacunas (Terneros, Terneras, Vaquillonas, Novillos, Vacas de cría, Vacas de invernada o descarte, Toros) y 7 ovinas (Corderos, Corderas, Borregos, Borregas, Ovejas de cría, Ovejas de descarte, Carneros).
 
-**Primer uso real.** Vos creás tu usuario, entrás y ejecutás `crear_establecimiento('Santa Remigia', ...)`, o lo hace la app. Para tu hermano: se lo invita y se carga su membresía con un script de una vez hasta que exista la pantalla de la Etapa 9.
+**Quién puede crear establecimientos.** Cualquier usuario con sesión, y solo ve los suyos. **El registro abierto en Supabase Auth está desactivado**: los usuarios los crea a mano el administrador desde el panel de Supabase [Decidido].
+
+**Primer uso real.** Creás tu usuario en el panel, entrás a la app y creás Santa Remigia, que llama a `crear_establecimiento`. Para tu hermano: se crea su usuario en el panel y se carga su membresía con un script de una vez, hasta que exista la pantalla de la Etapa 9.
 
 ---
 
@@ -378,23 +425,24 @@ create trigger lote_eventos_sin_truncate
   for each statement execute function public.bloquear_modificacion();
 ```
 
-Lo mismo se aplica a `operaciones_lote` y `operacion_lote_vinculos`.
+Lo mismo se aplica a `operaciones_lote`, `operacion_lote_vinculos` y `lote_cambios_estado`.
 
 **Cómo se escribe, entonces.** Solo con funciones `security definer` que:
 
 1. verifican `es_editor(establecimiento_id)` y, si no, cortan con `42501`;
-2. bloquean el lote (`select ... from public.lotes where id = ... for update`) para que dos cargas simultáneas no se pisen;
+2. bloquean la fila del lote (`select ... from public.lotes where id = ... for update`) **antes de leer el saldo** [Decidido]. Hay dos editores: si los dos registran una baja de la misma categoría al mismo tiempo, el segundo espera a que termine el primero y valida con el saldo ya actualizado. Sin el bloqueo, los dos podrían ver 10 cabezas, sacar 8 cada uno y dejar el saldo en -6;
 3. validan que el lote esté activo, que la fecha no sea futura ni anterior a la apertura, y que la categoría sea de la especie del lote;
 4. insertan los eventos;
-5. verifican que el **saldo por categoría nunca quede negativo**, en ninguna fecha, recorriendo los eventos en orden de fecha [Propuesta].
+5. verifican que el **saldo por categoría nunca quede negativo**, en ninguna fecha [Propuesta]. Se suman los eventos por día y se acumulan en orden de fecha: el saldo al final de cada día tiene que ser mayor o igual a cero. Se compara por día y no evento por evento, porque los eventos de una misma operación tienen la misma fecha y hora de carga.
 
 Funciones de la Etapa 3:
 
 | Función | Qué hace |
 |---|---|
-| `crear_lote(p_est, p_especie, p_nombre, p_fecha, p_composicion jsonb, p_potrero, p_campana, p_notas)` | crea el lote y un evento `alta_inicial` por categoría, por ejemplo `[{"categoria_id": "...", "cabezas": 120}]` |
-| `registrar_ajuste(p_lote, p_categoria, p_cabezas, p_fecha, p_nota)` | corrección con signo; la nota es obligatoria |
-| `cerrar_lote(p_lote, p_fecha)` | cierra un lote; ver pregunta abierta 4 |
+| `crear_lote(p_establecimiento_id, p_especie_id, p_nombre, p_fecha_apertura, p_composicion jsonb, p_potrero_id, p_campana, p_notas)` | crea el lote y un evento `alta_inicial` por categoría, por ejemplo `[{"categoria_id": "...", "cabezas": 120}]` |
+| `registrar_ajuste(p_lote_id, p_categoria_id, p_cabezas, p_fecha, p_nota)` | corrección con signo; la nota es obligatoria |
+| `cerrar_lote(p_lote_id, p_fecha, p_motivo)` | cierra el lote **solo si el stock de todas sus categorías es cero** [Decidido]; deja un registro `cierre` |
+| `reabrir_lote(p_lote_id, p_fecha, p_motivo)` | vuelve a abrir un lote cerrado [Decidido]; deja un registro `reapertura` |
 
 **Corrección de un error.** Si se cargaron 120 terneros y eran 112, no se edita la fila: se registra `registrar_ajuste(lote, terneros, -8, fecha, 'Error de conteo en el alta')`. El stock queda en 112 y el historial muestra qué pasó.
 
@@ -422,7 +470,7 @@ join public.categorias_animales c on c.id = s.categoria_id
 group by s.establecimiento_id, c.especie_id, s.categoria_id;
 ```
 
-- **`security_invoker = true` es obligatorio.** Sin eso, la vista corre con los permisos de su dueño y **se saltea el RLS**: cualquier usuario vería el stock de todos los establecimientos. Requiere Postgres 15 o superior [sin verificar: hay que confirmar la versión del proyecto de Supabase].
+- **`security_invoker = true` es obligatorio.** Sin eso, la vista corre con los permisos de su dueño y **se saltea el RLS**: cualquier usuario vería el stock de todos los establecimientos. Requiere **Postgres 15 o superior**: la versión se verifica antes de correr las migraciones [Decidido]. En una versión anterior, la opción da error al crear la vista, así que la migración falla en vez de dejar una vista insegura.
 - **Por qué no materializada.** Una vista materializada **no admite RLS**: expondría todo a cualquiera que pueda leerla. Además hay que refrescarla a mano después de cada carga. Con el volumen esperado, sumar en el momento con el índice `(lote_id, categoria_id, fecha)` es instantáneo. Si algún día hace falta, se cambia por una tabla de saldos mantenida por las mismas funciones, sin tocar la interfaz.
 - **Stock a una fecha** (por ejemplo, al 30 de junio para la declaración jurada): función `stock_al(p_est, p_fecha)` con el mismo cálculo filtrando `fecha <= p_fecha`. La implementación es de la Etapa 5.
 
@@ -486,7 +534,22 @@ La anon key es pública y un lector tiene un token válido, así que puede llama
 | `POST /rest/v1/rpc/crear_establecimiento` | **Funciona**: crea un establecimiento nuevo **propio**, donde queda como editor. No le da acceso a ninguno ajeno (por eso conviene cerrar el registro abierto, sección 3) |
 | Cualquier llamada **sin sesión** (solo anon key) | No ve nada: todas las políticas son `to authenticated` y las funciones no se pueden ejecutar como `anon` |
 
-**Detalle de Supabase.** El reseteo de la Etapa 2 da por defecto `execute` sobre las funciones nuevas a `anon`. Cada función lleva `revoke execute ... from public, anon` explícito, y las internas (con `_` adelante, como `_cargar_catalogos_base`) no se dan a nadie.
+### 7.5 Permisos (GRANT) [Decidido]
+
+El RLS decide **qué filas**. Los permisos deciden **qué operaciones** se pueden intentar. Van las dos capas:
+
+- **Todo objeto nuevo nace sin permisos**: la migración base saca los permisos por defecto que el reseteo dejaba para `anon` y `authenticated`. Cada migración otorga explícitamente lo que hace falta, así nada queda abierto por olvido en las etapas siguientes.
+- **`anon` no tiene ningún permiso** sobre tablas, vistas ni funciones de `public`. Sin sesión, cualquier llamada da `42501`.
+- **`authenticated`** tiene:
+  - `select` en todas las tablas y vistas (el RLS filtra las filas);
+  - `insert` y `update` solo en `personas`, `especies`, `categorias_animales`, `rubros` y `potreros`, y **por columna**: nunca `id`, `created_by`, `created_at` ni `updated_at` (la auditoría no se puede falsear), y `establecimiento_id` (y `especie_id` en categorías) solo al dar de alta, no al editar;
+  - en `establecimientos`, `update` solo de los datos descriptivos y `estado`;
+  - en `lotes`, **sin `update` sobre la tabla**: solo por columna (`nombre`, `campana`, `potrero_id`, `notas`);
+  - ningún `delete` ni `truncate` en ninguna tabla.
+- **Funciones `security definer`**: todas llevan `set search_path = ''`, `revoke execute ... from public, anon` y `grant execute ... to authenticated`. Las que escriben validan `es_editor` adentro antes de hacer nada.
+- **Funciones internas** (con `_` adelante, como `_cargar_catalogos_base` y `_validar_saldo`) y **funciones de trigger**: `revoke execute` también a `authenticated`. No se pueden llamar por la API.
+
+**Detalle de Supabase.** El reseteo de la Etapa 2 deja, por defecto, permisos para `anon` sobre todo lo nuevo de `public`. La migración base saca esos permisos por defecto y revoca explícitamente sobre cada objeto. Además, Postgres da `execute` a `public` sobre toda función nueva, y eso no se puede sacar por esquema: por eso el `revoke` va función por función.
 
 ---
 
@@ -494,7 +557,7 @@ La anon key es pública y un lector tiene un token válido, así que puede llama
 
 | Etapa | Tablas | Funciones y vistas |
 |---|---|---|
-| **3** | establecimientos, membresias, personas, especies, categorias_animales, rubros, potreros, parametros, lotes, lote_eventos, operaciones_lote, operacion_lote_vinculos | es_miembro, es_editor, mi_rol, crear_establecimiento, _cargar_catalogos_base, crear_lote, registrar_ajuste, cerrar_lote, set_updated_at, bloquear_modificacion; v_stock_lote, v_stock_establecimiento |
+| **3** | establecimientos, membresias, personas, especies, categorias_animales, rubros, potreros, parametros, lotes, lote_eventos, operaciones_lote, operacion_lote_vinculos, lote_cambios_estado | es_miembro, es_editor, mi_rol, crear_establecimiento, _cargar_catalogos_base, crear_lote, registrar_ajuste, cerrar_lote, reabrir_lote, _validar_saldo, set_updated_at, bloquear_modificacion; v_stock_lote, v_stock_establecimiento. En la app: login mínimo y adaptación de establecimientos y potreros (Etapa 3b) |
 | 5 | bitacora_entradas, bitacora_lotes | dividir_lote, unir_lotes, recategorizar_lote, linaje_lote, stock_al |
 | 6a | actividades, actividad_lineas, act_compraventa, act_mortandad, act_paricion, movimientos_economicos; se agrega `lote_eventos.actividad_id` | registrar_actividad (pesada, mortandad, compra, venta, parición, con el movimiento económico de compra y venta) |
 | 6b | act_sanidad, act_servicio, act_diagnostico, act_destete, act_esquila, act_personalizada | registrar_actividad se extiende |
@@ -504,15 +567,28 @@ La anon key es pública y un lector tiene un token válido, así que puede llama
 
 ---
 
-## 9. Preguntas abiertas para aprobar el diseño
+## 9. Decisiones de aprobación (2026-10-15)
 
-1. **Tipo de id:** ¿aprobás `uuid` en todas las tablas (sección 1.1)?
-2. **App entre la Etapa 3 y la 4:** cuando corra el reseteo y se active el RLS, la app actual deja de funcionar: no hay login, así que el usuario anónimo no ve nada, y además las páginas asumen ids numéricos. Hay dos opciones:
-   - (a) la Etapa 3 incluye una página de login mínima, los tipos generados y la adaptación de establecimientos y potreros, para probar el RLS de punta a punta;
-   - (b) la app queda sin funcionar hasta la Etapa 4.
+1. **`uuid`** en todas las tablas.
+2. **La Etapa 3 incluye** un login mínimo (email y contraseña, `proxy.ts`, cierre de sesión) y la adaptación de establecimientos y potreros a `uuid` y a `crear_establecimiento()`. La navegación y el diseño siguen en la Etapa 4.
+3. **`uso_actual`**: Ganadería, Forestación, Reserva y Sin uso, como valores de catálogo en `parametros`, no como enum.
+4. **`cerrar_lote`** solo con stock en cero. Se agrega **`reabrir_lote`**, que deja registro.
+5. **`parametros` iniciales**: los 19 departamentos y las pasturas campo natural, campo natural mejorado, pradera, verdeo de invierno y verdeo de verano.
+6. **Registro abierto desactivado**: los usuarios los crea el administrador desde el panel de Supabase.
 
-   Recomiendo (a).
-3. **potreros.uso_actual** sin agricultura: propongo `Ganadería`, `Forestación`, `Reserva` y `Sin uso`. Forestación porque la tercerizada ocupa campo. Hoy además existe `Mixto`, que mezclaba ganadería con agricultura y deja de tener sentido.
-4. **cerrar_lote:** ¿solo se puede cerrar con stock en cero, o al cerrar se exige registrar antes la salida de lo que queda? Propongo **solo con stock en cero**. Las operaciones de juntar ya cierran el lote absorbido por su cuenta.
-5. **Valores de `parametros`:** el reseteo borra los que existen hoy y no los tengo [sin verificar]. Propongo cargar los 19 departamentos de Uruguay. Para tipos de pastura necesito tu lista, o arranco con campo natural, mejorado, pradera y verdeo.
-6. **Registro abierto en Supabase Auth:** ¿lo desactivamos e invitamos usuarios por mail (sección 3)?
+Agregados al diseño:
+
+- a) Permisos: sección 7.5.
+- b) Bloqueo de la fila del lote antes de leer el saldo: sección 5.
+- c) Ninguna cascada hacia los eventos y bajas lógicas: sección 2.10 bis.
+- d) Verificación de la versión de Postgres antes de migrar: sección 6.
+
+Antes de correr las migraciones (Etapa 3b), el administrador verifica:
+
+- `select version();` → Postgres 15 o superior;
+- que no haya triggers sobre `auth.users` que dependan de `public` (el reseteo los borraría con `cascade`).
+
+Etapa 3 en dos tandas:
+
+- **3a**: este documento, las migraciones y el script de pruebas de RLS. No se corre nada contra Supabase.
+- **3b**: correr el reseteo y las migraciones, correr las pruebas, y hacer el login mínimo y la adaptación de establecimientos y potreros.
