@@ -5,34 +5,24 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { createClient } from "@/lib/supabase/client"
 import { EstablecimientoDetalle } from "@/components/establecimientos/EstablecimientoDetalle"
 import { PageContainer } from "@/components/layout/PageContainer"
-import type { Potrero, Parcela } from "@/types/database"
+import type { Potrero } from "@/types/database"
 
 export default function PotrerosPage() {
   const { establecimientoActivo, cargando: cargandoCtx } = useEstablecimiento()
   const [potreros, setPotreros] = useState<Potrero[]>([])
-  const [parcelas, setParcelas] = useState<Parcela[]>([])
   const [cargando, setCargando] = useState(false)
 
   const recargar = useCallback(async () => {
     if (!establecimientoActivo) return
     setCargando(true)
     const supabase = createClient()
-    const [{ data: p }, { data: par }] = await Promise.all([
-      supabase
-        .from("potreros")
-        .select("*")
-        .eq("establecimiento_id", establecimientoActivo.id)
-        .eq("estado", "activo")
-        .order("nombre"),
-      supabase
-        .from("parcelas")
-        .select("*")
-        .eq("establecimiento_id", establecimientoActivo.id)
-        .eq("estado", "activo")
-        .order("nombre"),
-    ])
+    const { data: p } = await supabase
+      .from("potreros")
+      .select("*")
+      .eq("establecimiento_id", establecimientoActivo.id)
+      .eq("estado", "activo")
+      .order("nombre")
     setPotreros((p ?? []) as Potrero[])
-    setParcelas((par ?? []) as Parcela[])
     setCargando(false)
   }, [establecimientoActivo?.id])
 
@@ -67,7 +57,6 @@ export default function PotrerosPage() {
       <EstablecimientoDetalle
         establecimiento={establecimientoActivo}
         potreros={potreros}
-        parcelas={parcelas}
         onRefresh={recargar}
       />
     </PageContainer>

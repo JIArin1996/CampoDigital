@@ -105,14 +105,8 @@ export async function borrarEstablecimientoFisico(id: number) {
     .eq('establecimiento_id', id)
   if (errorPotreros) throw errorPotreros
 
-  const { count: animalesCount, error: errorAnimales } = await supabase
-    .from('animales')
-    .select('*', { count: 'exact', head: true })
-    .eq('establecimiento_id', id)
-  if (errorAnimales) throw errorAnimales
-
-  if ((potrerosCount && potrerosCount > 0) || (animalesCount && animalesCount > 0)) {
-    throw new Error('No se puede eliminar definitivamente porque tiene potreros o animales asociados.')
+  if (potrerosCount && potrerosCount > 0) {
+    throw new Error('No se puede eliminar definitivamente porque tiene potreros asociados.')
   }
 
   const { error } = await supabase

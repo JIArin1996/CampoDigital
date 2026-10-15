@@ -34,10 +34,7 @@ const schema = z.object({
   tipo: z.enum(["Ganadero", "Agrícola", "Mixto"], "El tipo es requerido"),
   propietario: z.string().optional(),
   rut: z.string().optional(),
-  dicose_fisico: z
-    .string()
-    .optional()
-    .refine(v => !v || /^\d{9}$/.test(v), "Debe tener exactamente 9 dígitos numéricos"),
+  dicose_fisico: z.string().optional(),
   fecha_alta: z.string().min(1, "La fecha de alta es requerida"),
   observaciones: z.string().optional(),
 })
@@ -250,19 +247,12 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="dicose_fisico">DICOSE Físico</Label>
+          <Label htmlFor="dicose_fisico">DICOSE</Label>
           <Input
             id="dicose_fisico"
-            placeholder="Ej: 123456789"
-            maxLength={9}
-            aria-invalid={!!errors.dicose_fisico}
+            placeholder="Opcional"
             {...register("dicose_fisico")}
           />
-          {errors.dicose_fisico ? (
-            <p className="text-sm text-destructive">{errors.dicose_fisico.message}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">9 dígitos numéricos</p>
-          )}
         </div>
       </div>
 

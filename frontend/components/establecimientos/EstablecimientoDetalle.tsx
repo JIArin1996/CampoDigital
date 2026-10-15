@@ -16,19 +16,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { PotreroForm } from "@/components/forms/PotreroForm"
-import { ParcelaForm } from "@/components/forms/ParcelaForm"
-import { DicosePropiedadSection } from "@/components/establecimientos/DicosePropiedadSection"
-import { desactivarParcela } from "@/lib/queries/parcelas"
 import { desactivarPotrero, borrarPotreroFisico } from "@/lib/queries/potreros"
 import { desactivarEstablecimiento, borrarEstablecimientoFisico } from "@/lib/queries/establecimientos"
-import type { Establecimiento, Potrero, Parcela } from "@/types/database"
+import type { Establecimiento, Potrero } from "@/types/database"
 import { toast } from "sonner"
 import { DeleteConfirmationModal } from "@/components/shared/DeleteConfirmationModal"
 
 interface EstablecimientoDetalleProps {
   establecimiento: Establecimiento
   potreros: Potrero[]
-  parcelas: Parcela[]
   onRefresh?: () => void
 }
 
@@ -44,17 +40,13 @@ const badgeUso: Record<string, string> = {
 export function EstablecimientoDetalle({
   establecimiento,
   potreros,
-  parcelas,
   onRefresh,
 }: EstablecimientoDetalleProps) {
   const router = useRouter()
   const recargar = () => onRefresh ? onRefresh() : router.refresh()
   const [dialogAbierto, setDialogAbierto] = useState(false)
-  const [dialogParcelaAbierto, setDialogParcelaAbierto] = useState(false)
-  const [potreroActivoParaParcela, setPotreroActivoParaParcela] = useState<number | null>(null)
 
   const [potreroAEditar, setPotreroAEditar] = useState<Potrero | null>(null)
-  const [parcelaAEditar, setParcelaAEditar] = useState<Parcela | null>(null)
 
   // Estados de Delete Fuerte
   const [deleteModalEstablecimiento, setDeleteModalEstablecimiento] = useState(false)
@@ -74,30 +66,6 @@ export function EstablecimientoDetalle({
   const abrirDialogPotrero = (potrero?: Potrero) => {
     setPotreroAEditar(potrero || null)
     setDialogAbierto(true)
-  }
-
-  const handleDesactivarParcela = async (parcelaId: number) => {
-    if (!window.confirm("¿Estás seguro de que deseas desactivar esta parcela?")) return;
-    try {
-      await desactivarParcela(parcelaId);
-      toast.success("Parcela desactivada correctamente");
-      recargar();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al desactivar la parcela");
-    }
-  }
-
-  const handleParcelaCreada = () => {
-    setDialogParcelaAbierto(false)
-    setPotreroActivoParaParcela(null)
-    setParcelaAEditar(null)
-    recargar()
-  }
-
-  const abrirDialogParcela = (potreroId: number, parcela?: Parcela) => {
-    setPotreroActivoParaParcela(potreroId)
-    setParcelaAEditar(parcela || null)
-    setDialogParcelaAbierto(true)
   }
 
   // ACCIONES ESTABLECIMIENTO
@@ -207,7 +175,7 @@ export function EstablecimientoDetalle({
             )}
             {establecimiento.dicose_fisico && (
               <div>
-                <dt className="text-muted-foreground">DICOSE Físico</dt>
+                <dt className="text-muted-foreground">DICOSE</dt>
                 <dd className="font-medium font-mono">{establecimiento.dicose_fisico}</dd>
               </div>
             )}
@@ -223,13 +191,6 @@ export function EstablecimientoDetalle({
               {establecimiento.observaciones}
             </p>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Sección DICOSE Propiedad */}
-      <Card>
-        <CardContent className="pt-5">
-          <DicosePropiedadSection establecimiento_id={establecimiento.id} />
         </CardContent>
       </Card>
 
@@ -259,10 +220,7 @@ export function EstablecimientoDetalle({
           </div>
         ) : (
           <div className="space-y-4">
-            {potreros.map((potrero) => {
-              const potreroParcelas = parcelas.filter((p) => p.potrero_id === potrero.id)
-              
-              return (
+            {potreros.map((potrero) => (
               <div
                 key={potrero.id}
                 className="flex flex-col rounded-lg border bg-card overflow-hidden"
@@ -302,9 +260,6 @@ export function EstablecimientoDetalle({
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => abrirDialogPotrero(potrero)} title="Editar potrero">
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => abrirDialogParcela(potrero.id)} className="h-7 px-2 text-xs border border-dashed rounded-md bg-secondary/30">
-                      <Plus className="h-3 w-3 mr-1" /> Parcela
-                    </Button>
                     <div className="w-[1px] h-4 bg-border mx-1"></div>
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:bg-yellow-100/50 hover:text-yellow-700" onClick={() => handleDesactivarPotrero(potrero.id)}>
                       Desactivar
@@ -314,33 +269,8 @@ export function EstablecimientoDetalle({
                     </Button>
                   </div>
                 </div>
-
-                {/* Lista de parcelas */}
-                {potreroParcelas.length > 0 && (
-                  <div className="bg-muted/30 px-4 py-3 space-y-2">
-                    {potreroParcelas.map(parcela => (
-                      <div key={parcela.id} className="flex items-center justify-between rounded border bg-background px-3 py-2 text-sm shadow-sm">
-                        <div className="flex items-center">
-                           <span className="font-medium">{parcela.nombre}</span>
-                           <span className="text-muted-foreground ml-3">{parcela.superficie} ha</span>
-                           <span className={`text-[10px] ml-3 px-1.5 py-0.5 rounded-full font-medium border ${badgeUso[parcela.uso_actual] ?? "bg-gray-100 text-gray-600"}`}>
-                             {parcela.uso_actual}
-                           </span>
-                        </div>
-                        <div className="flex border-l pl-2 space-x-1">
-                           <Button title="Editar parcela" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => abrirDialogParcela(potrero.id, parcela)}>
-                             <Edit2 className="h-3.5 w-3.5" />
-                           </Button>
-                           <Button title="Desactivar parcela" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDesactivarParcela(parcela.id)}>
-                             <Trash2 className="h-3.5 w-3.5" />
-                           </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            )})}
+            ))}
           </div>
         )}
       </div>
@@ -366,41 +296,13 @@ export function EstablecimientoDetalle({
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para agregar parcela */}
-      <Dialog open={dialogParcelaAbierto} onOpenChange={(open) => {
-        setDialogParcelaAbierto(open)
-        if (!open) {
-          setPotreroActivoParaParcela(null)
-          setParcelaAEditar(null)
-        }
-      }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{parcelaAEditar ? "Editar Parcela" : "Nueva Parcela"}</DialogTitle>
-          </DialogHeader>
-          {potreroActivoParaParcela && (
-            <ParcelaForm
-              establecimiento_id={establecimiento.id}
-              potrero_id={potreroActivoParaParcela}
-              initialData={parcelaAEditar || undefined}
-              onSuccess={handleParcelaCreada}
-              onCancel={() => {
-                setDialogParcelaAbierto(false)
-                setPotreroActivoParaParcela(null)
-                setParcelaAEditar(null)
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      
       {/* Modales de Delete Físico */}
       <DeleteConfirmationModal
         open={deleteModalEstablecimiento}
         onOpenChange={setDeleteModalEstablecimiento}
         onConfirm={handleHardDeleteEstablecimiento}
         title="Eliminar Establecimiento"
-        description="Esta acción eliminará físicamente el establecimiento de la base de datos de manera definitiva. Esto requiere que el establecimiento NO tenga NINGÚN potrero ni animal dentro. Si tiene, se rechazará. Por favor, escriba 'ELIMINAR' para confirmar."
+        description="Esta acción eliminará físicamente el establecimiento de la base de datos de manera definitiva. Esto requiere que el establecimiento NO tenga NINGÚN potrero. Si tiene, se rechazará. Por favor, escriba 'ELIMINAR' para confirmar."
         isDeleting={isDeleting}
       />
 
@@ -411,7 +313,7 @@ export function EstablecimientoDetalle({
           if (deleteModalPotrero) handleHardDeletePotrero(deleteModalPotrero)
         }}
         title="Eliminar Potrero"
-        description="Esta acción eliminará físicamente el potrero de la base de datos de manera definitiva. Requiere que no posea parcelas ni animales adentro. Escriba 'ELIMINAR' para confirmar."
+        description="Esta acción eliminará físicamente el potrero de la base de datos de manera definitiva. Esta acción no se puede deshacer. Escriba 'ELIMINAR' para confirmar."
         isDeleting={isDeleting}
       />
     </div>

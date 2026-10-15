@@ -1,1 +1,3 @@
 Borrador del 9 de abril de 2026. Es un híbrido: la infraestructura que describe (Google Sheets, Apps Script, IDs tipo EST-001) es OBSOLETA, el proyecto usa Supabase. Lo que sí vale son las reglas de dominio de trazabilidad SNIG/DICOSE (DICOSE Físico y Propiedad, caravana obligatoria, categorización automática, lotes_movimiento y subtipos de movimiento). Se conserva como referencia para el futuro módulo extra de trazabilidad.
+
+Actualización 2026-10-15: la trazabilidad se eliminó del proyecto (ver contexto/00-ENFOQUE-V2.md, sección 15). Este borrador ya no es referencia para un módulo futuro; queda solo como historia.

@@ -2,19 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  MapPin,
-  ArrowLeftRight,
-  Syringe,
-  Heart,
-  Wheat,
-  Package,
-  Wrench,
-  DollarSign,
-  Users,
-  Grid3X3,
-  ChevronDown,
-} from "lucide-react"
+import { MapPin, Grid3X3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import {
@@ -25,31 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-// Ícono de vaca personalizado (Lucide no tiene uno)
-const CowIcon = (props: React.ComponentProps<"svg">) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    className={props.className}>
-    <path d="M4 11a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v5a5 5 0 0 1-10 0v-2" />
-    <path d="M4 11v5a5 5 0 0 0 10 0" />
-    <path d="M6 7V4c0-.6.4-1 1-1h2l1 2h4l1-2h2c.6 0 1 .4 1 1v3" />
-    <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
-    <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
-  </svg>
-)
-
+// La navegación definitiva (inicio, bitácora, lotes, actividades, calendario) se arma en la Etapa 4
 const NAV_ITEMS = [
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/potreros",         label: "Potreros",         icon: Grid3X3 },
-  { href: "/animales",         label: "Animales",         icon: CowIcon },
-  { href: "/movimientos",      label: "Movimientos",      icon: ArrowLeftRight },
-  { href: "/sanidad",          label: "Sanidad",          icon: Syringe },
-  { href: "/reproduccion",     label: "Reproducción",     icon: Heart },
-  { href: "/agricultura",      label: "Agricultura",      icon: Wheat },
-  { href: "/insumos",          label: "Insumos",          icon: Package },
-  { href: "/maquinaria",       label: "Maquinaria",       icon: Wrench },
-  { href: "/finanzas",         label: "Finanzas",         icon: DollarSign },
-  { href: "/personal",         label: "Personal",         icon: Users },
 ]
 
 // Los módulos de campo requieren establecimiento activo (todos excepto Establecimientos)

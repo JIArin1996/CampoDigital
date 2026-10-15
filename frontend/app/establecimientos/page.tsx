@@ -263,7 +263,7 @@ export default function EstablecimientosPage() {
         onConfirm={handleEliminar}
         isDeleting={isDeleting}
         title={`Eliminar "${deleteTarget?.nombre ?? ""}"`}
-        description="Esta acción es permanente. Solo es posible si el establecimiento no tiene potreros ni animales. Escribí ELIMINAR para confirmar."
+        description="Esta acción es permanente. Solo es posible si el establecimiento no tiene potreros. Escribí ELIMINAR para confirmar."
       />
     </PageContainer>
   )

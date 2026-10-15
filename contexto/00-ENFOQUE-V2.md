@@ -9,7 +9,7 @@ Este documento registra el cambio de enfoque del proyecto y las decisiones tomad
 Campo Digital pasa de ser una app de trazabilidad a una herramienta de **gestión y coordinación para establecimientos ganaderos administrados a distancia**.
 
 - Primer caso: **Santa Remigia**, cría y recría de terneros machos hasta 250-300 kg, más ovinos.
-- La trazabilidad SNIG/DICOSE queda como **módulo extra opcional**, sin borrar nada de lo construido.
+- La trazabilidad SNIG/DICOSE **se elimina**: no queda como módulo extra ni escondida, y no se diseña pensando en ella. El código queda en el tag git `pre-v2-trazabilidad`; si en el futuro se quiere, se recupera desde ahí (ver sección 15).
 
 ---
 
@@ -26,6 +26,9 @@ Campo Digital pasa de ser una app de trazabilidad a una herramienta de **gestió
 
 - **Multi-establecimiento y multi-especie ganadera**: además de Santa Remigia, otras ganaderías (invernada, ciclo completo, otras especies).
 - **Fuera del modelo por ahora**: agricultura y forestación propia.
+- **Se eliminan**: agricultura, maquinaria, inventario de insumos y personal (empleados con datos laborales).
+- **Establecimiento**: "sistema productivo" como texto libre opcional, sin lógica, y número DICOSE como texto libre opcional, sin validación.
+- **Espacio**: solo potreros. Las parcelas se eliminan.
 - **La generalidad va en los datos, no en el código**: categorías, especies, tipos de actividad y rubros son catálogos configurables por establecimiento.
 - **No se construye un constructor de formularios.**
 
@@ -39,6 +42,8 @@ Los roles son **por establecimiento**.
 |---|---|---|
 | Editor | Los dos hermanos | Cargan y editan |
 | Lector | Otros familiares y socios | Ven todo, incluidos los números económicos. Solo lectura |
+
+**Personas**: catálogo simple por establecimiento (nombre y rol, sin datos sensibles), con vínculo opcional a un usuario. Sirve para nombrar responsables que no usan la app, como el capataz.
 
 ---
 
@@ -74,7 +79,7 @@ Son **datos de catálogo, no código**.
 - Pesada
 - Vacunación y sanidad
 - Dosificación antiparasitaria
-- Servicio / entore
+- Servicio / entore: registra el **lote y la cantidad de vacas entoradas**, que es la base del % de parición
 - Diagnóstico de gestación
 - Parición / señalada
 - Destete
@@ -102,6 +107,7 @@ Todos se calculan **sobre vacas entoradas**.
 ## 9. Bitácora
 
 - Texto libre con etiquetas: **lote, tipo, responsable**.
+- Una entrada puede etiquetar **varios lotes**.
 - Tipos: **decisión, idea sin definir, observación, compra/venta/gasto**.
 - Las ideas tienen estado: **abierta, decidida, descartada**.
 - **Las actividades NO van en la bitácora**: son registros estructurados aparte.
@@ -114,10 +120,18 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 
 - **Moneda**: todo en **dólares**. Los gastos en pesos se convierten con un **tipo de cambio cargado a mano en cada operación**.
 - **Forestación tercerizada**: ingreso por **arrendamiento periódico**, con rubro propio.
+- **Estado**: simple, **pagado o pendiente**, con fecha de pago opcional. No hay estado "parcial".
 
 ---
 
-## 11. Etapa 1
+## 11. Tareas y calendario
+
+- **Responsable opcional**: una persona del catálogo. Sin responsable, la tarea es de **ambos editores**.
+- **Calendario, primera versión**: lista de tareas **próximas y vencidas, con filtros**. El modelo guarda fecha y estado, para sumar después la vista mensual sin tocar tablas.
+
+---
+
+## 12. Etapa 1
 
 - Web app **mobile-first**.
 - Integraciones (WhatsApp, mail) quedan para más adelante.
@@ -125,15 +139,26 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 
 ---
 
-## 12. Base de datos
+## 13. Base de datos
 
 - Hoy solo hay datos de prueba: **no hay datos que conservar**.
-- El núcleo nuevo se arma con **tablas nuevas y migraciones limpias**.
-- Las tablas SNIG quedan **intactas como módulo extra**: `animales`, `movimientos_ganado`, `lotes_movimiento`, `dicose_propiedad`, `animal_lote_historial`.
+- El esquema `public` **se borra entero** con una migración y se recrea con **migraciones nuevas**, versionadas en `supabase/migrations/`. No se respalda el esquema viejo.
+- El esquema nuevo se arma **por etapas**: cada etapa migra solo las tablas que usa.
+- **Auth y RLS** (roles editor y lector) entran desde la primera migración del esquema nuevo, no al final.
 
 ---
 
-## 13. Pendientes de definir
+## 14. Pendientes de definir
 
 - Modo offline y señal en el campo (etapa posterior).
-- Qué hacer con agricultura, maquinaria, insumos y personal en el menú (propuesta: esconder, no borrar).
+
+---
+
+## 15. Registro de cambios de decisión
+
+| Fecha | Antes | Ahora |
+|---|---|---|
+| 2026-10-15 | Trazabilidad SNIG/DICOSE como módulo extra opcional, con sus tablas intactas (`animales`, `movimientos_ganado`, `lotes_movimiento`, `dicose_propiedad`, `animal_lote_historial`) | **Se elimina** el código y las tablas. Respaldo del código: tags `pre-v2-trazabilidad` (rama de trabajo) y `pre-v2-main-abril` (`origin/main` con los cambios del 26 de abril) |
+| 2026-10-15 | Agricultura, maquinaria, insumos y personal en el menú: pendiente, con la propuesta de esconder sin borrar | **Se eliminan** |
+| 2026-10-15 | Potreros y parcelas | **Solo potreros** |
+| 2026-10-15 | Roles y RLS al final del desarrollo | **Desde la primera migración del esquema nuevo** |

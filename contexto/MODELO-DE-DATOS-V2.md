@@ -1,6 +1,6 @@
 # Campo Digital - Modelo de datos v2 (borrador)
 
-Estado: borrador de diseño. Se ajusta contra supabase/migrations/0000_baseline.sql cuando exista el volcado real del esquema. Base: contexto/00-ENFOQUE-V2.md. Todo lo marcado como [Decidido] sale de ese documento o de las definiciones tomadas con Iñaki. Todo lo marcado como [Propuesta] es una sugerencia de diseño que hay que validar.
+Estado: borrador de diseño. No hay baseline del esquema viejo: public se borra y el esquema nuevo se crea desde cero con las migraciones de supabase/migrations/. Base: contexto/00-ENFOQUE-V2.md. Todo lo marcado como [Decidido] sale de ese documento o de las definiciones tomadas con Iñaki. Todo lo marcado como [Propuesta] es una sugerencia de diseño que hay que validar.
 
 ## 1. Principios
 
@@ -12,18 +12,17 @@ Estado: borrador de diseño. Se ajusta contra supabase/migrations/0000_baseline.
 - [Decidido] Economía en dólares. Los gastos en pesos se convierten a USD.
 - [Propuesta] Nada de borrado físico. Estado (activo/cerrado/anulado) y correcciones por eventos de ajuste.
 - [Propuesta] Toda escritura que toca varias tablas se hace en una función de Postgres (RPC de Supabase), no desde el navegador en varios pasos.
-- [Decidido] Las tablas SNIG existentes quedan intactas como módulo extra: animales, movimientos_ganado, lotes_movimiento, dicose_propiedad, animal_lote_historial.
+- [Decidido] La trazabilidad SNIG/DICOSE se elimina. El esquema public se borra entero con una migración y se recrea con migraciones nuevas, por etapas. No se respalda el esquema viejo (2026-10-15).
 
 ## 2. Relación con lo que ya existe
 
 | Existente | Qué pasa |
 |---|---|
-| establecimientos, potreros, parcelas, parametros | Se reutilizan. establecimientos suma un flag modulo_trazabilidad (boolean) [Propuesta] |
-| lotes_manejo (legado, cuelga de animales individuales) | Queda como legado del módulo de trazabilidad. El lote nuevo se llama lotes para no mezclar conceptos |
-| animales, movimientos_ganado, lotes_movimiento, dicose_propiedad, animal_lote_historial | Intactas, módulo extra |
-| pesajes, sanidad, finanzas, reproduccion (según la doc vieja, sin verificar) | No se usan. Se confirma contra el baseline si existen o si se descartan |
-
-Ruta de integración futura [Propuesta]: una columna opcional animales.lote_id hacia lotes, para que una caravana sea un detalle dentro de un lote.
+| establecimientos, potreros, parametros | Se recrean en el esquema nuevo con la misma idea. establecimientos: tipo pasa a sistema_productivo (texto libre opcional, sin lógica) y dicose_fisico pasa a dicose (texto libre opcional, sin validación) [Decidido] |
+| parcelas | Se eliminan. Solo potreros [Decidido] |
+| lotes_manejo, animales, movimientos_ganado, lotes_movimiento, dicose_propiedad, animal_lote_historial | Se eliminan (trazabilidad) [Decidido] |
+| pesajes, sanidad, finanzas, reproduccion (según la doc vieja, sin verificar) | Se eliminan junto con todo public, si existen. Los reemplazan actividades y movimientos_economicos [Decidido] |
+| Tablas de agricultura, maquinaria, insumos y personal (según la doc vieja, sin verificar) | Se eliminan [Decidido] |
 
 ## 3. Usuarios y permisos
 
@@ -39,6 +38,19 @@ Auth: Supabase Auth (email). Todas las tablas nuevas llevan created_by uuid defa
 | rol | text | editor o lector |
 
 Restricción única: (user_id, establecimiento_id)
+
+### personas
+
+Catálogo de responsables por establecimiento, para nombrar a quien no usa la app (por ejemplo, el capataz). Sin datos sensibles. [Decidido]
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| id | bigint pk |  |
+| establecimiento_id | bigint |  |
+| nombre | text |  |
+| rol | text | texto libre (capataz, peón, veterinario, hermano, etc.) |
+| user_id | uuid | opcional, vínculo a auth.users si la persona usa la app |
+| activo | boolean |  |
 
 ### Funciones auxiliares [Propuesta]
 
@@ -186,7 +198,7 @@ El peso promedio se calcula (peso_total / cabezas). No se guarda.
 | Tabla | Campos propios |
 |---|---|
 | act_sanidad (sanidad y antiparasitario) | producto, tipo (vacuna / tratamiento / antiparasitario), dosis, carencia_dias, cabezas tratadas |
-| act_servicio | vacas_entoradas, toros_usados (opcional), fecha_fin (opcional) |
+| act_servicio | vacas_entoradas (base del % de parición; el lote va en actividades.lote_id) [Decidido], toros_usados (opcional), fecha_fin (opcional) |
 | act_diagnostico | servicio_id, vacas_diagnosticadas, vacas_prenadas |
 | act_paricion | servicio_id, lote_cria_id (lote de terneros, creado o existente) |
 | act_destete | servicio_id (opcional), lote_cria_id |
@@ -233,8 +245,16 @@ Ganancia de peso del lote [Propuesta]: vista que toma las pesadas del lote en or
 | tipo | text | decision, idea, observacion, compra_venta_gasto [Decidido] |
 | texto | text | texto libre |
 | estado_idea | text | abierta, decidida, descartada. Solo si tipo = idea [Decidido] |
-| lote_id | bigint | etiqueta opcional |
-| responsable_id | uuid | etiqueta opcional |
+| persona_id | bigint | responsable, etiqueta opcional (catálogo personas) |
+
+### bitacora_lotes
+
+Una entrada puede etiquetar varios lotes [Decidido]. Tabla puente [Propuesta].
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| entrada_id | bigint |  |
+| lote_id | bigint |  |
 
 Las actividades no se cargan acá. Una entrada de bitácora puede mencionar una actividad en texto libre, pero el dato estructurado vive en actividades. [Decidido]
 
@@ -249,13 +269,15 @@ Las actividades no se cargan acá. Una entrada de bitácora puede mencionar una 
 | titulo | text |  |
 | descripcion | text |  |
 | fecha_vencimiento | date |  |
-| responsable_id | uuid | opcional (ver pendientes) |
+| persona_id | bigint | responsable opcional (catálogo personas). Sin responsable, la tarea es de ambos editores [Decidido] |
 | lote_id | bigint | opcional |
 | estado | text | pendiente, hecha, cancelada |
 | recurrencia_dias | int | opcional, para repetir cada N días [Propuesta] |
 | completada_at | timestamptz |  |
 
 Avisos solo dentro de la app [Decidido]: al entrar se muestran contadores de vencidas y próximas, calculados con una consulta. No hace falta tabla de notificaciones en la etapa 1. [Propuesta]
+
+Calendario, primera versión [Decidido]: lista de tareas próximas y vencidas con filtros, a partir de fecha_vencimiento y estado. La vista mensual se suma después sin tocar tablas.
 
 ## 10. Economía
 
@@ -276,6 +298,8 @@ Avisos solo dentro de la app [Decidido]: al entrar se muestran contadores de ven
 | monto_usd | numeric | monto_original si es USD, monto_original / tipo_cambio si es UYU |
 | actividad_id | bigint | opcional (compra/venta lo completa solo) |
 | lote_id | bigint | opcional |
+| estado | text | pagado o pendiente. Sin "parcial" [Decidido] |
+| fecha_pago | date | opcional [Decidido] |
 
 - Moneda base: dólares. [Decidido]
 - El resultado por rubro es la suma de ingresos menos egresos en monto_usd, agrupada por rubro y período (vista v_resultado_rubro). [Propuesta]
@@ -290,21 +314,22 @@ Avisos solo dentro de la app [Decidido]: al entrar se muestran contadores de ven
 - Resultado por rubro del período.
 - Indicadores reproductivos de la última campaña.
 
-## 12. Etapas de construcción [Propuesta]
+## 12. Etapas de construcción [Decidido]
 
-1. Auth, membresias, RLS, helpers es_miembro y es_editor. Rehacer el menú y ocultar trazabilidad.
-2. Catálogos, lotes, lote_eventos, operaciones de lote (dividir, juntar, recategorizar) y ficha de lote.
-3. actividades con registrar_actividad: primero pesada, mortandad, compra y venta (alimentan stock), después sanidad y reproducción.
-4. bitacora_entradas y tareas con contadores.
-5. movimientos_economicos, vistas de resultado e indicadores, y panel de inicio.
+El esquema se migra por etapas: cada una agrega solo las tablas que usa.
+
+1. Etapa 2: limpieza. Borrar el código de trazabilidad, agricultura, maquinaria, insumos, personal y parcelas, y la migración que borra public.
+2. Etapa 3: base del esquema. Auth, membresias, RLS, helpers es_miembro y es_editor, catálogos (especies, categorias_animales, rubros, personas), lotes y lote_eventos.
+3. Etapa 4: navegación y estructura de la app.
+4. Etapa 5: ficha de lote, operaciones de lote (dividir, juntar, recategorizar), bitacora_entradas y bitacora_lotes, stock por categoría y un panel de inicio básico.
+5. Etapa 6a: actividades con registrar_actividad para las que alimentan stock (pesada, mortandad, compra, venta, parición), con el movimiento económico de compra y venta.
+6. Etapa 6b: resto de las actividades (sanidad, antiparasitario, servicio, diagnóstico, destete, esquila, personalizada).
+7. Etapa 7: indicadores reproductivos, carga de movimientos_economicos, resultado por rubro y panel de inicio completo.
+8. Etapa 8: tareas, vencimientos, avisos y calendario en lista.
+9. Etapa 9: gestión de usuarios (invitar y asignar rol).
 
 ## 13. Pendientes de definir
 
-1. Tareas: ¿se asignan a un hermano en particular o son compartidas?
-2. Bitácora: ¿una entrada puede etiquetar más de un lote?
-3. Vínculo servicio-lote: cuando el lote de vacas entoradas se divide o se une después, ¿cómo se sigue calculando el indicador? (propuesta inicial: el servicio guarda las cabezas entoradas como dato propio, sin depender del lote)
-4. Economía: ¿hace falta estado pagado/pendiente en los movimientos?
-5. Corrección de errores: confirmar que los eventos de stock no se editan y que se corrigen con eventos de ajuste.
-6. Modo offline y señal en el campo (etapa posterior).
-7. Qué hacer con agricultura, maquinaria, insumos y personal en el menú (propuesta: esconder, no borrar).
-8. Contraste con el esquema real: tablas pesajes, sanidad, finanzas y reproduccion que la doc vieja decía que existían.
+1. Corrección de errores: confirmar que los eventos de stock no se editan y que se corrigen con eventos de ajuste.
+2. Modo offline y señal en el campo (etapa posterior).
+3. actividades.responsable_id: ¿apunta a un usuario o a una persona del catálogo, como bitácora y tareas?

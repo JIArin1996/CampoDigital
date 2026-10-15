@@ -2,7 +2,7 @@
 
 Web app mobile-first para la gestión y coordinación de **Santa Remigia**, un establecimiento familiar de ganadería de carne, ovinos y forestación tercerizada, administrado a distancia por dos hermanos.
 
-El foco es saber qué pasa en el campo: stock por lote y categoría, actividades realizadas, bitácora de decisiones y tareas con avisos dentro de la app. La trazabilidad SNIG/DICOSE por caravana individual queda como módulo extra opcional.
+El foco es saber qué pasa en el campo: stock por lote y categoría, actividades realizadas, bitácora de decisiones y tareas con avisos dentro de la app. La trazabilidad SNIG/DICOSE por caravana individual se eliminó; su código queda en el tag git `pre-v2-trazabilidad`.
 
 > El cambio de enfoque se documenta en `contexto/00-ENFOQUE-V2.md`.
 
@@ -30,7 +30,7 @@ CampoDigital/
 ├── contexto/              # Documentación funcional y técnica
 │   └── _archivo/          # Borradores obsoletos conservados como referencia
 ├── supabase/
-│   └── migrations/        # Esquema de la base versionado (baseline + migraciones)
+│   └── migrations/        # Esquema de la base versionado (migraciones por etapa)
 └── frontend/              # App Next.js
     ├── app/               # Rutas (App Router)
     ├── components/        # Componentes por módulo + ui/ (shadcn)
@@ -38,7 +38,7 @@ CampoDigital/
     │   ├── queries/       # Acceso a Supabase por tabla
     │   ├── supabase/      # Clientes browser y server
     │   ├── context/       # Contexto del establecimiento activo
-    │   └── utils/         # Validadores y lógica de dominio
+    │   └── utils.ts       # Utilidades generales (cn)
     └── types/             # Tipos TypeScript de las tablas
 ```
 
@@ -73,7 +73,7 @@ Los archivos `.env*` están ignorados por git y nunca se commitean.
 
 ## Base de datos
 
-- El esquema vive en Supabase. El baseline se versiona en `supabase/migrations/`.
+- El esquema vive en Supabase y se versiona en `supabase/migrations/`. La primera migración borra el esquema `public` entero; el esquema nuevo se agrega por etapas.
 - No se ejecuta `supabase db push` ni `migration repair` contra producción sin una decisión explícita.
 
 ---
@@ -82,11 +82,9 @@ Los archivos `.env*` están ignorados por git y nunca se commitean.
 
 | Módulo | Estado |
 |---|---|
-| Establecimientos, potreros y parcelas | Funcional |
-| Animales (caravana SNIG individual) | Funcional; pasa a módulo extra de trazabilidad |
-| Movimientos (ingresos, egresos, traslados, afectaciones DICOSE) | Funcional; pasa a módulo extra de trazabilidad |
-| Lotes, actividades, bitácora, tareas, resultado por rubro | Por construir (enfoque v2) |
-| Autenticación y roles (editores / solo lectura) | Por construir |
+| Establecimientos y potreros | Funcional sobre el esquema viejo; se recrea en el esquema nuevo (Etapa 3) |
+| Autenticación, roles (editor / lector) y RLS | Por construir (Etapa 3) |
+| Lotes, bitácora, actividades, economía por rubro, tareas | Por construir (Etapas 5 a 8) |
 
 ---
 
@@ -95,5 +93,5 @@ Los archivos `.env*` están ignorados por git y nunca se commitean.
 - TypeScript siempre; comentarios en español.
 - Mobile-first.
 - Baja lógica (`estado`) en lugar de borrar registros.
-- Las listas de valores de los selects salen de la tabla `parametros`.
+- Las listas simples de los selects salen de la tabla `parametros`; lo que tiene relaciones (especies, categorías, rubros, personas) va en catálogos por establecimiento.
 - Componentes de UI con shadcn/ui.
