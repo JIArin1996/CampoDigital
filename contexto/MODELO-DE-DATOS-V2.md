@@ -28,6 +28,8 @@ Estado: borrador de diseño. No hay baseline del esquema viejo: public se borra 
 
 Auth: Supabase Auth (email). Todas las tablas nuevas llevan created_by uuid default auth.uid() y created_at.
 
+Responsables [Decidido]: en bitácora, tareas y actividades el responsable es siempre persona_id (catálogo personas). created_by es solo auditoría de quién cargó el registro.
+
 ### membresias
 
 | Columna | Tipo | Nota |
@@ -174,7 +176,7 @@ Registro común más detalle tipado según el tipo. [Decidido]
 | tipo | text | ver lista abajo |
 | fecha | date |  |
 | lote_id | bigint | el lote sobre el que se hizo (puede ser null en compras que crean lote) |
-| responsable_id | uuid | usuario que la hizo o la responsable |
+| persona_id | bigint | responsable (catálogo personas) [Decidido]. Quién cargó el registro queda en created_by |
 | notas | text |  |
 | estado | text | registrada o anulada [Propuesta] |
 
@@ -332,4 +334,3 @@ El esquema se migra por etapas: cada una agrega solo las tablas que usa.
 
 1. Corrección de errores: confirmar que los eventos de stock no se editan y que se corrigen con eventos de ajuste.
 2. Modo offline y señal en el campo (etapa posterior).
-3. actividades.responsable_id: ¿apunta a un usuario o a una persona del catálogo, como bitácora y tareas?

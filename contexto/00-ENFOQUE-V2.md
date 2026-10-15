@@ -45,6 +45,8 @@ Los roles son **por establecimiento**.
 
 **Personas**: catálogo simple por establecimiento (nombre y rol, sin datos sensibles), con vínculo opcional a un usuario. Sirve para nombrar responsables que no usan la app, como el capataz.
 
+**Responsables**: en bitácora, tareas y actividades el responsable es siempre una **persona** del catálogo. Quién cargó cada registro queda aparte, como auditoría.
+
 ---
 
 ## 5. Lote
@@ -162,3 +164,4 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 | 2026-10-15 | Agricultura, maquinaria, insumos y personal en el menú: pendiente, con la propuesta de esconder sin borrar | **Se eliminan** |
 | 2026-10-15 | Potreros y parcelas | **Solo potreros** |
 | 2026-10-15 | Roles y RLS al final del desarrollo | **Desde la primera migración del esquema nuevo** |
+| 2026-10-15 | Responsable de actividades: pendiente (usuario o persona). Responsable de bitácora y tareas: usuario | **persona_id en bitácora, tareas y actividades**. `created_by` queda solo como auditoría de quién cargó |
