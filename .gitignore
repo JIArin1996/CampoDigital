@@ -12,6 +12,7 @@ node_modules/
 .next/
 out/
 build/
+dist/
 *.tsbuildinfo
 next-env.d.ts
 
@@ -45,6 +46,9 @@ desktop.ini
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Claude Code (permisos locales)
+.claude/settings.local.json
 
 # Certificados
 *.pem
