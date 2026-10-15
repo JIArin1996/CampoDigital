@@ -78,7 +78,7 @@ Son **datos de catálogo, no código**.
 - Diagnóstico de gestación
 - Parición / señalada
 - Destete
-- Esquila
+- Esquila: solo **kg totales de lana por esquila**, sin precio
 - Mortandad
 - Compra / venta, con modalidad elegible (productor, remate, frigorífico), porque varía según el año
 - Actividad personalizada con campos libres
@@ -112,6 +112,9 @@ Todos se calculan **sobre vacas entoradas**.
 
 Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación tercerizada, general.
 
+- **Moneda**: todo en **dólares**. Los gastos en pesos se convierten con un **tipo de cambio cargado a mano en cada operación**.
+- **Forestación tercerizada**: ingreso por **arrendamiento periódico**, con rubro propio.
+
 ---
 
 ## 11. Etapa 1
@@ -132,8 +135,5 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 
 ## 13. Pendientes de definir
 
-- Modo offline y señal en el campo.
-- Fórmulas de lana.
-- Moneda y tipo de cambio.
-- Cómo se registra la forestación tercerizada.
+- Modo offline y señal en el campo (etapa posterior).
 - Qué hacer con agricultura, maquinaria, insumos y personal en el menú (propuesta: esconder, no borrar).
