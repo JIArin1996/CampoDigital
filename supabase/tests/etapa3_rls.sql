@@ -147,14 +147,14 @@ select set_config('test.cat_corderos',
   (select id from public.categorias_animales where establecimiento_id = pruebas.id('est_a') and nombre = 'Corderos')::text, false);
 
 select set_config('test.lote_a', public.crear_lote(
-  pruebas.id('est_a'), pruebas.id('vacunos_a'), 'Terneros 2026', current_date - 30,
+  pruebas.id('est_a'), pruebas.id('vacunos_a'), 'Terneros 2026', public.fecha_hoy() - 30,
   jsonb_build_array(
     jsonb_build_object('categoria_id', pruebas.id('cat_terneros'), 'cabezas', 120),
     jsonb_build_object('categoria_id', pruebas.id('cat_terneras'), 'cabezas', 80)
   ))::text, false);
 
 select set_config('test.lote_b', public.crear_lote(
-  pruebas.id('est_a'), pruebas.id('vacunos_a'), 'Toros', current_date - 10,
+  pruebas.id('est_a'), pruebas.id('vacunos_a'), 'Toros', public.fecha_hoy() - 10,
   jsonb_build_array(jsonb_build_object('categoria_id', pruebas.id('cat_toros'), 'cabezas', 5))
   )::text, false);
 
@@ -174,6 +174,8 @@ select pruebas.espera_valor('A01 Editor ve su establecimiento',
   $q$ select count(*) from public.establecimientos $q$, '1');
 select pruebas.espera_valor('A02 mi_rol del editor',
   $q$ select public.mi_rol(pruebas.id('est_a')) $q$, 'editor');
+select pruebas.espera_valor('A02b es_miembro y es_editor del editor (authenticated puede ejecutarlas)',
+  $q$ select (public.es_miembro(pruebas.id('est_a')) and public.es_editor(pruebas.id('est_a')))::text $q$, 'true');
 select pruebas.espera_valor('A03 Editor lee membresías sin recursión (A y B)',
   $q$ select count(*) from public.membresias $q$, '2');
 select pruebas.espera_valor('A04 Catálogos base: 7 categorías vacunas',
@@ -187,24 +189,26 @@ select pruebas.espera_filas('A07 Editor edita las notas de un lote',
 
 -- Ajustes
 select pruebas.espera_valor('A08 Ajuste válido de -8 terneros',
-  $q$ select (public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), -8, current_date, 'Error de conteo en el alta') is not null)::text $q$, 'true');
+  $q$ select (public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), -8, public.fecha_hoy(), 'Error de conteo en el alta') is not null)::text $q$, 'true');
 select pruebas.espera_valor('A09 Stock de terneros después del ajuste',
   $q$ select cabezas from public.v_stock_lote where lote_id = pruebas.id('lote_a') and categoria_id = pruebas.id('cat_terneros') $q$, '112');
+select pruebas.espera_valor('A09b Stock del establecimiento (v_stock_establecimiento): terneros',
+  $q$ select cabezas from public.v_stock_establecimiento where establecimiento_id = pruebas.id('est_a') and categoria_id = pruebas.id('cat_terneros') $q$, '112');
 select pruebas.espera_error('A10 Ajuste que deja el stock negativo',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), -200, current_date, 'prueba') $q$, '23514');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), -200, public.fecha_hoy(), 'prueba') $q$, '23514');
 select pruebas.espera_error('A11 Ajuste sin motivo',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), 1, current_date, '') $q$, '22023');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), 1, public.fecha_hoy(), '') $q$, '22023');
 select pruebas.espera_error('A12 Ajuste con categoría de otra especie (corderos en lote vacuno)',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_corderos'), 1, current_date, 'prueba') $q$, '22023');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_corderos'), 1, public.fecha_hoy(), 'prueba') $q$, '22023');
 select pruebas.espera_error('A13 Ajuste con fecha futura',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), 1, current_date + 1, 'prueba') $q$, '22023');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), 1, public.fecha_hoy() + 1, 'prueba') $q$, '22023');
 
 -- Escrituras directas prohibidas aun para el editor
 select pruebas.espera_error('A14 Editor inserta directo en lote_eventos',
   $q$ insert into public.lote_eventos (establecimiento_id, lote_id, especie_id, categoria_id, cabezas, fecha, tipo)
-      values (pruebas.id('est_a'), pruebas.id('lote_a'), pruebas.id('vacunos_a'), pruebas.id('cat_terneros'), 50, current_date, 'compra') $q$, '42501');
+      values (pruebas.id('est_a'), pruebas.id('lote_a'), pruebas.id('vacunos_a'), pruebas.id('cat_terneros'), 50, public.fecha_hoy(), 'compra') $q$, '42501');
 select pruebas.espera_error('A15 Editor cambia el estado de un lote a mano (permiso por columna)',
-  $q$ update public.lotes set estado = 'cerrado', fecha_cierre = current_date where id = pruebas.id('lote_a') $q$, '42501');
+  $q$ update public.lotes set estado = 'cerrado', fecha_cierre = public.fecha_hoy() where id = pruebas.id('lote_a') $q$, '42501');
 select pruebas.espera_error('A16 Editor borra un lote',
   $q$ delete from public.lotes where id = pruebas.id('lote_a') $q$, '42501');
 select pruebas.espera_error('A17 Editor inserta directo en establecimientos',
@@ -216,17 +220,17 @@ select pruebas.espera_error('A19 Editor falsea created_by de una persona',
 
 -- Cierre y reapertura
 select pruebas.espera_error('A20 Cerrar un lote con stock',
-  $q$ select public.cerrar_lote(pruebas.id('lote_a'), current_date) $q$, '23514');
+  $q$ select public.cerrar_lote(pruebas.id('lote_a'), public.fecha_hoy()) $q$, '23514');
 select pruebas.espera_valor('A21 Vender los 5 toros (ajuste a cero)',
-  $q$ select (public.registrar_ajuste(pruebas.id('lote_b'), pruebas.id('cat_toros'), -5, current_date, 'Venta de prueba') is not null)::text $q$, 'true');
+  $q$ select (public.registrar_ajuste(pruebas.id('lote_b'), pruebas.id('cat_toros'), -5, public.fecha_hoy(), 'Venta de prueba') is not null)::text $q$, 'true');
 select pruebas.espera_ok('A22 Cerrar el lote con stock en cero',
-  $q$ select public.cerrar_lote(pruebas.id('lote_b'), current_date, 'Prueba de cierre') $q$);
+  $q$ select public.cerrar_lote(pruebas.id('lote_b'), public.fecha_hoy(), 'Prueba de cierre') $q$);
 select pruebas.espera_valor('A23 El lote quedó cerrado',
   $q$ select estado from public.lotes where id = pruebas.id('lote_b') $q$, 'cerrado');
 select pruebas.espera_error('A24 Ajuste en un lote cerrado',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_b'), pruebas.id('cat_toros'), 1, current_date, 'prueba') $q$, '22023');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_b'), pruebas.id('cat_toros'), 1, public.fecha_hoy(), 'prueba') $q$, '22023');
 select pruebas.espera_ok('A25 Reabrir el lote',
-  $q$ select public.reabrir_lote(pruebas.id('lote_b'), current_date, 'Prueba de reapertura') $q$);
+  $q$ select public.reabrir_lote(pruebas.id('lote_b'), public.fecha_hoy(), 'Prueba de reapertura') $q$);
 select pruebas.espera_valor('A26 Cierre y reapertura quedaron registrados',
   $q$ select count(*) from public.lote_cambios_estado where lote_id = pruebas.id('lote_b') $q$, '2');
 select pruebas.espera_valor('A27 Parámetros: 19 departamentos',
@@ -242,10 +246,18 @@ select pruebas.espera_valor('B01 Lector ve el establecimiento',
   $q$ select count(*) from public.establecimientos $q$, '1');
 select pruebas.espera_valor('B02 mi_rol del lector',
   $q$ select public.mi_rol(pruebas.id('est_a')) $q$, 'lector');
+select pruebas.espera_valor('B02b Lector es miembro pero no editor',
+  $q$ select (public.es_miembro(pruebas.id('est_a')) and not public.es_editor(pruebas.id('est_a')))::text $q$, 'true');
 select pruebas.espera_valor('B03 Lector ve los lotes',
   $q$ select count(*) from public.lotes $q$, '2');
-select pruebas.espera_valor('B04 Lector ve el stock',
+select pruebas.espera_valor('B04 Lector ve el stock por lote (v_stock_lote)',
   $q$ select cabezas from public.v_stock_lote where lote_id = pruebas.id('lote_a') and categoria_id = pruebas.id('cat_terneros') $q$, '112');
+select pruebas.espera_valor('B04b Lector ve las filas de stock por lote de su establecimiento (terneros y terneras)',
+  $q$ select count(*) from public.v_stock_lote where establecimiento_id = pruebas.id('est_a') $q$, '2');
+select pruebas.espera_valor('B04c Lector ve el stock del establecimiento (v_stock_establecimiento)',
+  $q$ select cabezas from public.v_stock_establecimiento where establecimiento_id = pruebas.id('est_a') and categoria_id = pruebas.id('cat_terneras') $q$, '80');
+select pruebas.espera_valor('B04d Lector ve solo su establecimiento en v_stock_establecimiento',
+  $q$ select count(distinct establecimiento_id) from public.v_stock_establecimiento $q$, '1');
 select pruebas.espera_error('B05 Lector crea una persona',
   $q$ insert into public.personas (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Intruso') $q$, '42501');
 select pruebas.espera_filas('B06 Lector edita un lote: 0 filas, sin error (la app lo trata como "sin permiso")',
@@ -256,14 +268,14 @@ select pruebas.espera_filas('B08 Lector edita una categoría: 0 filas',
   $q$ update public.categorias_animales set nombre = 'Hackeada' where id = pruebas.id('cat_terneros') $q$, 0);
 select pruebas.espera_error('B09 Lector inserta directo en lote_eventos',
   $q$ insert into public.lote_eventos (establecimiento_id, lote_id, especie_id, categoria_id, cabezas, fecha, tipo)
-      values (pruebas.id('est_a'), pruebas.id('lote_a'), pruebas.id('vacunos_a'), pruebas.id('cat_terneros'), 50, current_date, 'compra') $q$, '42501');
+      values (pruebas.id('est_a'), pruebas.id('lote_a'), pruebas.id('vacunos_a'), pruebas.id('cat_terneros'), 50, public.fecha_hoy(), 'compra') $q$, '42501');
 select pruebas.espera_error('B10 Lector llama a registrar_ajuste (RPC)',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), 10, current_date, 'prueba') $q$, '42501');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), 10, public.fecha_hoy(), 'prueba') $q$, '42501');
 select pruebas.espera_error('B11 Lector llama a crear_lote (RPC)',
-  $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos_a'), 'X', current_date,
+  $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos_a'), 'X', public.fecha_hoy(),
       jsonb_build_array(jsonb_build_object('categoria_id', pruebas.id('cat_terneros'), 'cabezas', 1))) $q$, '42501');
 select pruebas.espera_error('B12 Lector llama a cerrar_lote (RPC)',
-  $q$ select public.cerrar_lote(pruebas.id('lote_b'), current_date) $q$, '42501');
+  $q$ select public.cerrar_lote(pruebas.id('lote_b'), public.fecha_hoy()) $q$, '42501');
 select pruebas.espera_error('B13 Lector se agrega como editor',
   $q$ insert into public.membresias (establecimiento_id, user_id, rol) values (pruebas.id('est_a'), pruebas.id('u_lector'), 'editor') $q$, '42501');
 select pruebas.espera_error('B14 Lector se cambia el rol a editor',
@@ -285,8 +297,14 @@ select pruebas.espera_valor('C02 C no ve Santa Remigia',
   $q$ select count(*) from public.establecimientos where id = pruebas.id('est_a') $q$, '0');
 select pruebas.espera_valor('C03 C no ve los lotes de A',
   $q$ select count(*) from public.lotes where establecimiento_id = pruebas.id('est_a') $q$, '0');
-select pruebas.espera_valor('C04 C no ve el stock de A',
+select pruebas.espera_valor('C04 C no ve el stock por lote de A (v_stock_lote)',
   $q$ select count(*) from public.v_stock_lote where establecimiento_id = pruebas.id('est_a') $q$, '0');
+select pruebas.espera_valor('C04b C no ve el stock del establecimiento de A (v_stock_establecimiento)',
+  $q$ select count(*) from public.v_stock_establecimiento where establecimiento_id = pruebas.id('est_a') $q$, '0');
+select pruebas.espera_valor('C04c C ve 0 filas en total en v_stock_lote (no tiene lotes)',
+  $q$ select count(*) from public.v_stock_lote $q$, '0');
+select pruebas.espera_valor('C04d C ve 0 filas en total en v_stock_establecimiento',
+  $q$ select count(*) from public.v_stock_establecimiento $q$, '0');
 select pruebas.espera_valor('C05 C no ve los eventos de A',
   $q$ select count(*) from public.lote_eventos where establecimiento_id = pruebas.id('est_a') $q$, '0');
 select pruebas.espera_valor('C06 C no ve las membresías de A',
@@ -294,9 +312,9 @@ select pruebas.espera_valor('C06 C no ve las membresías de A',
 select pruebas.espera_valor('C07 mi_rol de C en Santa Remigia',
   $q$ select public.mi_rol(pruebas.id('est_a')) $q$, null);
 select pruebas.espera_error('C08 C ajusta un lote de A (RPC)',
-  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), -10, current_date, 'robo') $q$, '42501');
+  $q$ select public.registrar_ajuste(pruebas.id('lote_a'), pruebas.id('cat_terneros'), -10, public.fecha_hoy(), 'robo') $q$, '42501');
 select pruebas.espera_error('C09 C crea un lote en el establecimiento de A (RPC)',
-  $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos_a'), 'X', current_date,
+  $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos_a'), 'X', public.fecha_hoy(),
       jsonb_build_array(jsonb_build_object('categoria_id', pruebas.id('cat_terneros'), 'cabezas', 1))) $q$, '42501');
 select pruebas.espera_filas('C10 C edita un lote de A: 0 filas',
   $q$ update public.lotes set notas = 'x' where id = pruebas.id('lote_a') $q$, 0);
@@ -318,12 +336,30 @@ select pruebas.espera_error('N01 anon lee establecimientos',
   $q$ select count(*) from public.establecimientos $q$, '42501');
 select pruebas.espera_error('N02 anon lee parametros',
   $q$ select count(*) from public.parametros $q$, '42501');
-select pruebas.espera_error('N03 anon lee el stock',
+select pruebas.espera_error('N03 anon lee el stock por lote',
   $q$ select count(*) from public.v_stock_lote $q$, '42501');
+select pruebas.espera_error('N03b anon lee el stock del establecimiento',
+  $q$ select count(*) from public.v_stock_establecimiento $q$, '42501');
 select pruebas.espera_error('N04 anon llama a crear_establecimiento (RPC)',
   $q$ select public.crear_establecimiento('Anon', 'Salto') $q$, '42501');
 select pruebas.espera_error('N05 anon llama a es_editor (RPC)',
   $q$ select public.es_editor(pruebas.id('est_a')) $q$, '42501');
+select pruebas.espera_error('N06 anon llama a es_miembro (RPC)',
+  $q$ select public.es_miembro(pruebas.id('est_a')) $q$, '42501');
+select pruebas.espera_error('N07 anon llama a mi_rol (RPC)',
+  $q$ select public.mi_rol(pruebas.id('est_a')) $q$, '42501');
+
+-- Permisos declarados (no por comportamiento): helpers solo para authenticated
+reset role;
+select pruebas.espera_valor('N08 Helpers: execute para authenticated, no para anon ni public',
+  $q$ select bool_and(
+        has_function_privilege('authenticated', p.oid, 'execute')
+        and not has_function_privilege('anon', p.oid, 'execute')
+        and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                        where a.grantee = 0 and a.privilege_type = 'EXECUTE'))::text
+      from pg_proc p
+      where p.pronamespace = 'public'::regnamespace
+        and p.proname in ('es_miembro', 'es_editor', 'mi_rol') $q$, 'true');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 6. Administrador: la inmutabilidad vale también para él

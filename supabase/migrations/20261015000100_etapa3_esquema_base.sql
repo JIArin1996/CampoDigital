@@ -14,6 +14,9 @@
 -- Se sacan: todo objeto nuevo nace sin permisos y cada migración otorga explícitamente lo que hace falta.
 -- (Postgres además da execute a public sobre toda función nueva; eso no se saca por esquema,
 -- así que cada función lleva su propio revoke.)
+
+begin;
+
 alter default privileges in schema public revoke all on tables    from anon, authenticated;
 alter default privileges in schema public revoke all on sequences from anon, authenticated;
 alter default privileges in schema public revoke all on functions from anon, authenticated;
@@ -46,6 +49,24 @@ $$;
 
 revoke execute on function public.set_updated_at()        from public, anon, authenticated;
 revoke execute on function public.bloquear_modificacion() from public, anon, authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 1 bis. Fecha de hoy en Uruguay
+-- ════════════════════════════════════════════════════════════════════════════
+-- El servidor corre en UTC: entre las 21:00 y la medianoche de Uruguay, current_date
+-- ya es "mañana". Todas las validaciones de "fecha no futura" y los valores por
+-- defecto de fecha usan esta función.
+
+create function public.fecha_hoy() returns date
+language sql
+stable
+set search_path = ''
+as $$
+  select (now() at time zone 'America/Montevideo')::date;
+$$;
+
+revoke execute on function public.fecha_hoy() from public, anon;
+grant  execute on function public.fecha_hoy() to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 2. Tablas
@@ -82,7 +103,7 @@ create table public.establecimientos (
   propietario        text,
   rut                text,
   dicose             text,   -- texto libre, sin validación
-  fecha_alta         date not null default current_date,
+  fecha_alta         date not null default public.fecha_hoy(),
   estado             text not null default 'activo' check (estado in ('activo', 'inactivo')),
   observaciones      text,
   created_by         uuid default auth.uid(),
@@ -518,3 +539,5 @@ grant update (nombre, campana, potrero_id, notas) on public.lotes to authenticat
 
 -- membresias, lote_eventos, operaciones_lote, operacion_lote_vinculos, lote_cambios_estado:
 -- solo select. Ningún delete ni truncate en ninguna tabla.
+
+commit;

@@ -2,6 +2,8 @@
 --
 -- Listas globales y simples para los selects de la app. Se escriben solo por migración.
 
+begin;
+
 insert into public.parametros (clave, valor, orden)
 select 'departamentos', d.valor, d.orden::int
 from unnest(array[
@@ -19,3 +21,5 @@ from unnest(array[
 insert into public.parametros (clave, valor, orden)
 select 'uso_potrero', u.valor, u.orden::int
 from unnest(array['Ganadería', 'Forestación', 'Reserva', 'Sin uso']) with ordinality as u(valor, orden);
+
+commit;

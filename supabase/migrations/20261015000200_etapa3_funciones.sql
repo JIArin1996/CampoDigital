@@ -17,6 +17,9 @@
 -- Va siempre ANTES de leer el saldo: con dos editores cargando a la vez, el segundo
 -- espera a que termine el primero y valida con el saldo ya actualizado.
 -- No distingue "no existe" de "sin permiso", para no revelar lotes ajenos.
+
+begin;
+
 create function public._bloquear_lote_editable(p_lote_id uuid) returns public.lotes
 language plpgsql
 set search_path = ''
@@ -149,7 +152,7 @@ begin
     propietario, rut, dicose, fecha_alta, observaciones
   ) values (
     p_nombre, p_departamento, p_localidad, p_paraje, p_superficie_total, p_sistema_productivo,
-    p_propietario, p_rut, p_dicose, coalesce(p_fecha_alta, current_date), p_observaciones
+    p_propietario, p_rut, p_dicose, coalesce(p_fecha_alta, public.fecha_hoy()), p_observaciones
   )
   returning id into v_est;
 
@@ -197,7 +200,7 @@ begin
     raise exception 'Sin permiso de edición en este establecimiento' using errcode = '42501';
   end if;
 
-  if p_fecha_apertura is null or p_fecha_apertura > current_date then
+  if p_fecha_apertura is null or p_fecha_apertura > public.fecha_hoy() then
     raise exception 'La fecha de apertura no puede estar vacía ni ser futura' using errcode = '22023';
   end if;
 
@@ -276,7 +279,7 @@ begin
     raise exception 'El ajuste necesita un motivo' using errcode = '22023';
   end if;
 
-  if p_fecha is null or p_fecha > current_date or p_fecha < v_lote.fecha_apertura then
+  if p_fecha is null or p_fecha > public.fecha_hoy() or p_fecha < v_lote.fecha_apertura then
     raise exception 'La fecha tiene que estar entre la apertura del lote y hoy' using errcode = '22023';
   end if;
 
@@ -323,7 +326,7 @@ begin
   from public.lote_eventos e
   where e.lote_id = v_lote.id;
 
-  if p_fecha is null or p_fecha > current_date
+  if p_fecha is null or p_fecha > public.fecha_hoy()
      or p_fecha < greatest(v_lote.fecha_apertura, coalesce(v_ultimo_evento, v_lote.fecha_apertura)) then
     raise exception 'La fecha de cierre tiene que estar entre el último movimiento del lote y hoy' using errcode = '22023';
   end if;
@@ -365,7 +368,7 @@ begin
     raise exception 'El lote no está cerrado' using errcode = '22023';
   end if;
 
-  if p_fecha is null or p_fecha > current_date or p_fecha < v_lote.fecha_cierre then
+  if p_fecha is null or p_fecha > public.fecha_hoy() or p_fecha < v_lote.fecha_cierre then
     raise exception 'La fecha de reapertura tiene que estar entre el cierre del lote y hoy' using errcode = '22023';
   end if;
 
@@ -421,3 +424,5 @@ group by s.establecimiento_id, s.especie_id, s.categoria_id;
 
 revoke all    on public.v_stock_lote, public.v_stock_establecimiento from anon, authenticated;
 grant  select on public.v_stock_lote, public.v_stock_establecimiento to authenticated;
+
+commit;

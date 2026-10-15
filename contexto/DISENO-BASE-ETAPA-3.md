@@ -582,6 +582,9 @@ Agregados al diseño:
 - b) Bloqueo de la fila del lote antes de leer el saldo: sección 5.
 - c) Ninguna cascada hacia los eventos y bajas lógicas: sección 2.10 bis.
 - d) Verificación de la versión de Postgres antes de migrar: sección 6.
+- e) Cada migración va entre `begin;` y `commit;`: si una sentencia falla, no queda nada a medias.
+- f) Las validaciones de "fecha no futura" y los valores por defecto de fecha usan `public.fecha_hoy()`, que devuelve `(now() at time zone 'America/Montevideo')::date`. El servidor corre en UTC, y entre las 21:00 y la medianoche de Uruguay `current_date` ya es "mañana".
+- g) `supabase/tests/auditoria_permisos.sql`: cuatro consultas de solo lectura con su resultado esperado (RLS y vistas, políticas, permisos de tablas y columnas, funciones). Se corre después de cada etapa que agregue objetos.
 
 Antes de correr las migraciones (Etapa 3b), el administrador verifica:
 
