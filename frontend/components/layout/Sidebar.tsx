@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { MapPin, Grid3X3 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import { CerrarSesion } from "@/components/layout/CerrarSesion"
 import {
   Select,
   SelectContent,
@@ -76,6 +77,9 @@ export function Sidebar() {
 
   const selectorValue = establecimientoActivo?.id?.toString() ?? ""
 
+  // En el login no hay menú
+  if (pathname === "/login") return null
+
   return (
     <>
       {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
@@ -126,6 +130,11 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-3 px-2">
           <NavList pathname={pathname} hasActivo={!!establecimientoActivo} />
         </nav>
+
+        {/* Cierre de sesión */}
+        <div className="px-2 py-3 border-t border-border shrink-0">
+          <CerrarSesion />
+        </div>
       </aside>
 
       {/* ── Mobile bottom nav (primeros 5 ítems) ────────────────────────── */}
@@ -158,6 +167,9 @@ export function Sidebar() {
               </li>
             )
           })}
+          <li className="flex-1">
+            <CerrarSesion compacto />
+          </li>
         </ul>
       </nav>
     </>
