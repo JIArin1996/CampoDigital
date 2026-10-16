@@ -7,7 +7,7 @@ Estado: borrador de diseño. No hay baseline del esquema viejo: public se borra 
 - [Decidido] Multi-establecimiento y multi-especie ganadera. La generalidad va en los datos (catálogos por establecimiento), no en el código.
 - [Decidido] El stock se calcula siempre desde eventos. Nunca se guarda como número.
 - [Decidido] Las operaciones sobre lotes (dividir, juntar, recategorizar) son atómicas y quedan registradas. El lote absorbido se cierra, no se borra.
-- [Decidido] Roles por establecimiento: editor (carga y edita) y lector (solo lectura, ve todo, incluida la economía).
+- [Decidido] Roles: Administrador (del sistema), Operador (carga y edita) y Consulta (solo lectura, ve todo, incluida la economía). Ver DISENO-USUARIOS.md.
 - [Decidido] Las actividades son registros estructurados aparte de la bitácora.
 - [Decidido] Economía en dólares. Los gastos en pesos se convierten a USD.
 - [Propuesta] Nada de borrado físico. Estado (activo/cerrado/anulado) y correcciones por eventos de ajuste.
@@ -37,7 +37,7 @@ Responsables [Decidido]: en bitácora, tareas y actividades el responsable es si
 | id | bigint pk |  |
 | user_id | uuid | referencia a auth.users |
 | establecimiento_id | bigint |  |
-| rol | text | editor o lector |
+| rol | text | operador o consulta (el administrador es del sistema: perfiles.es_admin) |
 
 Restricción única: (user_id, establecimiento_id)
 
@@ -57,12 +57,12 @@ Catálogo de responsables por establecimiento, para nombrar a quien no usa la ap
 ### Funciones auxiliares [Propuesta]
 
 - es_miembro(est_id): el usuario actual tiene membresía en ese establecimiento.
-- es_editor(est_id): el usuario actual es editor en ese establecimiento.
+- es_admin(), puede_operar(est_id): reemplazan a es_editor desde la Etapa 3c (ver DISENO-USUARIOS.md).
 
 ### RLS (regla general para toda tabla con establecimiento_id)
 
 - select: es_miembro(establecimiento_id).
-- insert, update, delete: es_editor(establecimiento_id).
+- insert, update: puede_operar(establecimiento_id) para el día a día; es_admin() para configuración. Sin delete.
 - Tablas hijas (detalle de actividades, líneas, vínculos) heredan el permiso a través de su padre.
 
 ## 4. Catálogos (por establecimiento)
@@ -271,7 +271,7 @@ Las actividades no se cargan acá. Una entrada de bitácora puede mencionar una 
 | titulo | text |  |
 | descripcion | text |  |
 | fecha_vencimiento | date |  |
-| persona_id | bigint | responsable opcional (catálogo personas). Sin responsable, la tarea es de ambos editores [Decidido] |
+| persona_id | bigint | responsable opcional (catálogo personas). Sin responsable, la tarea es de todos los operadores [Decidido] |
 | lote_id | bigint | opcional |
 | estado | text | pendiente, hecha, cancelada |
 | recurrencia_dias | int | opcional, para repetir cada N días [Propuesta] |
@@ -321,7 +321,7 @@ Calendario, primera versión [Decidido]: lista de tareas próximas y vencidas co
 El esquema se migra por etapas: cada una agrega solo las tablas que usa.
 
 1. Etapa 2: limpieza. Borrar el código de trazabilidad, agricultura, maquinaria, insumos, personal y parcelas, y la migración que borra public.
-2. Etapa 3: base del esquema. Auth, membresias, RLS, helpers es_miembro y es_editor, catálogos (especies, categorias_animales, rubros, personas), lotes y lote_eventos.
+2. Etapa 3: base del esquema. Auth, membresias, RLS, helpers es_miembro y es_editor (es_admin y puede_operar desde la 3c), catálogos (especies, categorias_animales, rubros, personas), lotes y lote_eventos.
 3. Etapa 4: navegación y estructura de la app.
 4. Etapa 5: ficha de lote, operaciones de lote (dividir, juntar, recategorizar), bitacora_entradas y bitacora_lotes, stock por categoría y un panel de inicio básico.
 5. Etapa 6a: actividades con registrar_actividad para las que alimentan stock (pesada, mortandad, compra, venta, parición), con el movimiento económico de compra y venta.

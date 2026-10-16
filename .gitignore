@@ -25,8 +25,8 @@ next-env.d.ts
 .vercel
 
 # Supabase CLI (archivos locales)
-supabase/.temp/
-supabase/.branches/
+**/supabase/.temp/
+**/supabase/.branches/
 
 # Tests
 coverage/

@@ -36,12 +36,15 @@ Campo Digital pasa de ser una app de trazabilidad a una herramienta de **gestió
 
 ## 4. Usuarios y roles
 
-Los roles son **por establecimiento**.
+Tres roles (detalle en `DISENO-USUARIOS.md`):
 
-| Rol | Quiénes | Permisos |
+| Rol | Alcance | Permisos |
 |---|---|---|
-| Editor | Los dos hermanos | Cargan y editan |
-| Lector | Otros familiares y socios | Ven todo, incluidos los números económicos. Solo lectura |
+| Administrador | Todo el sistema | Todo, en todos los establecimientos. Exclusivo: crear y editar establecimientos, catálogos y usuarios. Al arrancar es uno solo (el dueño del proyecto) |
+| Operador | Por establecimiento | Carga y edita el día a día (potreros, lotes, actividades, bitácora, economía, tareas) |
+| Consulta | Por establecimiento | Ve todo, incluidos los números económicos. Solo lectura |
+
+**Usuarios**: la gestión es toda desde la app (alta con contraseña provisoria, datos, celular como contacto, foto, cambio y reseteo de contraseña, desactivar en vez de borrar). Sin dominio propio no hay mail: una contraseña olvidada la resetea el administrador.
 
 **Personas**: catálogo simple por establecimiento (nombre y rol, sin datos sensibles), con vínculo opcional a un usuario. Sirve para nombrar responsables que no usan la app, como el capataz.
 
@@ -128,7 +131,7 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 
 ## 11. Tareas y calendario
 
-- **Responsable opcional**: una persona del catálogo. Sin responsable, la tarea es de **ambos editores**.
+- **Responsable opcional**: una persona del catálogo. Sin responsable, la tarea es de **todos los operadores** (antes: "ambos editores").
 - **Calendario, primera versión**: lista de tareas **próximas y vencidas, con filtros**. El modelo guarda fecha y estado, para sumar después la vista mensual sin tocar tablas.
 
 ---
@@ -165,3 +168,5 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 | 2026-10-15 | Potreros y parcelas | **Solo potreros** |
 | 2026-10-15 | Roles y RLS al final del desarrollo | **Desde la primera migración del esquema nuevo** |
 | 2026-10-15 | Responsable de actividades: pendiente (usuario o persona). Responsable de bitácora y tareas: usuario | **persona_id en bitácora, tareas y actividades**. `created_by` queda solo como auditoría de quién cargó |
+| 2026-10-16 | Dos roles por establecimiento: editor y lector | **Tres roles**: Administrador (del sistema), Operador y Consulta (por establecimiento) |
+| 2026-10-16 | Gestión de usuarios en la Etapa 9 | **Etapa 3c**, desde la app: perfiles, contraseña provisoria, reseteo por el administrador, desactivar en vez de borrar |
