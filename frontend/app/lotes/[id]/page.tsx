@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ArrowRightLeft, Merge, SlidersHorizontal, Split } from "lucide-react"
+import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Merge, SlidersHorizontal, Split } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
@@ -125,7 +125,11 @@ export default function LotePage() {
 
       {/* Operaciones de lote */}
       {operable && (
-        <nav aria-label="Operaciones del lote" className="grid grid-cols-3 gap-2 mb-6">
+        <nav aria-label="Operaciones del lote" className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+          <Link href={`/actividades/nueva?lote=${lote.id}`} className={accion}>
+            <ClipboardList className="h-5 w-5" />
+            Actividad
+          </Link>
           <Link href={`/lotes/${lote.id}/dividir`} className={accion}>
             <Split className="h-5 w-5" />
             Dividir
@@ -170,7 +174,12 @@ export default function LotePage() {
 
         {/* Historial */}
         <section className="space-y-3">
-          <h2 className="font-semibold">Historial</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Historial</h2>
+            <Link href={`/actividades?lote=${lote.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary min-h-11">
+              Actividades <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
           {vigente.eventos.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin movimientos.</p>
           ) : (

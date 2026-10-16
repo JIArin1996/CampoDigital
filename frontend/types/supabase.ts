@@ -14,6 +14,299 @@ export type Database = {
   }
   public: {
     Tables: {
+      act_compraventa: {
+        Row: {
+          actividad_id: string
+          contraparte: string | null
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          kg_gancho: number | null
+          modalidad: string
+        }
+        Insert: {
+          actividad_id: string
+          contraparte?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          kg_gancho?: number | null
+          modalidad: string
+        }
+        Update: {
+          actividad_id?: string
+          contraparte?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          kg_gancho?: number | null
+          modalidad?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "act_compraventa_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_compraventa_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_compraventa_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      act_mortandad: {
+        Row: {
+          actividad_id: string
+          causa: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          observaciones: string | null
+        }
+        Insert: {
+          actividad_id: string
+          causa?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          observaciones?: string | null
+        }
+        Update: {
+          actividad_id?: string
+          causa?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          observaciones?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "act_mortandad_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_mortandad_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_mortandad_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      act_paricion: {
+        Row: {
+          actividad_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          lote_cria_id: string
+          nacidos_muertos: number
+        }
+        Insert: {
+          actividad_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          lote_cria_id: string
+          nacidos_muertos?: number
+        }
+        Update: {
+          actividad_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          lote_cria_id?: string
+          nacidos_muertos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "act_paricion_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_paricion_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_paricion_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "act_paricion_lote_cria_id_establecimiento_id_fkey"
+            columns: ["lote_cria_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
+      actividad_lineas: {
+        Row: {
+          actividad_id: string
+          cabezas: number
+          categoria_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          peso_vivo_total_kg: number | null
+        }
+        Insert: {
+          actividad_id: string
+          cabezas: number
+          categoria_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          peso_vivo_total_kg?: number | null
+        }
+        Update: {
+          actividad_id?: string
+          cabezas?: number
+          categoria_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          peso_vivo_total_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividad_lineas_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_lineas_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_lineas_categoria_id_establecimiento_id_fkey"
+            columns: ["categoria_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_animales"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_lineas_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      actividades: {
+        Row: {
+          anulada_en: string | null
+          anulada_por: string | null
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          fecha: string
+          id: string
+          lote_creado_id: string | null
+          lote_id: string | null
+          motivo_anulacion: string | null
+          notas: string | null
+          persona_id: string | null
+          tipo: string
+        }
+        Insert: {
+          anulada_en?: string | null
+          anulada_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          fecha: string
+          id?: string
+          lote_creado_id?: string | null
+          lote_id?: string | null
+          motivo_anulacion?: string | null
+          notas?: string | null
+          persona_id?: string | null
+          tipo: string
+        }
+        Update: {
+          anulada_en?: string | null
+          anulada_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          fecha?: string
+          id?: string
+          lote_creado_id?: string | null
+          lote_id?: string | null
+          motivo_anulacion?: string | null
+          notas?: string | null
+          persona_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividades_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividades_lote_creado_id_establecimiento_id_fkey"
+            columns: ["lote_creado_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividades_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividades_persona_id_establecimiento_id_fkey"
+            columns: ["persona_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       bitacora_entradas: {
         Row: {
           anulada_en: string | null
@@ -325,6 +618,7 @@ export type Database = {
       }
       lote_eventos: {
         Row: {
+          actividad_id: string | null
           cabezas: number
           categoria_id: string
           created_at: string
@@ -339,6 +633,7 @@ export type Database = {
           tipo: string
         }
         Insert: {
+          actividad_id?: string | null
           cabezas: number
           categoria_id: string
           created_at?: string
@@ -353,6 +648,7 @@ export type Database = {
           tipo: string
         }
         Update: {
+          actividad_id?: string | null
           cabezas?: number
           categoria_id?: string
           created_at?: string
@@ -367,6 +663,20 @@ export type Database = {
           tipo?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lote_eventos_actividad_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lote_eventos_actividad_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
           {
             foreignKeyName: "lote_eventos_categoria_id_especie_id_fkey"
             columns: ["categoria_id", "especie_id"]
@@ -516,6 +826,114 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_economicos: {
+        Row: {
+          actividad_id: string | null
+          anulado_en: string | null
+          anulado_por: string | null
+          concepto: string
+          contraparte: string | null
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          estado: string
+          fecha: string
+          fecha_pago: string | null
+          id: string
+          lote_id: string | null
+          moneda_original: string
+          monto_original: number
+          monto_usd: number | null
+          motivo_anulacion: string | null
+          rubro_id: string
+          sentido: string
+          tipo_cambio: number | null
+          updated_at: string
+        }
+        Insert: {
+          actividad_id?: string | null
+          anulado_en?: string | null
+          anulado_por?: string | null
+          concepto: string
+          contraparte?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          estado: string
+          fecha: string
+          fecha_pago?: string | null
+          id?: string
+          lote_id?: string | null
+          moneda_original: string
+          monto_original: number
+          monto_usd?: number | null
+          motivo_anulacion?: string | null
+          rubro_id: string
+          sentido: string
+          tipo_cambio?: number | null
+          updated_at?: string
+        }
+        Update: {
+          actividad_id?: string | null
+          anulado_en?: string | null
+          anulado_por?: string | null
+          concepto?: string
+          contraparte?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          estado?: string
+          fecha?: string
+          fecha_pago?: string | null
+          id?: string
+          lote_id?: string | null
+          moneda_original?: string
+          monto_original?: number
+          monto_usd?: number | null
+          motivo_anulacion?: string | null
+          rubro_id?: string
+          sentido?: string
+          tipo_cambio?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_rubro_id_establecimiento_id_fkey"
+            columns: ["rubro_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "rubros"
+            referencedColumns: ["id", "establecimiento_id"]
           },
         ]
       }
@@ -818,6 +1236,65 @@ export type Database = {
       }
     }
     Views: {
+      v_actividades: {
+        Row: {
+          anulada_en: string | null
+          anulada_por: string | null
+          cabezas: number | null
+          causa: string | null
+          contraparte: string | null
+          created_at: string | null
+          created_by: string | null
+          establecimiento_id: string | null
+          fecha: string | null
+          id: string | null
+          kg_gancho: number | null
+          lote_creado_id: string | null
+          lote_cria_id: string | null
+          lote_id: string | null
+          modalidad: string | null
+          monto_usd: number | null
+          motivo_anulacion: string | null
+          nacidos_muertos: number | null
+          notas: string | null
+          observaciones: string | null
+          persona_id: string | null
+          peso_promedio_kg: number | null
+          peso_vivo_total_kg: number | null
+          rendimiento_pct: number | null
+          tipo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividades_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividades_lote_creado_id_establecimiento_id_fkey"
+            columns: ["lote_creado_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividades_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividades_persona_id_establecimiento_id_fkey"
+            columns: ["persona_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       v_stock_establecimiento: {
         Row: {
           cabezas: number | null
@@ -883,6 +1360,10 @@ export type Database = {
       }
     }
     Functions: {
+      _actividad_ya_registrada: {
+        Args: { p_establecimiento_id: string; p_id: string; p_tipo: string }
+        Returns: boolean
+      }
       _bloquear_entrada_bitacora: {
         Args: { p_entrada_id: string }
         Returns: {
@@ -946,6 +1427,10 @@ export type Database = {
         Args: { p_categoria_id: string; p_especie_id: string }
         Returns: undefined
       }
+      _exigir_persona: {
+        Args: { p_establecimiento_id: string; p_persona_id: string }
+        Returns: undefined
+      }
       _guardar_lotes_bitacora: {
         Args: {
           p_entrada_id: string
@@ -953,6 +1438,34 @@ export type Database = {
           p_lotes: string[]
         }
         Returns: undefined
+      }
+      _insertar_lineas: {
+        Args: {
+          p_actividad_id: string
+          p_especie_id: string
+          p_establecimiento_id: string
+          p_lineas: Json
+          p_peso: string
+        }
+        Returns: string[]
+      }
+      _registrar_movimiento: {
+        Args: {
+          p_actividad_id: string
+          p_concepto: string
+          p_contraparte: string
+          p_especie_id: string
+          p_establecimiento_id: string
+          p_fecha: string
+          p_lote_id: string
+          p_precio: Json
+          p_sentido: string
+        }
+        Returns: string
+      }
+      _stock_categoria_al: {
+        Args: { p_categoria_id: string; p_fecha: string; p_lote_id: string }
+        Returns: number
       }
       _validar_entrada_bitacora: {
         Args: {
@@ -970,6 +1483,10 @@ export type Database = {
       }
       _validar_saldo: {
         Args: { p_categoria_id: string; p_lote_id: string }
+        Returns: undefined
+      }
+      anular_actividad: {
+        Args: { p_actividad_id: string; p_motivo: string }
         Returns: undefined
       }
       anular_entrada_bitacora: {
@@ -1099,6 +1616,76 @@ export type Database = {
           p_fecha: string
           p_lote_id: string
           p_nota: string
+        }
+        Returns: string
+      }
+      registrar_compra: {
+        Args: {
+          p_contraparte?: string
+          p_establecimiento_id: string
+          p_fecha: string
+          p_id: string
+          p_kg_gancho?: number
+          p_lineas: Json
+          p_lote_id?: string
+          p_lote_nuevo?: Json
+          p_modalidad: string
+          p_notas?: string
+          p_persona_id?: string
+          p_precio?: Json
+        }
+        Returns: string
+      }
+      registrar_mortandad: {
+        Args: {
+          p_causa?: string
+          p_fecha: string
+          p_id: string
+          p_lineas: Json
+          p_lote_id: string
+          p_notas?: string
+          p_observaciones?: string
+          p_persona_id?: string
+        }
+        Returns: string
+      }
+      registrar_paricion: {
+        Args: {
+          p_fecha: string
+          p_id: string
+          p_lineas: Json
+          p_lote_cria_id?: string
+          p_lote_cria_nuevo?: Json
+          p_lote_madres_id: string
+          p_nacidos_muertos?: number
+          p_notas?: string
+          p_persona_id?: string
+        }
+        Returns: string
+      }
+      registrar_pesada: {
+        Args: {
+          p_fecha: string
+          p_id: string
+          p_lineas: Json
+          p_lote_id: string
+          p_notas?: string
+          p_persona_id?: string
+        }
+        Returns: string
+      }
+      registrar_venta: {
+        Args: {
+          p_contraparte?: string
+          p_fecha: string
+          p_id: string
+          p_kg_gancho?: number
+          p_lineas: Json
+          p_lote_id: string
+          p_modalidad: string
+          p_notas?: string
+          p_persona_id?: string
+          p_precio?: Json
         }
         Returns: string
       }

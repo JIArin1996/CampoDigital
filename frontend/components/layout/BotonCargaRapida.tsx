@@ -18,7 +18,7 @@ interface Opcion {
 
 const OPCIONES: Opcion[] = [
   { label: "Nota de bitácora", descripcion: "Decisión, idea u observación", icon: NotebookPen, href: "/bitacora/nueva" },
-  { label: "Actividad", descripcion: "Pesada, sanidad, compra, venta...", icon: ClipboardList, etapa: "Etapa 6" },
+  { label: "Actividad", descripcion: "Pesada, venta, compra, mortandad, parición", icon: ClipboardList, href: "/actividades/nueva" },
   { label: "Nuevo lote", descripcion: "Con su composición inicial", icon: Layers, href: "/lotes/nuevo" },
   { label: "Tarea", descripcion: "Algo para hacer, con vencimiento", icon: CalendarCheck, etapa: "Etapa 8" },
 ]
@@ -33,7 +33,7 @@ export function BotonCargaRapida() {
   const [abierto, setAbierto] = useState(false)
 
   // No aparece sin permiso de carga, en el login ni dentro de un formulario de alta o edición
-  const enFormulario = pathname === "/login" || pathname.endsWith("/nuevo") || pathname.endsWith("/editar")
+  const enFormulario = pathname === "/login" || pathname.endsWith("/nuevo") || pathname.endsWith("/nueva") || pathname.endsWith("/editar")
   if (!puedeOperar || enFormulario) return null
 
   return (
