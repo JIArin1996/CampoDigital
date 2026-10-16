@@ -32,7 +32,7 @@ interface Ficha {
 
 export default function LotePage() {
   const { id } = useParams<{ id: string }>()
-  const { rolEn, cargando: cargandoCtx } = useEstablecimiento()
+  const { puedeOperarEn, cargando: cargandoCtx } = useEstablecimiento()
   const [ficha, setFicha] = useState<Ficha | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)   // sube para recargar después de un ajuste
@@ -84,7 +84,7 @@ export default function LotePage() {
     return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró el lote.</p></PageContainer>
   }
 
-  const esEditor = rolEn(lote.establecimiento_id) === "editor"
+  const puedeOperar = puedeOperarEn(lote.establecimiento_id)
   const especie = vigente.especies.find(e => e.id === lote.especie_id)
   const categoriasEspecie = vigente.categorias.filter(c => c.especie_id === lote.especie_id)
   const potrero = vigente.potreros.find(p => p.id === lote.potrero_id)
@@ -118,7 +118,7 @@ export default function LotePage() {
         <Card>
           <CardHeader className="pb-1 flex-row items-center justify-between gap-3">
             <CardTitle className="text-base">Stock actual</CardTitle>
-            {esEditor && lote.estado === "activo" && (
+            {puedeOperar && lote.estado === "activo" && (
               <Button variant="outline" size="sm" className="h-10 md:h-8" onClick={() => setAjusteAbierto(true)}>
                 <SlidersHorizontal className="h-4 w-4 mr-1" />
                 Ajustar

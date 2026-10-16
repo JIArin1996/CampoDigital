@@ -55,7 +55,7 @@ interface EstablecimientoFormProps {
 
 export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = {}) {
   const router = useRouter()
-  const { recargarEstablecimientos } = useEstablecimiento()
+  const { recargarEstablecimientos, esAdmin, cargando } = useEstablecimiento()
   const [enviando, setEnviando] = useState(false)
 
   const {
@@ -82,6 +82,11 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
   })
 
   const departamento = watch("departamento")
+
+  // Crear y editar establecimientos es configuración: solo el administrador
+  if (!cargando && !esAdmin) {
+    return <p className="text-muted-foreground">Solo un administrador puede crear o editar establecimientos.</p>
+  }
 
   const onSubmit = async (values: FormValues) => {
     const datos: EstablecimientoDatos = {

@@ -27,7 +27,7 @@ interface Catalogos {
 
 export default function NuevoLotePage() {
   const router = useRouter()
-  const { establecimientoActivo, esEditor, cargando: cargandoCtx } = useEstablecimiento()
+  const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const estId = establecimientoActivo?.id
 
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null)
@@ -115,7 +115,7 @@ export default function NuevoLotePage() {
     return <PageContainer>{volver}<p className="text-muted-foreground">Seleccioná un establecimiento.</p></PageContainer>
   }
 
-  if (!esEditor) {
+  if (!puedeOperar) {
     return <PageContainer>{volver}<p className="text-muted-foreground">Tenés acceso de solo lectura a este establecimiento.</p></PageContainer>
   }
 

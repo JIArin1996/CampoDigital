@@ -17,11 +17,14 @@ import type { Establecimiento, Potrero } from "@/types/database"
 interface EstablecimientoDetalleProps {
   establecimiento: Establecimiento
   potreros: Potrero[]
-  esEditor: boolean
+  puedeOperar: boolean                 // potreros: administrador u operador
+  puedeEditarEstablecimiento: boolean  // datos del establecimiento: solo administrador
   onRefresh: () => void
 }
 
-export function EstablecimientoDetalle({ establecimiento, potreros, esEditor, onRefresh }: EstablecimientoDetalleProps) {
+export function EstablecimientoDetalle({
+  establecimiento, potreros, puedeOperar, puedeEditarEstablecimiento, onRefresh,
+}: EstablecimientoDetalleProps) {
   const [dialogAbierto, setDialogAbierto] = useState(false)
   const [potreroAEditar, setPotreroAEditar] = useState<Potrero | null>(null)
 
@@ -71,16 +74,16 @@ export function EstablecimientoDetalle({ establecimiento, potreros, esEditor, on
                 <p className="text-sm text-muted-foreground mt-1">{establecimiento.sistema_productivo}</p>
               )}
             </div>
-            {esEditor ? (
+            {puedeEditarEstablecimiento ? (
               <Link
                 href={`/establecimientos/${establecimiento.id}/editar`}
                 className={buttonVariants({ variant: "outline", size: "sm", className: "h-10 md:h-8 shrink-0" })}
               >
                 <Edit2 className="h-4 w-4 mr-1" /> Editar
               </Link>
-            ) : (
+            ) : !puedeOperar ? (
               <Badge variant="secondary">solo lectura</Badge>
-            )}
+            ) : null}
           </div>
         </CardHeader>
         <CardContent>
@@ -111,7 +114,7 @@ export function EstablecimientoDetalle({ establecimiento, potreros, esEditor, on
               </p>
             )}
           </div>
-          {esEditor && (
+          {puedeOperar && (
             <Button className="h-10 md:h-8" size="sm" onClick={() => abrirDialogPotrero()}>
               <Plus className="h-4 w-4 mr-1" />
               Agregar
@@ -153,7 +156,7 @@ export function EstablecimientoDetalle({ establecimiento, potreros, esEditor, on
                   {potrero.uso_actual && <Badge variant="outline">{potrero.uso_actual}</Badge>}
                 </div>
 
-                {esEditor && (
+                {puedeOperar && (
                   <div className="flex gap-2 mt-3">
                     <Button variant="outline" size="sm" className="h-10 md:h-8" onClick={() => abrirDialogPotrero(potrero)}>
                       <Edit2 className="h-4 w-4 mr-1" /> Editar

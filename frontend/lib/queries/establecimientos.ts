@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
-import type { Establecimiento, EstablecimientoDatos, EstablecimientoUpdate, Rol } from '@/types/database'
+import type { Establecimiento, EstablecimientoDatos, EstablecimientoUpdate, RolMembresia } from '@/types/database'
 
 // Establecimientos activos del usuario (el RLS deja ver solo aquellos donde es miembro)
 export async function getEstablecimientos() {
@@ -41,8 +41,8 @@ export async function getEstablecimiento(id: string) {
   return data as Establecimiento | null
 }
 
-// Rol del usuario actual en cada uno de sus establecimientos
-export async function getMisRoles(): Promise<Record<string, Rol>> {
+// Rol asignado al usuario actual en cada establecimiento (el administrador ve todos sin asignación)
+export async function getMisRoles(): Promise<Record<string, RolMembresia>> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return {}
@@ -53,10 +53,10 @@ export async function getMisRoles(): Promise<Record<string, Rol>> {
     .eq('user_id', user.id)
 
   if (error) throw error
-  return Object.fromEntries((data ?? []).map(m => [m.establecimiento_id, m.rol as Rol]))
+  return Object.fromEntries((data ?? []).map(m => [m.establecimiento_id, m.rol as RolMembresia]))
 }
 
-// Alta: crea el establecimiento y la membresía de editor en una sola transacción.
+// Alta (solo administrador): crea el establecimiento en una sola transacción.
 // Carga los catálogos base (especies, categorías y rubros). Devuelve el id nuevo.
 export async function crearEstablecimiento(values: EstablecimientoDatos): Promise<string> {
   const supabase = createClient()
@@ -80,7 +80,7 @@ export async function crearEstablecimiento(values: EstablecimientoDatos): Promis
   return data as string
 }
 
-// Edición. Si el RLS filtra la fila (lector), no hay error sino 0 filas: se trata como "sin permiso".
+// Edición. Si el RLS filtra la fila (no administrador), no hay error sino 0 filas: se trata como "sin permiso".
 export async function updateEstablecimiento(id: string, values: EstablecimientoUpdate) {
   const supabase = createClient()
   const { data, error } = await supabase

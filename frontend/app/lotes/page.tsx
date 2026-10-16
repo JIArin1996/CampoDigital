@@ -28,7 +28,7 @@ interface Datos {
 }
 
 export default function LotesPage() {
-  const { establecimientoActivo, esEditor, cargando: cargandoCtx } = useEstablecimiento()
+  const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const [estado, setEstado] = useState<EstadoLote>("activo")
   const [datos, setDatos] = useState<Datos | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -77,7 +77,7 @@ export default function LotesPage() {
       {/* Encabezado */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Lotes</h1>
-        {esEditor && (
+        {puedeOperar && (
           <Link href="/lotes/nuevo" className={buttonVariants({ className: "h-11 md:h-8" })}>
             <Plus className="h-4 w-4 mr-1" />
             Nuevo lote

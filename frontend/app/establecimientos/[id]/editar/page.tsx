@@ -14,7 +14,7 @@ import type { Establecimiento } from "@/types/database"
 // Se carga en el navegador: la consulta tiene que ir con la sesión del usuario para pasar el RLS
 export default function EditarEstablecimientoPage() {
   const { id } = useParams<{ id: string }>()
-  const { rolEn, cargando: cargandoCtx } = useEstablecimiento()
+  const { esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [establecimiento, setEstablecimiento] = useState<Establecimiento | null>(null)
   const [estado, setEstado] = useState<"cargando" | "listo" | "no-encontrado">("cargando")
 
@@ -44,8 +44,8 @@ export default function EditarEstablecimientoPage() {
     return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró el establecimiento.</p></PageContainer>
   }
 
-  if (rolEn(establecimiento.id) !== "editor") {
-    return <PageContainer>{volver}<p className="text-muted-foreground">Tenés acceso de solo lectura a este establecimiento.</p></PageContainer>
+  if (!esAdmin) {
+    return <PageContainer>{volver}<p className="text-muted-foreground">Solo un administrador puede editar el establecimiento.</p></PageContainer>
   }
 
   return (

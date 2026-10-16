@@ -9,7 +9,10 @@
 import type { Tables } from './supabase'
 
 export type EstadoBase = 'activo' | 'inactivo'
-export type Rol = 'editor' | 'lector'
+// Rol del usuario en un establecimiento. 'administrador' es del sistema entero (perfiles.es_admin);
+// 'operador' y 'consulta' se asignan por establecimiento (membresias.rol).
+export type Rol = 'administrador' | 'operador' | 'consulta'
+export type RolMembresia = Exclude<Rol, 'administrador'>
 
 // ── Establecimiento ──────────────────────────────────────────────────────────
 
@@ -27,7 +30,7 @@ export type EstablecimientoUpdate = Partial<EstablecimientoDatos & Pick<Establec
 
 // ── Membresía ────────────────────────────────────────────────────────────────
 
-export type Membresia = Omit<Tables<'membresias'>, 'rol'> & { rol: Rol }
+export type Membresia = Omit<Tables<'membresias'>, 'rol'> & { rol: RolMembresia }
 
 // ── Potrero ──────────────────────────────────────────────────────────────────
 
@@ -39,3 +42,10 @@ export type PotreroInsert = Pick<
   'establecimiento_id' | 'nombre' | 'superficie' | 'uso_actual' | 'tipo_pastura' | 'aguada' | 'sombra' | 'estado' | 'observaciones'
 >
 export type PotreroUpdate = Partial<Omit<PotreroInsert, 'establecimiento_id'>>
+
+// ── Perfil de usuario ────────────────────────────────────────────────────────
+
+export type Perfil = Tables<'perfiles'>
+
+// Columnas que authenticated puede actualizar (su propio perfil; el administrador, cualquiera)
+export type PerfilUpdate = Partial<Pick<Perfil, 'nombre' | 'apellido' | 'celular' | 'foto_path'>>

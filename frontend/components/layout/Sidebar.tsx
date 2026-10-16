@@ -2,10 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { MapPin, Grid3X3, Layers } from "lucide-react"
+import { MapPin, Grid3X3, Layers, Users, UserRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { CerrarSesion } from "@/components/layout/CerrarSesion"
+import { Avatar } from "@/components/usuarios/Avatar"
+import { nombreCompleto } from "@/components/usuarios/roles"
 import {
   Select,
   SelectContent,
@@ -67,8 +69,9 @@ function NavList({ pathname, hasActivo }: { pathname: string; hasActivo: boolean
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { establecimientos, establecimientoActivo, setEstablecimientoActivo, cargando } =
+  const { establecimientos, establecimientoActivo, setEstablecimientoActivo, cargando, esAdmin, perfil } =
     useEstablecimiento()
+  const enRuta = (href: string) => pathname === href || pathname.startsWith(href + "/")
 
   const handleSelectEst = (val: string | null) => {
     if (!val) return
@@ -130,15 +133,46 @@ export function Sidebar() {
         {/* Navegación */}
         <nav className="flex-1 overflow-y-auto py-3 px-2">
           <NavList pathname={pathname} hasActivo={!!establecimientoActivo} />
+
+          {/* Solo administrador */}
+          {esAdmin && (
+            <Link
+              href="/usuarios"
+              className={cn(
+                "mt-0.5 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                enRuta("/usuarios")
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+              )}
+            >
+              <Users className="h-4 w-4 shrink-0" />
+              Usuarios
+            </Link>
+          )}
         </nav>
 
-        {/* Cierre de sesión */}
-        <div className="px-2 py-3 border-t border-border shrink-0">
+        {/* Mi perfil y cierre de sesión */}
+        <div className="px-2 py-3 border-t border-border shrink-0 space-y-0.5">
+          {perfil && (
+            <Link
+              href="/perfil"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                enRuta("/perfil") ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/50"
+              )}
+            >
+              <Avatar nombre={perfil.nombre} apellido={perfil.apellido} fotoPath={perfil.foto_path} className="h-8 w-8 text-xs" />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-sidebar-foreground truncate">{nombreCompleto(perfil)}</span>
+                <span className="block text-xs text-sidebar-foreground/60">Mi perfil</span>
+              </span>
+            </Link>
+          )}
           <CerrarSesion />
         </div>
       </aside>
 
-      {/* ── Mobile bottom nav (primeros 5 ítems) ────────────────────────── */}
+      {/* ── Mobile bottom nav: módulos, perfil y salir (Usuarios se abre desde Mi perfil) ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-border">
         <ul className="flex items-center justify-around h-16">
           {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon }) => {
@@ -168,6 +202,18 @@ export function Sidebar() {
               </li>
             )
           })}
+          <li className="flex-1">
+            <Link
+              href="/perfil"
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-medium transition-colors",
+                enRuta("/perfil") || enRuta("/usuarios") ? "text-sidebar-primary" : "text-sidebar-foreground/60"
+              )}
+            >
+              <UserRound className="h-5 w-5" />
+              Perfil
+            </Link>
+          </li>
           <li className="flex-1">
             <CerrarSesion compacto />
           </li>

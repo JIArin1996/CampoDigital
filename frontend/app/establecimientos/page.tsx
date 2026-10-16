@@ -21,7 +21,7 @@ import type { Establecimiento } from "@/types/database"
 const BOTON = "h-10 md:h-8"
 
 export default function EstablecimientosPage() {
-  const { establecimientos, establecimientoActivo, setEstablecimientoActivo, recargarEstablecimientos, rolEn, cargando } =
+  const { establecimientos, establecimientoActivo, setEstablecimientoActivo, recargarEstablecimientos, rolEn, esAdmin, cargando } =
     useEstablecimiento()
 
   // Inactivos
@@ -84,10 +84,12 @@ export default function EstablecimientosPage() {
       {/* Encabezado */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Establecimientos</h1>
-        <Link href="/establecimientos/nuevo" className={buttonVariants({ className: BOTON })}>
-          <Plus className="h-4 w-4 mr-1" />
-          Nuevo
-        </Link>
+        {esAdmin && (
+          <Link href="/establecimientos/nuevo" className={buttonVariants({ className: BOTON })}>
+            <Plus className="h-4 w-4 mr-1" />
+            Nuevo
+          </Link>
+        )}
       </div>
 
       {/* Cargando */}
@@ -104,12 +106,16 @@ export default function EstablecimientosPage() {
         <div className="rounded-lg border border-dashed p-10 text-center">
           <MapPin className="mx-auto h-10 w-10 text-muted-foreground/50 mb-3" />
           <h2 className="font-semibold mb-1">Todavía no tenés establecimientos</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Creá el primero, o pedí que te den acceso a uno existente.
-          </p>
-          <Link href="/establecimientos/nuevo" className={buttonVariants({ className: BOTON })}>
-            Crear establecimiento
-          </Link>
+          {esAdmin ? (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">Creá el primero para empezar.</p>
+              <Link href="/establecimientos/nuevo" className={buttonVariants({ className: BOTON })}>
+                Crear establecimiento
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Pedile al administrador que te dé acceso.</p>
+          )}
         </div>
       )}
 
@@ -124,7 +130,7 @@ export default function EstablecimientosPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold truncate">{est.nombre}</p>
-                    {rol && <Badge variant={rol === "editor" ? "default" : "secondary"}>{rol}</Badge>}
+                    {rol && <Badge variant={rol === "consulta" ? "secondary" : "default"}>{rol}</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground mt-0.5">{resumen(est)}</p>
                   {est.sistema_productivo && (
@@ -142,7 +148,7 @@ export default function EstablecimientosPage() {
                     <CheckCircle className="h-4 w-4 mr-1" />
                     {activo ? "Activo" : "Seleccionar"}
                   </Button>
-                  {rol === "editor" && (
+                  {esAdmin && (
                     <>
                       <Link
                         href={`/establecimientos/${est.id}/editar`}
@@ -186,7 +192,7 @@ export default function EstablecimientosPage() {
                     <p className="font-medium truncate text-muted-foreground">{est.nombre}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{resumen(est)}</p>
                   </div>
-                  {rolEn(est.id) === "editor" && (
+                  {esAdmin && (
                     <Button
                       size="sm"
                       variant="outline"

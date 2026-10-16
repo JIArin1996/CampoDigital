@@ -8,7 +8,7 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import type { Potrero } from "@/types/database"
 
 export default function PotrerosPage() {
-  const { establecimientoActivo, esEditor, cargando: cargandoCtx } = useEstablecimiento()
+  const { establecimientoActivo, puedeOperar, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [potreros, setPotreros] = useState<Potrero[]>([])
   const [cargando, setCargando] = useState(false)
 
@@ -58,7 +58,8 @@ export default function PotrerosPage() {
       <EstablecimientoDetalle
         establecimiento={establecimientoActivo}
         potreros={potreros}
-        esEditor={esEditor}
+        puedeOperar={puedeOperar}
+        puedeEditarEstablecimiento={esAdmin}
         onRefresh={recargar}
       />
     </PageContainer>

@@ -79,7 +79,8 @@ export default function LoginPage() {
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-8">
-          Las cuentas las crea el administrador.
+          Las cuentas las crea el administrador. Si te olvidaste la contraseña,
+          pedile que te la resetee.
         </p>
       </div>
     </main>

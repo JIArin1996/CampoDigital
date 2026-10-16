@@ -395,6 +395,13 @@ export type Database = {
             referencedRelation: "establecimientos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "membresias_perfil_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       operacion_lote_vinculos: {
@@ -511,6 +518,48 @@ export type Database = {
           id?: string
           orden?: number
           valor?: string
+        }
+        Relationships: []
+      }
+      perfiles: {
+        Row: {
+          activo: boolean
+          apellido: string | null
+          celular: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          es_admin: boolean
+          foto_path: string | null
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          apellido?: string | null
+          celular?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          es_admin?: boolean
+          foto_path?: string | null
+          id: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          apellido?: string | null
+          celular?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          es_admin?: boolean
+          foto_path?: string | null
+          id?: string
+          nombre?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -751,6 +800,10 @@ export type Database = {
         Args: { p_categoria_id: string; p_lote_id: string }
         Returns: undefined
       }
+      asignar_rol: {
+        Args: { p_establecimiento_id: string; p_rol: string; p_user_id: string }
+        Returns: undefined
+      }
       cerrar_lote: {
         Args: { p_fecha: string; p_lote_id: string; p_motivo?: string }
         Returns: undefined
@@ -785,10 +838,23 @@ export type Database = {
         }
         Returns: string
       }
-      es_editor: { Args: { p_est: string }; Returns: boolean }
+      definir_activo: {
+        Args: { p_activo: boolean; p_user_id: string }
+        Returns: undefined
+      }
+      definir_admin: {
+        Args: { p_es_admin: boolean; p_user_id: string }
+        Returns: undefined
+      }
+      es_admin: { Args: never; Returns: boolean }
       es_miembro: { Args: { p_est: string }; Returns: boolean }
       fecha_hoy: { Args: never; Returns: string }
       mi_rol: { Args: { p_est: string }; Returns: string }
+      puede_operar: { Args: { p_est: string }; Returns: boolean }
+      quitar_acceso: {
+        Args: { p_establecimiento_id: string; p_user_id: string }
+        Returns: undefined
+      }
       reabrir_lote: {
         Args: { p_fecha: string; p_lote_id: string; p_motivo?: string }
         Returns: undefined
