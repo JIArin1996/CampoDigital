@@ -3,22 +3,22 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, SlidersHorizontal } from "lucide-react"
+import { ArrowLeft, ArrowRightLeft, Merge, SlidersHorizontal, Split } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
+import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
 import { getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
 import type { Potrero } from "@/types/database"
-import type { CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
+import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
 
 interface Ficha {
   clave: string
@@ -28,6 +28,7 @@ interface Ficha {
   potreros: Potrero[]
   stock: StockLote[]
   eventos: LoteEvento[]
+  cambios: CambioEstadoLote[]
 }
 
 export default function LotePage() {
@@ -43,15 +44,16 @@ export default function LotePage() {
     const clave = `${id}:${version}`
     getLote(id)
       .then(async lote => {
-        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [] }
-        const [especies, categorias, potreros, stock, eventos] = await Promise.all([
+        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [], cambios: [] }
+        const [especies, categorias, potreros, stock, eventos, cambios] = await Promise.all([
           getEspecies(lote.establecimiento_id),
           getCategorias(lote.establecimiento_id),
           getPotreros(lote.establecimiento_id),
           getStockLote(lote.id),
           getEventosLote(lote.id),
+          getCambiosEstadoLote(lote.id),
         ])
-        return { clave, lote, especies, categorias, potreros, stock, eventos }
+        return { clave, lote, especies, categorias, potreros, stock, eventos, cambios }
       })
       .then(datos => {
         if (vigente) setFicha(datos)
@@ -90,6 +92,9 @@ export default function LotePage() {
   const potrero = vigente.potreros.find(p => p.id === lote.potrero_id)
   const nombreCategoria = (catId: string) => vigente.categorias.find(c => c.id === catId)?.nombre ?? "—"
   const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
+  const ultimoCierre = vigente.cambios.find(c => c.tipo === "cierre")
+  const operable = puedeOperar && lote.estado === "activo"
+  const accion = buttonVariants({ variant: "outline", className: "h-auto flex-col gap-1 py-3 text-sm" })
 
   return (
     <PageContainer>
@@ -111,7 +116,28 @@ export default function LotePage() {
           ].filter(Boolean).join(" · ")}
         </p>
         {lote.notas && <p className="text-sm mt-2">{lote.notas}</p>}
+        {lote.estado === "cerrado" && ultimoCierre?.motivo && (
+          <p className="text-sm mt-2 text-muted-foreground">Motivo del cierre: {ultimoCierre.motivo}</p>
+        )}
       </div>
+
+      {/* Operaciones de lote */}
+      {operable && (
+        <nav aria-label="Operaciones del lote" className="grid grid-cols-3 gap-2 mb-6">
+          <Link href={`/lotes/${lote.id}/dividir`} className={accion}>
+            <Split className="h-5 w-5" />
+            Dividir
+          </Link>
+          <Link href={`/lotes/${lote.id}/recategorizar`} className={accion}>
+            <ArrowRightLeft className="h-5 w-5" />
+            Recategorizar
+          </Link>
+          <Link href={`/lotes/unir?lote=${lote.id}`} className={accion}>
+            <Merge className="h-5 w-5" />
+            Unir
+          </Link>
+        </nav>
+      )}
 
       <div className="space-y-6">
         {/* Stock actual */}

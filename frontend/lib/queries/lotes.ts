@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import type {
   CategoriaAnimal, ComposicionItem, Especie, EstadoLote, Lote, LoteEvento, StockEstablecimiento, StockLote,
+  CambioEstadoLote,
 } from '@/types/lotes'
 
 // ── Catálogos ────────────────────────────────────────────────────────────────
@@ -157,4 +158,105 @@ export async function registrarAjuste(params: {
 
   if (error) throw error
   return data as string
+}
+
+// ── Operaciones de lote (funciones atómicas de la base) ──────────────────────
+
+// Destino de una división: lote nuevo con su composición
+export type DestinoDivision = {
+  nombre: string
+  potrero_id?: string | null
+  campana?: string | null
+  composicion: ComposicionItem[]
+}
+
+// Separa animales del lote en lotes nuevos. Si el origen queda vacío, se cierra solo. Devuelve el id de la operación.
+export async function dividirLote(params: { lote_id: string; fecha: string; destinos: DestinoDivision[]; notas?: string | null }) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('dividir_lote', {
+    p_lote_id: params.lote_id,
+    p_fecha: params.fecha,
+    p_destinos: params.destinos,
+    p_notas: params.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Junta TODO el stock de los lotes de origen en un destino existente o en uno nuevo. Cierra los orígenes.
+export async function unirLotes(params: {
+  lotes_origen: string[]
+  fecha: string
+  destino_id?: string | null
+  nuevo?: { nombre: string; potrero_id?: string | null; campana?: string | null } | null
+  notas?: string | null
+}) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('unir_lotes', {
+    p_lotes_origen: params.lotes_origen,
+    p_fecha: params.fecha,
+    p_destino_id: params.destino_id ?? undefined,
+    p_nuevo: params.nuevo ?? undefined,
+    p_notas: params.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export type CambioCategoria = { desde_categoria_id: string; hacia_categoria_id: string; cabezas: number }
+
+// Pasa cabezas de una categoría a otra dentro del mismo lote
+export async function recategorizarLote(params: { lote_id: string; fecha: string; cambios: CambioCategoria[]; notas?: string | null }) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('recategorizar_lote', {
+    p_lote_id: params.lote_id,
+    p_fecha: params.fecha,
+    p_cambios: params.cambios,
+    p_notas: params.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Id del lote destino de una operación (para ir a su ficha después de unir o dividir)
+export async function getDestinosOperacion(operacion_id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('operacion_lote_vinculos')
+    .select('lote_id')
+    .eq('operacion_id', operacion_id)
+    .eq('rol', 'destino')
+  if (error) throw error
+  return (data ?? []).map(v => v.lote_id)
+}
+
+// Cierres y reaperturas del lote, del más nuevo al más viejo
+export async function getCambiosEstadoLote(lote_id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('lote_cambios_estado')
+    .select('*')
+    .eq('lote_id', lote_id)
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data as CambioEstadoLote[]
+}
+
+// Todo lo que necesitan las pantallas de operación de un lote
+export async function getContextoLote(lote_id: string) {
+  const lote = await getLote(lote_id)
+  if (!lote) return null
+  const [categorias, stock, potreros] = await Promise.all([
+    getCategorias(lote.establecimiento_id),
+    getStockLote(lote.id),
+    createClient().from('potreros').select('id, nombre').eq('establecimiento_id', lote.establecimiento_id).eq('estado', 'activo').order('nombre'),
+  ])
+  if (potreros.error) throw potreros.error
+  return {
+    lote,
+    categorias: categorias.filter(c => c.especie_id === lote.especie_id),
+    stock: new Map(stock.map(s => [s.categoria_id, s.cabezas])),
+    potreros: potreros.data ?? [],
+  }
 }

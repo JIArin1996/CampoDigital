@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Layers, ChevronRight } from "lucide-react"
+import { Plus, Layers, ChevronRight, Merge } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCategorias, getEspecies, getLotes, getStockEstablecimiento, getStockLotes } from "@/lib/queries/lotes"
@@ -78,10 +78,16 @@ export default function LotesPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Lotes</h1>
         {puedeOperar && (
-          <Link href="/lotes/nuevo" className={buttonVariants({ className: "h-11 md:h-8" })}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nuevo lote
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/lotes/unir" className={buttonVariants({ variant: "outline", className: "h-11 md:h-8" })}>
+              <Merge className="h-4 w-4 mr-1" />
+              Unir
+            </Link>
+            <Link href="/lotes/nuevo" className={buttonVariants({ className: "h-11 md:h-8" })}>
+              <Plus className="h-4 w-4 mr-1" />
+              Nuevo lote
+            </Link>
+          </div>
         )}
       </div>
 
