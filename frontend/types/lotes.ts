@@ -33,3 +33,20 @@ export type ComposicionItem = {
   categoria_id: string
   cabezas: number
 }
+
+// Fila de linaje_lote: un lote relacionado (de dónde viene o en qué terminó)
+export type RelacionLinaje = 'ancestro' | 'descendiente'
+
+export type FilaLinaje = {
+  lote_id: string
+  nombre: string
+  estado: EstadoLote
+  relacion: RelacionLinaje
+  nivel: number            // 1 = directo, 2 = abuelo o nieto...
+  operacion_id: string
+  tipo: 'division' | 'union'
+  fecha: string
+}
+
+// Cierres y reaperturas de un lote
+export type CambioEstadoLote = Omit<Tables<'lote_cambios_estado'>, 'tipo'> & { tipo: 'cierre' | 'reapertura' }
