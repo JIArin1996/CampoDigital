@@ -58,7 +58,8 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Lista todo permiso de anon, authenticated o public que no sea "authenticated: select".
 --
--- ESPERADO (después de la Etapa 3c): exactamente estas 13 filas, todas de authenticated y a nivel columna.
+-- ESPERADO (después de la Etapa 5): exactamente estas 13 filas, todas de authenticated y a nivel columna.
+-- (La bitácora de la Etapa 5 no agrega permisos de escritura: se escribe solo por funciones.)
 -- Cualquier fila "tabla" (por ejemplo un delete o un insert sobre toda la tabla) o
 -- cualquier fila de anon o PUBLIC es un error.
 --
@@ -106,30 +107,48 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de la Etapa 3c): 20 filas, todas con ok = true.
+-- ESPERADO (después de la Etapa 5): 38 filas, todas con ok = true.
 --
---   funcion                  | security_definer | authenticated | anon  | public
---   -------------------------+------------------+---------------+-------+-------
---   _bloquear_lote_editable  | false            | false         | false | false
---   _cargar_catalogos_base   | false            | false         | false | false
---   _validar_saldo           | false            | false         | false | false
---   asignar_rol              | true             | true          | false | false
---   bloquear_modificacion    | false            | false         | false | false
---   cerrar_lote              | true             | true          | false | false
---   crear_establecimiento    | true             | true          | false | false
---   crear_lote               | true             | true          | false | false
---   definir_activo           | true             | true          | false | false
---   definir_admin            | true             | true          | false | false
---   es_admin                 | true             | true          | false | false
---   es_miembro               | true             | true          | false | false
---   fecha_hoy                | false            | true          | false | false
---   mi_rol                   | true             | true          | false | false
---   proteger_ultimo_admin    | false            | false         | false | false
---   puede_operar             | true             | true          | false | false
---   quitar_acceso            | true             | true          | false | false
---   reabrir_lote             | true             | true          | false | false
---   registrar_ajuste         | true             | true          | false | false
---   set_updated_at           | false            | false         | false | false
+--   funcion                     | security_definer | authenticated | anon  | public
+--   ----------------------------+------------------+---------------+-------+-------
+--   _bloquear_entrada_bitacora  | false            | false         | false | false
+--   _bloquear_lote_editable     | false            | false         | false | false
+--   _cabezas                    | false            | false         | false | false
+--   _cargar_catalogos_base      | false            | false         | false | false
+--   _cerrar_si_vacio            | false            | false         | false | false
+--   _exigir_categoria           | false            | false         | false | false
+--   _guardar_lotes_bitacora     | false            | false         | false | false
+--   _validar_entrada_bitacora   | false            | false         | false | false
+--   _validar_fecha_operacion    | false            | false         | false | false
+--   _validar_saldo              | false            | false         | false | false
+--   anular_entrada_bitacora     | true             | true          | false | false
+--   asignar_rol                 | true             | true          | false | false
+--   bloquear_borrado            | false            | false         | false | false
+--   bloquear_modificacion       | false            | false         | false | false
+--   cambiar_estado_idea         | true             | true          | false | false
+--   cerrar_lote                 | true             | true          | false | false
+--   crear_entrada_bitacora      | true             | true          | false | false
+--   crear_establecimiento       | true             | true          | false | false
+--   crear_lote                  | true             | true          | false | false
+--   definir_activo              | true             | true          | false | false
+--   definir_admin               | true             | true          | false | false
+--   dividir_lote                | true             | true          | false | false
+--   editar_entrada_bitacora     | true             | true          | false | false
+--   es_admin                    | true             | true          | false | false
+--   es_miembro                  | true             | true          | false | false
+--   fecha_hoy                   | false            | true          | false | false
+--   linaje_lote                 | false            | true          | false | false
+--   mi_rol                      | true             | true          | false | false
+--   proteger_ultimo_admin       | false            | false         | false | false
+--   puede_operar                | true             | true          | false | false
+--   quitar_acceso               | true             | true          | false | false
+--   reabrir_lote                | true             | true          | false | false
+--   recategorizar_lote          | true             | true          | false | false
+--   registrar_ajuste            | true             | true          | false | false
+--   restaurar_entrada_bitacora  | true             | true          | false | false
+--   set_updated_at              | false            | false         | false | false
+--   stock_al                    | false            | true          | false | false
+--   unir_lotes                  | true             | true          | false | false
 --
 -- Además, todas con search_path_fijo = true.
 
@@ -154,12 +173,15 @@ select
     and not f.anon
     and not f.public
     -- internas y de trigger: nadie las ejecuta por la API
-    and f.authenticated = not (f.funcion like '\_%' or f.funcion in ('set_updated_at', 'bloquear_modificacion', 'proteger_ultimo_admin'))
+    and f.authenticated = not (f.funcion like '\_%' or f.funcion in ('set_updated_at', 'bloquear_modificacion', 'proteger_ultimo_admin', 'bloquear_borrado'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
                                             'cerrar_lote', 'reabrir_lote',
-                                            'asignar_rol', 'quitar_acceso', 'definir_admin', 'definir_activo'))
+                                            'asignar_rol', 'quitar_acceso', 'definir_admin', 'definir_activo',
+                                            'dividir_lote', 'unir_lotes', 'recategorizar_lote',
+                                            'crear_entrada_bitacora', 'editar_entrada_bitacora', 'cambiar_estado_idea',
+                                            'anular_entrada_bitacora', 'restaurar_entrada_bitacora'))
   ) as ok
 from f
 order by f.funcion;

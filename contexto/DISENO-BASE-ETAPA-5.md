@@ -125,7 +125,7 @@ linaje_lote(p_lote_id uuid) returns table (
 
 - Recorre `operacion_lote_vinculos` con una consulta recursiva, hacia atrás (de qué lotes viene) y hacia adelante (en qué lotes terminó). Ignora las recategorizaciones.
 - **Corta ciclos** [Decidido]: cada camino lleva un arreglo con los lotes ya visitados y no vuelve a entrar a ninguno. Caso: dividir A en B y después unir B en A.
-- **Sin duplicados** [Decidido]: si a un lote se llega por más de un camino, aparece una sola vez, con el nivel más cercano. El lote consultado nunca aparece en su propio linaje.
+- **Sin duplicados** [Decidido]: dentro de cada relación (ancestro o descendiente), si a un lote se llega por más de un camino, aparece una sola vez, con el nivel más cercano. En un ciclo (A → B → A), B aparece una vez como ancestro y una vez como descendiente de A, porque lo es de las dos formas. El lote consultado nunca aparece en su propio linaje.
 - Es `security invoker`: corre con los permisos de quien la llama, así que **el RLS aplica**. Solo devuelve lotes que el usuario puede ver.
 - Tiene un tope de profundidad (20 niveles) como resguardo.
 
