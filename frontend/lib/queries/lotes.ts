@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import type {
   CategoriaAnimal, ComposicionItem, Especie, EstadoLote, Lote, LoteEvento, StockEstablecimiento, StockLote,
-  CambioEstadoLote,
+  CambioEstadoLote, FilaLinaje,
 } from '@/types/lotes'
 
 // ── Catálogos ────────────────────────────────────────────────────────────────
@@ -259,4 +259,14 @@ export async function getContextoLote(lote_id: string) {
     stock: new Map(stock.map(s => [s.categoria_id, s.cabezas])),
     potreros: potreros.data ?? [],
   }
+}
+
+// ── Linaje ───────────────────────────────────────────────────────────────────
+
+// De qué lotes viene (ancestros) y en qué lotes terminó (descendientes). Respeta el RLS.
+export async function getLinaje(lote_id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('linaje_lote', { p_lote_id: lote_id })
+  if (error) throw error
+  return (data ?? []) as FilaLinaje[]
 }

@@ -16,6 +16,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
+import { LinajeLote } from "@/components/lotes/LinajeLote"
 import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
 import type { Potrero } from "@/types/database"
 import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
@@ -155,6 +156,9 @@ export default function LotePage() {
             <StockPorCategoria filas={vigente.stock} categorias={categoriasEspecie} />
           </CardContent>
         </Card>
+
+        {/* Linaje: de qué lotes viene y en cuáles terminó */}
+        <LinajeLote loteId={lote.id} version={version} />
 
         {/* Historial */}
         <section className="space-y-3">
