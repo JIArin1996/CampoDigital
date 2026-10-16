@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 
 import { cn } from "@/lib/utils"
@@ -32,9 +33,10 @@ export function Sidebar() {
     <>
       {/* ── Escritorio: menú lateral ──────────────────────────────────────── */}
       <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-sidebar-border bg-sidebar z-30">
-        <div className="flex items-center px-4 h-14 border-b border-sidebar-border shrink-0">
+        <Link href="/inicio" className="flex items-center gap-2 px-4 h-14 border-b border-sidebar-border shrink-0">
+          <Image src="/isotipo.png" alt="" width={32} height={32} className="h-8 w-8" />
           <span className="text-lg font-bold text-primary tracking-tight">Campo Digital</span>
-        </div>
+        </Link>
 
         <div className="px-3 py-3 border-b border-sidebar-border shrink-0">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
@@ -75,6 +77,9 @@ export function Sidebar() {
 
       {/* ── Celular: encabezado ───────────────────────────────────────────── */}
       <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center gap-2 px-3 bg-background border-b border-border">
+        <Link href="/inicio" aria-label="Inicio" className="shrink-0">
+          <Image src="/isotipo.png" alt="" width={32} height={32} className="h-8 w-8" />
+        </Link>
         <div className="flex-1 min-w-0">
           <SelectorEstablecimiento compacto />
         </div>

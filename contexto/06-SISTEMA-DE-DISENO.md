@@ -85,5 +85,9 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 ## 7. App instalable
 
 - `app/manifest.ts`: nombre, colores e íconos para "Agregar a la pantalla de inicio".
-- Íconos en `public/` (192, 512 y "maskable" 512) y en `app/` (`apple-icon.png`, `favicon.ico`): cuadrado verde campo con "CD" en blanco.
+- **Logo** (2026-10-16): cuadros verdes en diagonal con un circuito que crece como planta, y el nombre "CAMPO DIGITAL". Verde del logo: `#2b7d31` (el `--primary` de la app, `#196632`, es un poco más oscuro para el contraste del texto).
+  - `public/logo-campo-digital.webp`: logo completo con fondo transparente (login).
+  - `public/isotipo.png`: solo la marca, sin el nombre, con fondo transparente (menú y encabezado).
+  - Íconos de la app, con el isotipo sobre blanco: `public/icon-192.png`, `public/icon-512.png`, `public/icon-maskable-512.png` (la marca dentro de la zona segura del 80 % central), `app/apple-icon.png` y `app/favicon.ico`.
+  - Las imágenes se generan desde los originales con PIL: el logo y el isotipo desde el PNG sin fondo; los íconos desde la versión de mayor resolución, sobre blanco (iOS no admite transparencia en el ícono). Los originales no se versionan.
 - Abre en `/inicio`, sin barra del navegador.

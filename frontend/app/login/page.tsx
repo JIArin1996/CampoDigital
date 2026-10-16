@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -38,7 +39,15 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-1">Campo Digital</h1>
+        <h1 className="sr-only">Campo Digital</h1>
+        <Image
+          src="/logo-campo-digital.webp"
+          alt="Campo Digital"
+          width={454}
+          height={456}
+          priority
+          className="mx-auto mb-6 h-auto w-48"
+        />
         <p className="text-sm text-muted-foreground text-center mb-8">Ingresá con tu cuenta</p>
 
         <form onSubmit={onSubmit} className="space-y-4">
