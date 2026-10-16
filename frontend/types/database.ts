@@ -1,50 +1,41 @@
-// Tipos TypeScript para las tablas de Campo Digital
+// Tipos de las tablas de Campo Digital, derivados de types/supabase.ts.
+//
+// types/supabase.ts se genera desde la base (no se edita a mano):
+//   npx supabase gen types typescript --project-id glmguyabfjiloexqgvic --schema public | Out-File -Encoding utf8 types\supabase.ts
+//
+// Acá solo se angostan las columnas que la base restringe con un check (estado, rol),
+// que el generador devuelve como string.
+
+import type { Tables } from './supabase'
 
 export type EstadoBase = 'activo' | 'inactivo'
+export type Rol = 'editor' | 'lector'
 
 // ── Establecimiento ──────────────────────────────────────────────────────────
 
-export interface Establecimiento {
-  id: number
-  user_id: string | null
-  nombre: string
-  departamento: string
-  localidad: string | null
-  paraje: string | null
-  superficie_total: number
-  tipo: 'Ganadero' | 'Agrícola' | 'Mixto'
-  propietario: string | null
-  rut: string | null
-  dicose_fisico: string | null
-  fecha_alta: string
-  estado: EstadoBase
-  observaciones: string | null
-  created_at: string
-  updated_at: string
-}
+export type Establecimiento = Omit<Tables<'establecimientos'>, 'estado'> & { estado: EstadoBase }
 
-export type EstablecimientoInsert = Omit<Establecimiento, 'id' | 'created_at' | 'updated_at'>
-export type EstablecimientoUpdate = Partial<EstablecimientoInsert>
+// Datos que se cargan en el alta (crear_establecimiento) y que se pueden editar
+export type EstablecimientoDatos = Pick<
+  Establecimiento,
+  | 'nombre' | 'departamento' | 'localidad' | 'paraje' | 'superficie_total' | 'sistema_productivo'
+  | 'propietario' | 'rut' | 'dicose' | 'fecha_alta' | 'observaciones'
+>
+
+// Columnas que authenticated puede actualizar (GRANT por columna)
+export type EstablecimientoUpdate = Partial<EstablecimientoDatos & Pick<Establecimiento, 'estado'>>
+
+// ── Membresía ────────────────────────────────────────────────────────────────
+
+export type Membresia = Omit<Tables<'membresias'>, 'rol'> & { rol: Rol }
 
 // ── Potrero ──────────────────────────────────────────────────────────────────
 
-export type UsoActual = 'Ganadería' | 'Agricultura' | 'Mixto' | 'Reserva' | 'Sin uso'
+export type Potrero = Omit<Tables<'potreros'>, 'estado'> & { estado: EstadoBase }
 
-export interface Potrero {
-  id: number
-  user_id: string | null
-  establecimiento_id: number
-  nombre: string
-  superficie: number
-  uso_actual: UsoActual
-  tipo_pastura: string | null
-  aguada: boolean | null
-  sombra: boolean | null
-  estado: EstadoBase
-  observaciones: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type PotreroInsert = Omit<Potrero, 'id' | 'created_at' | 'updated_at'>
-export type PotreroUpdate = Partial<PotreroInsert>
+// Columnas que authenticated puede insertar y actualizar (GRANT por columna)
+export type PotreroInsert = Pick<
+  Potrero,
+  'establecimiento_id' | 'nombre' | 'superficie' | 'uso_actual' | 'tipo_pastura' | 'aguada' | 'sombra' | 'estado' | 'observaciones'
+>
+export type PotreroUpdate = Partial<Omit<PotreroInsert, 'establecimiento_id'>>

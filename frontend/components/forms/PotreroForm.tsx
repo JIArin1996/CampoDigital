@@ -9,28 +9,19 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { SelectParametro } from "@/components/shared/SelectParametro"
 import { createPotrero, updatePotrero } from "@/lib/queries/potreros"
-import type { Potrero, UsoActual } from "@/types/database"
+import { mensajeDeError } from "@/lib/supabase/errores"
+import type { Potrero } from "@/types/database"
 
 // ── Esquema de validación ──────────────────────────────────────────────────
 
 const schema = z.object({
-  nombre: z.string().min(1, "El nombre es requerido"),
+  nombre: z.string().trim().min(1, "El nombre es requerido"),
   superficie: z
     .number("Ingresá un número válido")
-    .positive("La superficie debe ser mayor a 0"),
-  uso_actual: z.enum(
-    ["Ganadería", "Agricultura", "Mixto", "Reserva", "Sin uso"],
-    "El uso es requerido"
-  ),
+    .positive("La superficie tiene que ser mayor a 0"),
+  uso_actual: z.string().optional(),
   tipo_pastura: z.string().optional(),
   aguada: z.boolean(),
   sombra: z.boolean(),
@@ -39,8 +30,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+const CAMPO = "h-11 text-base md:h-9 md:text-sm"
+const oNull = (v?: string) => (v && v.trim() ? v.trim() : null)
+
 interface PotreroFormProps {
-  establecimiento_id: number
+  establecimiento_id: string
   initialData?: Potrero
   onSuccess: () => void
   onCancel: () => void
@@ -60,13 +54,13 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      nombre: initialData?.nombre || "",
-      superficie: initialData?.superficie || undefined,
-      uso_actual: initialData?.uso_actual || undefined,
-      tipo_pastura: initialData?.tipo_pastura || "",
+      nombre: initialData?.nombre ?? "",
+      superficie: initialData?.superficie ?? undefined,
+      uso_actual: initialData?.uso_actual ?? "",
+      tipo_pastura: initialData?.tipo_pastura ?? "",
       aguada: initialData?.aguada ?? false,
       sombra: initialData?.sombra ?? false,
-      observaciones: initialData?.observaciones || "",
+      observaciones: initialData?.observaciones ?? "",
     },
   })
 
@@ -76,30 +70,28 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
   const sombra = watch("sombra")
 
   const onSubmit = async (values: FormValues) => {
+    const datos = {
+      nombre: values.nombre.trim(),
+      superficie: values.superficie,
+      uso_actual: oNull(values.uso_actual),
+      tipo_pastura: oNull(values.tipo_pastura),
+      aguada: values.aguada,
+      sombra: values.sombra,
+      observaciones: oNull(values.observaciones),
+    }
+
     setEnviando(true)
     try {
       if (initialData) {
-        await updatePotrero(initialData.id, {
-          ...values,
-          tipo_pastura: values.tipo_pastura || null,
-          observaciones: values.observaciones || null,
-        })
-        toast.success("Potrero actualizado correctamente")
+        await updatePotrero(initialData.id, datos)
+        toast.success("Potrero actualizado")
       } else {
-        await createPotrero({
-          ...values,
-          establecimiento_id,
-          estado: "activo",
-          tipo_pastura: values.tipo_pastura || null,
-          observaciones: values.observaciones || null,
-          user_id: null,
-        })
-        toast.success("Potrero creado correctamente")
+        await createPotrero({ ...datos, establecimiento_id, estado: "activo" })
+        toast.success("Potrero creado")
       }
       onSuccess()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error al guardar"
-      toast.error(msg)
+      toast.error(mensajeDeError(err))
     } finally {
       setEnviando(false)
     }
@@ -116,12 +108,11 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
         <Input
           id="potrero-nombre"
           placeholder="Ej: Potrero 1"
+          className={CAMPO}
           aria-invalid={!!errors.nombre}
           {...register("nombre")}
         />
-        {errors.nombre && (
-          <p className="text-sm text-destructive">{errors.nombre.message}</p>
-        )}
+        {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
       </div>
 
       {/* Superficie + Uso actual */}
@@ -133,42 +124,25 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
           <Input
             id="potrero-superficie"
             type="number"
+            inputMode="decimal"
             step="0.01"
-            placeholder="Ej: 50"
+            min="0"
+            className={CAMPO}
             aria-invalid={!!errors.superficie}
             {...register("superficie", { valueAsNumber: true })}
           />
-          {errors.superficie && (
-            <p className="text-sm text-destructive">{errors.superficie.message}</p>
-          )}
+          {errors.superficie && <p className="text-sm text-destructive">{errors.superficie.message}</p>}
         </div>
 
         <div className="space-y-1.5">
-          <Label>
-            Uso actual <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={uso_actual}
-            onValueChange={(val) =>
-              setValue("uso_actual", val as FormValues["uso_actual"], {
-                shouldValidate: true,
-              })
-            }
-          >
-            <SelectTrigger className="w-full" aria-invalid={!!errors.uso_actual}>
-              <SelectValue placeholder="Seleccionar" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Ganadería">Ganadería</SelectItem>
-              <SelectItem value="Agricultura">Agricultura</SelectItem>
-              <SelectItem value="Mixto">Mixto</SelectItem>
-              <SelectItem value="Reserva">Reserva</SelectItem>
-              <SelectItem value="Sin uso">Sin uso</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.uso_actual && (
-            <p className="text-sm text-destructive">{errors.uso_actual.message}</p>
-          )}
+          <Label>Uso actual</Label>
+          <SelectParametro
+            clave="uso_potrero"
+            value={uso_actual ?? ""}
+            onChange={val => setValue("uso_actual", val)}
+            placeholder="Seleccionar"
+            className={CAMPO}
+          />
         </div>
       </div>
 
@@ -178,31 +152,32 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
         <SelectParametro
           clave="tipos_pastura"
           value={tipo_pastura ?? ""}
-          onChange={(val) => setValue("tipo_pastura", val)}
+          onChange={val => setValue("tipo_pastura", val)}
           placeholder="Seleccionar (opcional)"
+          className={CAMPO}
         />
       </div>
 
       {/* Aguada y Sombra */}
       <div className="flex gap-6">
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="flex items-center gap-2 h-11 cursor-pointer select-none">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-input accent-primary"
+            className="h-5 w-5 rounded border-input accent-primary"
             checked={aguada}
-            onChange={(e) => setValue("aguada", e.target.checked)}
+            onChange={e => setValue("aguada", e.target.checked)}
           />
-          <span className="text-sm">Aguada</span>
+          <span className="text-base md:text-sm">Aguada</span>
         </label>
 
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="flex items-center gap-2 h-11 cursor-pointer select-none">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-input accent-primary"
+            className="h-5 w-5 rounded border-input accent-primary"
             checked={sombra}
-            onChange={(e) => setValue("sombra", e.target.checked)}
+            onChange={e => setValue("sombra", e.target.checked)}
           />
-          <span className="text-sm">Sombra</span>
+          <span className="text-base md:text-sm">Sombra</span>
         </label>
       </div>
 
@@ -212,23 +187,17 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
         <textarea
           id="potrero-obs"
           rows={2}
-          placeholder="Notas adicionales..."
-          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"
+          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base md:text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"
           {...register("observaciones")}
         />
       </div>
 
       {/* Botones */}
       <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={enviando}>
+        <Button type="submit" className="h-11 px-5 md:h-9" disabled={enviando}>
           {enviando ? "Guardando..." : "Guardar"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={enviando}
-        >
+        <Button type="button" variant="outline" className="h-11 px-5 md:h-9" onClick={onCancel} disabled={enviando}>
           Cancelar
         </Button>
       </div>

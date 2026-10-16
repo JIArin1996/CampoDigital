@@ -10,36 +10,42 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { SelectParametro } from "@/components/shared/SelectParametro"
-import { createEstablecimiento, updateEstablecimiento } from "@/lib/queries/establecimientos"
-import type { Establecimiento } from "@/types/database"
+import { crearEstablecimiento, updateEstablecimiento } from "@/lib/queries/establecimientos"
+import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import { mensajeDeError } from "@/lib/supabase/errores"
+import type { Establecimiento, EstablecimientoDatos } from "@/types/database"
 
 // ── Esquema de validación ──────────────────────────────────────────────────
 
 const schema = z.object({
-  nombre: z.string().min(1, "El nombre es requerido"),
+  nombre: z.string().trim().min(1, "El nombre es requerido"),
   departamento: z.string().min(1, "El departamento es requerido"),
   localidad: z.string().optional(),
   paraje: z.string().optional(),
+  // Se carga como texto para poder dejarla vacía (es opcional)
   superficie_total: z
-    .number("Ingresá un número válido")
-    .positive("La superficie debe ser mayor a 0"),
-  tipo: z.enum(["Ganadero", "Agrícola", "Mixto"], "El tipo es requerido"),
+    .string()
+    .optional()
+    .refine(v => !v || Number(v) > 0, "La superficie tiene que ser mayor a 0"),
+  sistema_productivo: z.string().optional(),
   propietario: z.string().optional(),
   rut: z.string().optional(),
-  dicose_fisico: z.string().optional(),
+  dicose: z.string().optional(),
   fecha_alta: z.string().min(1, "La fecha de alta es requerida"),
   observaciones: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
+
+// Fecha de hoy en el huso del teléfono, formato YYYY-MM-DD
+const hoyLocal = () => new Date().toLocaleDateString("en-CA")
+
+// Campo vacío → null
+const oNull = (v?: string) => (v && v.trim() ? v.trim() : null)
+
+// Clases para campos cómodos de tocar en el celular
+const CAMPO = "h-11 text-base md:h-9 md:text-sm"
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
@@ -49,9 +55,8 @@ interface EstablecimientoFormProps {
 
 export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = {}) {
   const router = useRouter()
+  const { recargarEstablecimientos } = useEstablecimiento()
   const [enviando, setEnviando] = useState(false)
-
-  const today = new Date().toISOString().split("T")[0]
 
   const {
     register,
@@ -66,61 +71,54 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
       departamento: initialData?.departamento ?? "",
       localidad: initialData?.localidad ?? "",
       paraje: initialData?.paraje ?? "",
-      superficie_total: initialData?.superficie_total ?? undefined,
-      tipo: initialData?.tipo ?? undefined,
+      superficie_total: initialData?.superficie_total?.toString() ?? "",
+      sistema_productivo: initialData?.sistema_productivo ?? "",
       propietario: initialData?.propietario ?? "",
       rut: initialData?.rut ?? "",
-      dicose_fisico: initialData?.dicose_fisico ?? "",
-      fecha_alta: initialData?.fecha_alta
-        ? initialData.fecha_alta.split("T")[0]
-        : today,
+      dicose: initialData?.dicose ?? "",
+      fecha_alta: initialData?.fecha_alta?.split("T")[0] ?? hoyLocal(),
       observaciones: initialData?.observaciones ?? "",
     },
   })
 
   const departamento = watch("departamento")
-  const tipoValue = watch("tipo") ?? ""
 
   const onSubmit = async (values: FormValues) => {
+    const datos: EstablecimientoDatos = {
+      nombre: values.nombre.trim(),
+      departamento: values.departamento,
+      localidad: oNull(values.localidad),
+      paraje: oNull(values.paraje),
+      superficie_total: values.superficie_total ? Number(values.superficie_total) : null,
+      sistema_productivo: oNull(values.sistema_productivo),
+      propietario: oNull(values.propietario),
+      rut: oNull(values.rut),
+      dicose: oNull(values.dicose),
+      fecha_alta: values.fecha_alta,
+      observaciones: oNull(values.observaciones),
+    }
+
     setEnviando(true)
     try {
       if (initialData) {
-        await updateEstablecimiento(initialData.id, {
-          ...values,
-          localidad: values.localidad || null,
-          paraje: values.paraje || null,
-          propietario: values.propietario || null,
-          rut: values.rut || null,
-          dicose_fisico: values.dicose_fisico || null,
-          observaciones: values.observaciones || null,
-        })
-        toast.success("Establecimiento actualizado correctamente")
-        router.push(`/establecimientos/${initialData.id}`)
+        await updateEstablecimiento(initialData.id, datos)
+        await recargarEstablecimientos(initialData.id)
+        toast.success("Establecimiento actualizado")
       } else {
-        await createEstablecimiento({
-          ...values,
-          estado: "activo",
-          localidad: values.localidad || null,
-          paraje: values.paraje || null,
-          propietario: values.propietario || null,
-          rut: values.rut || null,
-          dicose_fisico: values.dicose_fisico || null,
-          observaciones: values.observaciones || null,
-          user_id: null,
-        })
-        toast.success("Establecimiento creado correctamente")
-        router.push("/establecimientos")
+        const id = await crearEstablecimiento(datos)
+        await recargarEstablecimientos(id)
+        toast.success("Establecimiento creado")
       }
-      router.refresh()
+      router.push("/establecimientos")
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar")
+      toast.error(mensajeDeError(err))
     } finally {
       setEnviando(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 max-w-2xl">
 
       {/* Nombre */}
       <div className="space-y-1.5">
@@ -129,13 +127,12 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         </Label>
         <Input
           id="nombre"
-          placeholder="Ej: Los Sauces"
+          placeholder="Ej: Santa Remigia"
+          className={CAMPO}
           aria-invalid={!!errors.nombre}
           {...register("nombre")}
         />
-        {errors.nombre && (
-          <p className="text-sm text-destructive">{errors.nombre.message}</p>
-        )}
+        {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
       </div>
 
       {/* Departamento + Localidad */}
@@ -149,78 +146,56 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
             value={departamento}
             onChange={val => setValue("departamento", val, { shouldValidate: true })}
             placeholder="Seleccionar departamento"
+            className={CAMPO}
           />
-          {errors.departamento && (
-            <p className="text-sm text-destructive">{errors.departamento.message}</p>
-          )}
+          {errors.departamento && <p className="text-sm text-destructive">{errors.departamento.message}</p>}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="localidad">Localidad</Label>
-          <Input id="localidad" placeholder="Ej: Tacuarembó" {...register("localidad")} />
+          <Input id="localidad" className={CAMPO} {...register("localidad")} />
         </div>
       </div>
 
-      {/* Paraje */}
-      <div className="space-y-1.5">
-        <Label htmlFor="paraje">Paraje</Label>
-        <Input
-          id="paraje"
-          placeholder="Ej: Paso del Cerro"
-          {...register("paraje")}
-        />
-        <p className="text-xs text-muted-foreground">Referencia geográfica del DICOSE Físico (opcional)</p>
-      </div>
-
-      {/* Superficie + Tipo */}
+      {/* Paraje + Superficie */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label htmlFor="superficie_total">
-            Superficie (ha) <span className="text-destructive">*</span>
-          </Label>
+          <Label htmlFor="paraje">Paraje</Label>
+          <Input id="paraje" className={CAMPO} {...register("paraje")} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="superficie_total">Superficie (ha)</Label>
           <Input
             id="superficie_total"
             type="number"
+            inputMode="decimal"
             step="0.01"
-            placeholder="Ej: 350"
+            min="0"
+            className={CAMPO}
             aria-invalid={!!errors.superficie_total}
-            {...register("superficie_total", { valueAsNumber: true })}
+            {...register("superficie_total")}
           />
-          {errors.superficie_total && (
-            <p className="text-sm text-destructive">{errors.superficie_total.message}</p>
-          )}
+          {errors.superficie_total && <p className="text-sm text-destructive">{errors.superficie_total.message}</p>}
         </div>
+      </div>
 
-        <div className="space-y-1.5">
-          <Label>
-            Tipo <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={tipoValue}
-            onValueChange={val => setValue("tipo", val as FormValues["tipo"], { shouldValidate: true })}
-          >
-            <SelectTrigger className="w-full" aria-invalid={!!errors.tipo}>
-              <SelectValue>
-                {(v: string | null) => v || <span className="text-muted-foreground">Seleccionar tipo</span>}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Ganadero">Ganadero</SelectItem>
-              <SelectItem value="Agrícola">Agrícola</SelectItem>
-              <SelectItem value="Mixto">Mixto</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.tipo && (
-            <p className="text-sm text-destructive">{errors.tipo.message}</p>
-          )}
-        </div>
+      {/* Sistema productivo */}
+      <div className="space-y-1.5">
+        <Label htmlFor="sistema_productivo">Sistema productivo</Label>
+        <Input
+          id="sistema_productivo"
+          placeholder="Ej: cría y recría, invernada, ciclo completo"
+          className={CAMPO}
+          {...register("sistema_productivo")}
+        />
       </div>
 
       {/* Propietario + Fecha de alta */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="propietario">Propietario</Label>
-          <Input id="propietario" placeholder="Nombre del propietario" {...register("propietario")} />
+          <Input id="propietario" className={CAMPO} {...register("propietario")} />
         </div>
 
         <div className="space-y-1.5">
@@ -230,29 +205,24 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
           <Input
             id="fecha_alta"
             type="date"
+            className={CAMPO}
             aria-invalid={!!errors.fecha_alta}
             {...register("fecha_alta")}
           />
-          {errors.fecha_alta && (
-            <p className="text-sm text-destructive">{errors.fecha_alta.message}</p>
-          )}
+          {errors.fecha_alta && <p className="text-sm text-destructive">{errors.fecha_alta.message}</p>}
         </div>
       </div>
 
-      {/* RUT + DICOSE Físico */}
+      {/* RUT + DICOSE */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="rut">RUT</Label>
-          <Input id="rut" placeholder="Ej: 21234567800" {...register("rut")} />
+          <Input id="rut" inputMode="numeric" className={CAMPO} {...register("rut")} />
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="dicose_fisico">DICOSE</Label>
-          <Input
-            id="dicose_fisico"
-            placeholder="Opcional"
-            {...register("dicose_fisico")}
-          />
+          <Label htmlFor="dicose">DICOSE</Label>
+          <Input id="dicose" className={CAMPO} {...register("dicose")} />
         </div>
       </div>
 
@@ -262,22 +232,20 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         <textarea
           id="observaciones"
           rows={3}
-          placeholder="Notas adicionales..."
-          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"
+          className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base md:text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 resize-none"
           {...register("observaciones")}
         />
       </div>
 
       {/* Botones */}
       <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={enviando}>
-          {enviando ? "Guardando..." : "Guardar"}
+        <Button type="submit" className="h-11 px-5 md:h-9" disabled={enviando}>
+          {enviando ? "Guardando..." : initialData ? "Guardar" : "Crear establecimiento"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()} disabled={enviando}>
+        <Button type="button" variant="outline" className="h-11 px-5 md:h-9" onClick={() => router.back()} disabled={enviando}>
           Cancelar
         </Button>
       </div>
-
     </form>
   )
 }

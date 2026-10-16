@@ -2,29 +2,30 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { createClient } from "@/lib/supabase/client"
+import { getPotreros } from "@/lib/queries/potreros"
 import { EstablecimientoDetalle } from "@/components/establecimientos/EstablecimientoDetalle"
 import { PageContainer } from "@/components/layout/PageContainer"
 import type { Potrero } from "@/types/database"
 
 export default function PotrerosPage() {
-  const { establecimientoActivo, cargando: cargandoCtx } = useEstablecimiento()
+  const { establecimientoActivo, esEditor, cargando: cargandoCtx } = useEstablecimiento()
   const [potreros, setPotreros] = useState<Potrero[]>([])
   const [cargando, setCargando] = useState(false)
 
+  const establecimientoId = establecimientoActivo?.id
+
   const recargar = useCallback(async () => {
-    if (!establecimientoActivo) return
+    if (!establecimientoId) return
     setCargando(true)
-    const supabase = createClient()
-    const { data: p } = await supabase
-      .from("potreros")
-      .select("*")
-      .eq("establecimiento_id", establecimientoActivo.id)
-      .eq("estado", "activo")
-      .order("nombre")
-    setPotreros((p ?? []) as Potrero[])
-    setCargando(false)
-  }, [establecimientoActivo?.id])
+    try {
+      setPotreros(await getPotreros(establecimientoId))
+    } catch (error) {
+      console.error("Error cargando potreros:", error)
+      setPotreros([])
+    } finally {
+      setCargando(false)
+    }
+  }, [establecimientoId])
 
   useEffect(() => {
     recargar()
@@ -44,7 +45,7 @@ export default function PotrerosPage() {
     return (
       <PageContainer>
         <div className="rounded-lg border border-dashed p-12 text-center text-muted-foreground text-sm">
-          Seleccioná un establecimiento en el panel lateral para ver los potreros.
+          Seleccioná un establecimiento para ver los potreros.
         </div>
       </PageContainer>
     )
@@ -57,6 +58,7 @@ export default function PotrerosPage() {
       <EstablecimientoDetalle
         establecimiento={establecimientoActivo}
         potreros={potreros}
+        esEditor={esEditor}
         onRefresh={recargar}
       />
     </PageContainer>

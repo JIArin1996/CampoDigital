@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/client'
-import type { EstablecimientoInsert, EstablecimientoUpdate } from '@/types/database'
+import { exigirFilas } from '@/lib/supabase/errores'
+import type { Establecimiento, EstablecimientoDatos, EstablecimientoUpdate, Rol } from '@/types/database'
 
-// Obtiene todos los establecimientos activos, ordenados por nombre
+// Establecimientos activos del usuario (el RLS deja ver solo aquellos donde es miembro)
 export async function getEstablecimientos() {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -11,50 +12,10 @@ export async function getEstablecimientos() {
     .order('nombre')
 
   if (error) throw error
-  return data
+  return data as Establecimiento[]
 }
 
-// Obtiene un establecimiento por ID
-export async function getEstablecimiento(id: number) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('establecimientos')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Crea un nuevo establecimiento
-export async function createEstablecimiento(values: EstablecimientoInsert) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('establecimientos')
-    .insert(values)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Actualiza un establecimiento existente
-export async function updateEstablecimiento(id: number, values: EstablecimientoUpdate) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('establecimientos')
-    .update(values)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Obtiene los establecimientos inactivos
+// Establecimientos inactivos del usuario
 export async function getEstablecimientosInactivos() {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -64,56 +25,79 @@ export async function getEstablecimientosInactivos() {
     .order('nombre')
 
   if (error) throw error
-  return data
+  return data as Establecimiento[]
 }
 
-// Reactiva un establecimiento inactivo
-export async function reactivarEstablecimiento(id: number) {
+// Obtiene un establecimiento por id (null si no existe o no es miembro)
+export async function getEstablecimiento(id: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('establecimientos')
-    .update({ estado: 'activo' })
+    .select('*')
     .eq('id', id)
-    .select()
-    .single()
+    .maybeSingle()
 
   if (error) throw error
-  return data
+  return data as Establecimiento | null
 }
 
-// Desactiva lógicamente un establecimiento
-export async function desactivarEstablecimiento(id: number) {
+// Rol del usuario actual en cada uno de sus establecimientos
+export async function getMisRoles(): Promise<Record<string, Rol>> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return {}
+
+  const { data, error } = await supabase
+    .from('membresias')
+    .select('establecimiento_id, rol')
+    .eq('user_id', user.id)
+
+  if (error) throw error
+  return Object.fromEntries((data ?? []).map(m => [m.establecimiento_id, m.rol as Rol]))
+}
+
+// Alta: crea el establecimiento y la membresía de editor en una sola transacción.
+// Carga los catálogos base (especies, categorías y rubros). Devuelve el id nuevo.
+export async function crearEstablecimiento(values: EstablecimientoDatos): Promise<string> {
+  const supabase = createClient()
+  // Los opcionales vacíos se omiten (undefined): la función usa su valor por defecto, null
+  const { data, error } = await supabase.rpc('crear_establecimiento', {
+    p_nombre: values.nombre,
+    p_departamento: values.departamento,
+    p_localidad: values.localidad ?? undefined,
+    p_paraje: values.paraje ?? undefined,
+    p_superficie_total: values.superficie_total ?? undefined,
+    p_sistema_productivo: values.sistema_productivo ?? undefined,
+    p_propietario: values.propietario ?? undefined,
+    p_rut: values.rut ?? undefined,
+    p_dicose: values.dicose ?? undefined,
+    p_fecha_alta: values.fecha_alta,
+    p_observaciones: values.observaciones ?? undefined,
+    p_cargar_catalogos_base: true,
+  })
+
+  if (error) throw error
+  return data as string
+}
+
+// Edición. Si el RLS filtra la fila (lector), no hay error sino 0 filas: se trata como "sin permiso".
+export async function updateEstablecimiento(id: string, values: EstablecimientoUpdate) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('establecimientos')
-    .update({ estado: 'inactivo' })
+    .update(values)
     .eq('id', id)
     .select()
-    .single()
 
   if (error) throw error
-  return data
+  return exigirFilas(data) as Establecimiento
 }
 
-// Borra físicamente un establecimiento si no tiene dependencias
-export async function borrarEstablecimientoFisico(id: number) {
-  const supabase = createClient()
-  
-  const { count: potrerosCount, error: errorPotreros } = await supabase
-    .from('potreros')
-    .select('*', { count: 'exact', head: true })
-    .eq('establecimiento_id', id)
-  if (errorPotreros) throw errorPotreros
+// Baja lógica (no hay borrado)
+export async function desactivarEstablecimiento(id: string) {
+  return updateEstablecimiento(id, { estado: 'inactivo' })
+}
 
-  if (potrerosCount && potrerosCount > 0) {
-    throw new Error('No se puede eliminar definitivamente porque tiene potreros asociados.')
-  }
-
-  const { error } = await supabase
-    .from('establecimientos')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
-  return true
+export async function reactivarEstablecimiento(id: string) {
+  return updateEstablecimiento(id, { estado: 'activo' })
 }

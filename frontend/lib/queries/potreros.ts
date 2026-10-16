@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/client'
-import type { PotreroInsert, PotreroUpdate } from '@/types/database'
+import { exigirFilas } from '@/lib/supabase/errores'
+import type { Potrero, PotreroInsert, PotreroUpdate } from '@/types/database'
 
-// Obtiene todos los potreros activos de un establecimiento
-export async function getPotreros(establecimiento_id: number) {
+// Obtiene los potreros activos de un establecimiento
+export async function getPotreros(establecimiento_id: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('potreros')
@@ -12,10 +13,10 @@ export async function getPotreros(establecimiento_id: number) {
     .order('nombre')
 
   if (error) throw error
-  return data
+  return data as Potrero[]
 }
 
-// Crea un nuevo potrero
+// Crea un nuevo potrero (solo las columnas permitidas por GRANT)
 export async function createPotrero(values: PotreroInsert) {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -25,46 +26,23 @@ export async function createPotrero(values: PotreroInsert) {
     .single()
 
   if (error) throw error
-  return data
+  return data as Potrero
 }
 
-// Actualiza un potrero existente
-export async function updatePotrero(id: number, values: PotreroUpdate) {
+// Actualiza un potrero. 0 filas = sin permiso (RLS).
+export async function updatePotrero(id: string, values: PotreroUpdate) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('potreros')
     .update(values)
     .eq('id', id)
     .select()
-    .single()
 
   if (error) throw error
-  return data
+  return exigirFilas(data) as Potrero
 }
 
-// Desactiva lógicamente un potrero
-export async function desactivarPotrero(id: number) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('potreros')
-    .update({ estado: 'inactivo' })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-// Borra físicamente un potrero
-export async function borrarPotreroFisico(id: number) {
-  const supabase = createClient()
-
-  const { error } = await supabase
-    .from('potreros')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
-  return true
+// Baja lógica (no hay borrado)
+export async function desactivarPotrero(id: string) {
+  return updatePotrero(id, { estado: 'inactivo' })
 }
