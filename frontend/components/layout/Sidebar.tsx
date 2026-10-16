@@ -2,169 +2,70 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { MapPin, Grid3X3, Layers, Users, UserRound } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { CerrarSesion } from "@/components/layout/CerrarSesion"
+import { SelectorEstablecimiento } from "@/components/layout/SelectorEstablecimiento"
 import { Avatar } from "@/components/usuarios/Avatar"
 import { nombreCompleto } from "@/components/usuarios/roles"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  NAV_CONFIGURACION, NAV_MOVIL, NAV_PRINCIPAL, RUTAS_DE_MAS, enRuta, type ItemNav,
+} from "@/components/layout/navegacion"
 
-// La navegación definitiva (inicio, bitácora, lotes, actividades, calendario) se arma en la Etapa 4
-const NAV_ITEMS = [
-  { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
-  { href: "/potreros",         label: "Potreros",         icon: Grid3X3 },
-  { href: "/lotes",            label: "Lotes",            icon: Layers },
-]
-
-// Los módulos de campo requieren establecimiento activo (todos excepto Establecimientos)
-const MODULOS_DE_CAMPO = NAV_ITEMS.slice(1).map(i => i.href)
-
-function NavList({ pathname, hasActivo }: { pathname: string; hasActivo: boolean }) {
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/")
-
-  return (
-    <ul className="space-y-0.5">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const needsActivo = MODULOS_DE_CAMPO.includes(href)
-        const disabled = needsActivo && !hasActivo
-        const active = isActive(href)
-
-        return (
-          <li key={href}>
-            {disabled ? (
-              <span
-                title="Seleccioná un establecimiento primero"
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium cursor-not-allowed opacity-40 text-sidebar-foreground"
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </span>
-            ) : (
-              <Link
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </Link>
-            )}
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
+/**
+ * Navegación de la app:
+ *  - celular: encabezado fijo arriba (establecimiento y perfil) y barra inferior de 5 lugares;
+ *  - escritorio: menú lateral fijo.
+ */
 export function Sidebar() {
   const pathname = usePathname()
-  const { establecimientos, establecimientoActivo, setEstablecimientoActivo, cargando, esAdmin, perfil } =
-    useEstablecimiento()
-  const enRuta = (href: string) => pathname === href || pathname.startsWith(href + "/")
-
-  const handleSelectEst = (val: string | null) => {
-    if (!val) return
-    const found = establecimientos.find(e => e.id.toString() === val)
-    if (found) setEstablecimientoActivo(found)
-  }
-
-  const selectorValue = establecimientoActivo?.id?.toString() ?? ""
+  const { establecimientoActivo, esAdmin, perfil } = useEstablecimiento()
 
   // En el login no hay menú
   if (pathname === "/login") return null
 
+  const hayActivo = !!establecimientoActivo
+  const visible = (item: ItemNav) => !item.soloAdmin || esAdmin
+
   return (
     <>
-      {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
-      <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-border bg-sidebar z-30">
-
-        {/* Logo */}
-        <div className="flex items-center gap-2 px-4 h-14 border-b border-border shrink-0">
-          <span className="text-lg font-bold text-sidebar-foreground tracking-tight">
-            Campo Digital
-          </span>
+      {/* ── Escritorio: menú lateral ──────────────────────────────────────── */}
+      <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-sidebar-border bg-sidebar z-30">
+        <div className="flex items-center px-4 h-14 border-b border-sidebar-border shrink-0">
+          <span className="text-lg font-bold text-primary tracking-tight">Campo Digital</span>
         </div>
 
-        {/* Selector de establecimiento */}
-        <div className="px-3 py-3 border-b border-border shrink-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-1.5 px-0.5">
-            Establecimiento activo
+        <div className="px-3 py-3 border-b border-sidebar-border shrink-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
+            Establecimiento
           </p>
-          {cargando ? (
-            <div className="h-8 rounded-lg bg-sidebar-accent/30 animate-pulse" />
-          ) : establecimientos.length === 0 ? (
-            <p className="text-xs text-sidebar-foreground/50 px-1">Sin establecimientos</p>
-          ) : (
-            <Select
-              value={selectorValue}
-              onValueChange={handleSelectEst}
-            >
-              <SelectTrigger className="w-full bg-sidebar-accent/20 border-sidebar-border text-sidebar-foreground text-xs">
-                <SelectValue>
-                  {(val: string | null) =>
-                    val
-                      ? (establecimientos.find(e => e.id.toString() === val)?.nombre ?? val)
-                      : <span className="text-sidebar-foreground/40">Seleccionar...</span>
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {establecimientos.map(est => (
-                  <SelectItem key={est.id} value={est.id.toString()}>
-                    {est.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <SelectorEstablecimiento />
         </div>
 
-        {/* Navegación */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
-          <NavList pathname={pathname} hasActivo={!!establecimientoActivo} />
-
-          {/* Solo administrador */}
-          {esAdmin && (
-            <Link
-              href="/usuarios"
-              className={cn(
-                "mt-0.5 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                enRuta("/usuarios")
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              )}
-            >
-              <Users className="h-4 w-4 shrink-0" />
-              Usuarios
-            </Link>
-          )}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+          <ListaEscritorio items={NAV_PRINCIPAL} pathname={pathname} hayActivo={hayActivo} />
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 px-3">
+              Configuración
+            </p>
+            <ListaEscritorio items={NAV_CONFIGURACION.filter(visible)} pathname={pathname} hayActivo={hayActivo} />
+          </div>
         </nav>
 
-        {/* Mi perfil y cierre de sesión */}
-        <div className="px-2 py-3 border-t border-border shrink-0 space-y-0.5">
+        <div className="px-2 py-3 border-t border-sidebar-border shrink-0 space-y-0.5">
           {perfil && (
             <Link
               href="/perfil"
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
-                enRuta("/perfil") ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/50"
+                enRuta(pathname, "/perfil") ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60"
               )}
             >
               <Avatar nombre={perfil.nombre} apellido={perfil.apellido} fotoPath={perfil.foto_path} className="h-8 w-8 text-xs" />
               <span className="min-w-0">
-                <span className="block text-sm font-medium text-sidebar-foreground truncate">{nombreCompleto(perfil)}</span>
-                <span className="block text-xs text-sidebar-foreground/60">Mi perfil</span>
+                <span className="block text-sm font-medium truncate">{nombreCompleto(perfil)}</span>
+                <span className="block text-xs text-muted-foreground">Mi perfil</span>
               </span>
             </Link>
           )}
@@ -172,53 +73,91 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* ── Mobile bottom nav: módulos, perfil y salir (Usuarios se abre desde Mi perfil) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-border">
-        <ul className="flex items-center justify-around h-16">
-          {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon }) => {
-            const needsActivo = MODULOS_DE_CAMPO.includes(href)
-            const disabled = needsActivo && !establecimientoActivo
-            const active = pathname === href || pathname.startsWith(href + "/")
+      {/* ── Celular: encabezado ───────────────────────────────────────────── */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center gap-2 px-3 bg-background border-b border-border">
+        <div className="flex-1 min-w-0">
+          <SelectorEstablecimiento compacto />
+        </div>
+        {perfil && (
+          <Link href="/perfil" aria-label="Mi perfil" className="shrink-0 p-1">
+            <Avatar nombre={perfil.nombre} apellido={perfil.apellido} fotoPath={perfil.foto_path} className="h-9 w-9 text-xs" />
+          </Link>
+        )}
+      </header>
 
+      {/* ── Celular: barra inferior ───────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]">
+        <ul className="flex items-stretch h-16">
+          {NAV_MOVIL.map(item => {
+            const Icono = item.icon
+            const deshabilitado = item.necesitaEstablecimiento && !hayActivo
+            const activo = item.href === "/mas"
+              ? RUTAS_DE_MAS.some(r => enRuta(pathname, r))
+              : enRuta(pathname, item.href)
             return (
-              <li key={href} className="flex-1">
-                {disabled ? (
-                  <span className="flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-medium opacity-40 text-sidebar-foreground/60">
-                    <Icon className="h-5 w-5" />
-                    {label}
+              <li key={item.href} className="flex-1">
+                {deshabilitado ? (
+                  <span className="flex flex-col items-center justify-center gap-1 h-full text-[11px] font-medium text-muted-foreground opacity-50">
+                    <Icono className="h-6 w-6" />
+                    {item.label}
                   </span>
                 ) : (
                   <Link
-                    href={href}
+                    href={item.href}
+                    aria-current={activo ? "page" : undefined}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-medium transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/60"
+                      "flex flex-col items-center justify-center gap-1 h-full text-[11px] font-semibold transition-colors",
+                      activo ? "text-primary" : "text-muted-foreground"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    {label}
+                    <span className={cn("flex items-center justify-center h-7 w-12 rounded-full", activo && "bg-accent")}>
+                      <Icono className="h-6 w-6" />
+                    </span>
+                    {item.label}
                   </Link>
                 )}
               </li>
             )
           })}
-          <li className="flex-1">
-            <Link
-              href="/perfil"
-              className={cn(
-                "flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-medium transition-colors",
-                enRuta("/perfil") || enRuta("/usuarios") ? "text-sidebar-primary" : "text-sidebar-foreground/60"
-              )}
-            >
-              <UserRound className="h-5 w-5" />
-              Perfil
-            </Link>
-          </li>
-          <li className="flex-1">
-            <CerrarSesion compacto />
-          </li>
         </ul>
       </nav>
     </>
+  )
+}
+
+function ListaEscritorio({ items, pathname, hayActivo }: { items: ItemNav[]; pathname: string; hayActivo: boolean }) {
+  return (
+    <ul className="space-y-0.5">
+      {items.map(item => {
+        const Icono = item.icon
+        const deshabilitado = item.necesitaEstablecimiento && !hayActivo
+        const activo = enRuta(pathname, item.href)
+        return (
+          <li key={item.href}>
+            {deshabilitado ? (
+              <span
+                title="Elegí un establecimiento primero"
+                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground opacity-50 cursor-not-allowed"
+              >
+                <Icono className="h-4 w-4 shrink-0" />
+                {item.label}
+              </span>
+            ) : (
+              <Link
+                href={item.href}
+                aria-current={activo ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  activo ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/60"
+                )}
+              >
+                <Icono className="h-4 w-4 shrink-0" />
+                {item.label}
+              </Link>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }

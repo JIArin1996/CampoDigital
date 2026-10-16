@@ -32,7 +32,7 @@ export default function LoginPage() {
     }
 
     // Recarga completa: así el contexto del establecimiento arranca con la sesión nueva
-    window.location.assign("/establecimientos")
+    window.location.assign("/inicio")
   }
 
   return (

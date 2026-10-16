@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-// La página raíz redirige al listado de establecimientos
+// La página raíz lleva al inicio
 export default function Home() {
-  redirect("/establecimientos")
+  redirect("/inicio")
 }

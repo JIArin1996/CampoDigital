@@ -43,7 +43,7 @@ export async function actualizarSesion(request: NextRequest) {
   }
 
   if (user && pathname === "/login") {
-    return redirigirConCookies(request, response, "/establecimientos")
+    return redirigirConCookies(request, response, "/inicio")
   }
 
   return response

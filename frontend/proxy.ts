@@ -7,8 +7,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Todo menos archivos estáticos e imágenes
+  // Todo menos archivos estáticos, imágenes y el manifest (el teléfono lo pide antes de iniciar sesión)
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt)$).*)",
   ],
 }

@@ -54,10 +54,11 @@ npm install
 # Crear frontend\.env.local con:
 #   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+#   SUPABASE_SERVICE_ROLE_KEY=<service_role key>   (solo servidor: crear usuarios, resetear contraseñas)
 npm run dev
 ```
 
-La app queda en http://localhost:3000.
+La app queda en http://localhost:3000 (o el puerto libre que indique `npm run dev`).
 
 Otros scripts (desde `frontend/`):
 
@@ -82,9 +83,10 @@ Los archivos `.env*` están ignorados por git y nunca se commitean.
 
 | Módulo | Estado |
 |---|---|
-| Establecimientos y potreros | Funcional sobre el esquema viejo; se recrea en el esquema nuevo (Etapa 3) |
-| Autenticación, roles (editor / lector) y RLS | Por construir (Etapa 3) |
-| Lotes, bitácora, actividades, economía por rubro, tareas | Por construir (Etapas 5 a 8) |
+| Login, roles (Administrador / Operador / Consulta), RLS y gestión de usuarios | Funcional (Etapa 3) |
+| Establecimientos, potreros y lotes con stock por categoría | Funcional (Etapa 3) |
+| Navegación móvil, botón de carga rápida, diseño de alto contraste, app instalable | Funcional (Etapa 4) |
+| Bitácora, actividades, economía por rubro, tareas y calendario | Por construir (Etapas 5 a 8) |
 
 ---
 

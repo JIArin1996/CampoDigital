@@ -15,6 +15,9 @@ Web app mobile-first de gestión, bitácora y calendario para establecimientos g
 |---------|-----------|
 | 00-ENFOQUE-V2.md | Enfoque del proyecto y decisiones tomadas, con el registro de cambios de decisión |
 | MODELO-DE-DATOS-V2.md | Modelo de datos v2 (borrador): tablas, RLS, funciones y etapas de construcción |
+| DISENO-BASE-ETAPA-3.md | Diseño de la base de la Etapa 3: tablas, RLS, helpers, inmutabilidad y stock |
+| DISENO-USUARIOS.md | Roles (Administrador, Operador, Consulta), perfiles y gestión de usuarios |
+| 06-SISTEMA-DE-DISENO.md | Colores, tamaños táctiles, navegación y patrones de pantalla |
 | _archivo/ | Documentación obsoleta conservada como referencia (v1 con trazabilidad, borrador de Sheets) |
 
 ## Reglas de desarrollo
