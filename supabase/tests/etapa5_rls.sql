@@ -4,7 +4,9 @@
 --   1. Con todas las migraciones aplicadas (hasta 20261016000200_etapa5_lotes_y_bitacora).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ETAPA 5: N OK, M FALLA ...", que deshace todo.
---      El resultado esperado es "0 FALLA".
+--      El resultado esperado es "0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA y no
+--      como FALLA: corregir primero las PREP, que son la causa raíz.
 --
 -- Fechas relativas a hoy (fecha de Montevideo): "d-10" = hace 10 días.
 -- Usuarios de prueba (.test), creados y borrados dentro de la transacción:
@@ -45,19 +47,28 @@ on conflict (id) do update set es_admin = excluded.es_admin, nombre = excluded.n
 create schema pruebas;
 grant usage on schema pruebas to authenticated, anon;
 
-create function pruebas.ok(p text) returns void language plpgsql as $$
+-- Registro de resultados. Cuatro tipos de línea:
+--   OK, FALLA, OMITIDA (depende de una preparación que falló) y PREP (preparación fallida: la causa raíz).
+create function pruebas.linea(p_tipo text, p text) returns void language plpgsql as $$
 begin
-  perform set_config('test.rep', current_setting('test.rep') || E'\nOK     ' || p, false);
+  perform set_config('test.rep', current_setting('test.rep') || E'\n' || rpad(p_tipo, 8) || p, false);
 end $$;
 
-create function pruebas.falla(p text) returns void language plpgsql as $$
-begin
-  perform set_config('test.rep', current_setting('test.rep') || E'\nFALLA  ' || p, false);
-end $$;
+create function pruebas.ok(p text)      returns void language sql as $$ select pruebas.linea('OK', p) $$;
+create function pruebas.falla(p text)   returns void language sql as $$ select pruebas.linea('FALLA', p) $$;
+create function pruebas.omitida(p text) returns void language sql as $$ select pruebas.linea('OMITIDA', p) $$;
 
-create function pruebas.id(p_clave text) returns uuid language sql stable as $$
-  select current_setting('test.' || p_clave)::uuid
-$$;
+-- Id guardado durante la prueba. Si la preparación que lo crea falló (o nunca corrió),
+-- corta con el código propio ZZ001, que las pruebas registran como OMITIDA y no como FALLA.
+create function pruebas.id(p_clave text) returns uuid language plpgsql stable as $$
+declare
+  v text := current_setting('test.' || p_clave, true);
+begin
+  if v is null or v = '' or v = 'FALLIDA' then
+    raise exception '%', p_clave using errcode = 'ZZ001';
+  end if;
+  return v::uuid;
+end $$;
 
 -- Fecha relativa a hoy
 create function pruebas.d(p_dias int) returns date language sql stable as $$
@@ -87,7 +98,9 @@ begin
   begin
     execute p_sql;
   exception when others then
-    if sqlstate = p_sqlstate then
+    if sqlstate = 'ZZ001' then
+      perform pruebas.omitida(p_nombre || '  (depende de la preparación: ' || sqlerrm || ')');
+    elsif sqlstate = p_sqlstate then
       perform pruebas.ok(p_nombre || '  [' || sqlstate || ']');
     else
       perform pruebas.falla(p_nombre || ': esperaba ' || p_sqlstate || ', dio ' || sqlstate || ' ' || sqlerrm);
@@ -103,7 +116,11 @@ begin
   execute p_sql;
   perform pruebas.ok(p_nombre);
 exception when others then
-  perform pruebas.falla(p_nombre || ': error inesperado ' || sqlstate || ' ' || sqlerrm);
+  if sqlstate = 'ZZ001' then
+    perform pruebas.omitida(p_nombre || '  (depende de la preparación: ' || sqlerrm || ')');
+  else
+    perform pruebas.falla(p_nombre || ': error inesperado ' || sqlstate || ' ' || sqlerrm);
+  end if;
 end $$;
 
 create function pruebas.espera_filas(p_nombre text, p_sql text, p_filas int) returns void
@@ -119,7 +136,11 @@ begin
     perform pruebas.falla(p_nombre || ': esperaba ' || p_filas || ' filas, afectó ' || v_n);
   end if;
 exception when others then
-  perform pruebas.falla(p_nombre || ': error inesperado ' || sqlstate || ' ' || sqlerrm);
+  if sqlstate = 'ZZ001' then
+    perform pruebas.omitida(p_nombre || '  (depende de la preparación: ' || sqlerrm || ')');
+  else
+    perform pruebas.falla(p_nombre || ': error inesperado ' || sqlstate || ' ' || sqlerrm);
+  end if;
 end $$;
 
 create function pruebas.espera_valor(p_nombre text, p_sql text, p_esperado text) returns void
@@ -134,19 +155,48 @@ begin
     perform pruebas.falla(p_nombre || ': esperaba ' || coalesce(p_esperado, 'null') || ', dio ' || coalesce(v, 'null'));
   end if;
 exception when others then
-  perform pruebas.falla(p_nombre || ': error inesperado ' || sqlstate || ' ' || sqlerrm);
+  if sqlstate = 'ZZ001' then
+    perform pruebas.omitida(p_nombre || '  (depende de la preparación: ' || sqlerrm || ')');
+  else
+    perform pruebas.falla(p_nombre || ': error inesperado ' || sqlstate || ' ' || sqlerrm);
+  end if;
 end $$;
 
--- Guarda en test.<clave> el resultado (uuid) de una sentencia; si falla, lo registra y sigue
+-- Preparación que guarda un id en test.<clave>. Si falla, la clave queda FALLIDA:
+--   * si falló por su propia cuenta, es una causa raíz (PREP);
+--   * si falló porque dependía de otra preparación fallida, se registra como OMITIDA.
 create function pruebas.guardar(p_clave text, p_sql text) returns void
 language plpgsql as $$
 declare
   v text;
 begin
   execute p_sql into v;
+  if v is null then
+    raise exception 'la sentencia no devolvió ningún id' using errcode = 'P0002';
+  end if;
   perform set_config('test.' || p_clave, v, false);
 exception when others then
-  perform pruebas.falla('preparación ' || p_clave || ': ' || sqlstate || ' ' || sqlerrm);
+  perform set_config('test.' || p_clave, 'FALLIDA', false);
+  if sqlstate = 'ZZ001' then
+    perform pruebas.omitida('preparación ' || p_clave || '  (depende de la preparación: ' || sqlerrm || ')');
+  else
+    perform pruebas.linea('PREP', p_clave || ': ' || sqlstate || ' ' || sqlerrm);
+  end if;
+end $$;
+
+-- Preparación sin resultado (por ejemplo, un ajuste o una asignación de rol). Misma lógica:
+-- si falla, deja FALLIDA la clave indicada, para que lo que dependa de ella quede omitido.
+create function pruebas.preparar(p_clave text, p_sql text) returns void
+language plpgsql as $$
+begin
+  execute p_sql;
+exception when others then
+  perform set_config('test.' || p_clave, 'FALLIDA', false);
+  if sqlstate = 'ZZ001' then
+    perform pruebas.omitida('preparación ' || p_clave || '  (depende de la preparación: ' || sqlerrm || ')');
+  else
+    perform pruebas.linea('PREP', p_clave || ': ' || sqlstate || ' ' || sqlerrm);
+  end if;
 end $$;
 
 grant execute on all functions in schema pruebas to authenticated, anon;
@@ -160,9 +210,9 @@ select pruebas.como('u_admin');
 
 select pruebas.guardar('est_a', $q$ select public.crear_establecimiento('Santa Remigia (prueba)', 'Durazno') $q$);
 select pruebas.guardar('est_x', $q$ select public.crear_establecimiento('Otro campo (prueba)', 'Salto') $q$);
-select public.asignar_rol(pruebas.id('u_operador'), pruebas.id('est_a'), 'operador');
-select public.asignar_rol(pruebas.id('u_consulta'), pruebas.id('est_a'), 'consulta');
-select public.asignar_rol(pruebas.id('u_ajeno'),    pruebas.id('est_x'), 'operador');
+select pruebas.preparar('rol_u_operador', $q$ select public.asignar_rol(pruebas.id('u_operador'), pruebas.id('est_a'), 'operador') $q$);
+select pruebas.preparar('rol_u_consulta', $q$ select public.asignar_rol(pruebas.id('u_consulta'), pruebas.id('est_a'), 'consulta') $q$);
+select pruebas.preparar('rol_u_ajeno', $q$ select public.asignar_rol(pruebas.id('u_ajeno'),    pruebas.id('est_x'), 'operador') $q$);
 
 select pruebas.guardar('vacunos', $q$ select id from public.especies where establecimiento_id = pruebas.id('est_a') and nombre = 'Vacunos' $q$);
 select pruebas.guardar('ovinos',  $q$ select id from public.especies where establecimiento_id = pruebas.id('est_a') and nombre = 'Ovinos' $q$);
@@ -183,7 +233,7 @@ select pruebas.como('u_operador');
 
 -- L1: 10 terneros el día d-10 ("día 1") y +40 el día d-5 ("día 5")
 select pruebas.guardar('L1', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'L1 Terneros', pruebas.d(10), pruebas.comp('terneros', 10)) $q$);
-select public.registrar_ajuste(pruebas.id('L1'), pruebas.id('terneros'), 40, pruebas.d(5), 'Compra no registrada');
+select pruebas.preparar('L1', $q$ select public.registrar_ajuste(pruebas.id('L1'), pruebas.id('terneros'), 40, pruebas.d(5), 'Compra no registrada') $q$);
 
 select pruebas.espera_error('D01 Dividir 30 con fecha del "día 3" (d-7) cuando ese día había 10: el día queda en -20',
   $q$ select public.dividir_lote(pruebas.id('L1'), pruebas.d(7),
@@ -232,8 +282,8 @@ select pruebas.espera_valor('D16 Registro de cierre en lote_cambios_estado, con 
 
 -- Cierre con fecha = último evento cuando la operación es retroactiva
 select pruebas.guardar('L4', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'L4 Toros', pruebas.d(6), pruebas.comp('toros', 5)) $q$);
-select public.registrar_ajuste(pruebas.id('L4'), pruebas.id('toros'),  1, pruebas.d(1), 'Entró uno');
-select public.registrar_ajuste(pruebas.id('L4'), pruebas.id('toros'), -1, pruebas.d(1), 'Salió uno');
+select pruebas.preparar('L4', $q$ select public.registrar_ajuste(pruebas.id('L4'), pruebas.id('toros'),  1, pruebas.d(1), 'Entró uno') $q$);
+select pruebas.preparar('L4', $q$ select public.registrar_ajuste(pruebas.id('L4'), pruebas.id('toros'), -1, pruebas.d(1), 'Salió uno') $q$);
 select pruebas.espera_ok('D17 Dividir todo L4 con fecha d-4 (hay eventos posteriores, en d-1)',
   $q$ select public.dividir_lote(pruebas.id('L4'), pruebas.d(4),
       jsonb_build_array(jsonb_build_object('nombre', 'L4b', 'composicion', pruebas.comp('toros', 5)))) $q$);
@@ -277,7 +327,7 @@ select pruebas.espera_valor('U03 Motivo del cierre de L2',
 
 -- Dos lotes a uno nuevo
 select pruebas.guardar('L6', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'L6', pruebas.d(2), pruebas.comp('terneros', 5)) $q$);
-select public.registrar_ajuste(pruebas.id('L6'), pruebas.id('terneros'), 1, pruebas.d(1), 'Apareció uno');
+select pruebas.preparar('L6', $q$ select public.registrar_ajuste(pruebas.id('L6'), pruebas.id('terneros'), 1, pruebas.d(1), 'Apareció uno') $q$);
 select pruebas.guardar('L7', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'L7', pruebas.d(2), pruebas.comp('terneros', 3)) $q$);
 select pruebas.espera_error('U04 Unir con fecha anterior al último movimiento de un origen (L6 tiene un evento el d-1)',
   $q$ select public.unir_lotes(array[pruebas.id('L6'), pruebas.id('L7')], pruebas.d(2), null, '{"nombre": "Juntos"}'::jsonb) $q$, '22023');
@@ -518,10 +568,13 @@ select pruebas.espera_valor('P07 Funciones nuevas: escritura sin anon; internas 
 
 do $$
 declare
-  v_rep   text := current_setting('test.rep');
-  v_ok    int  := (select count(*) from regexp_matches(v_rep, E'\nOK ', 'g'));
-  v_falla int  := (select count(*) from regexp_matches(v_rep, E'\nFALLA ', 'g'));
+  v_rep      text := current_setting('test.rep');
+  v_ok       int  := (select count(*) from regexp_matches(v_rep, E'\nOK ', 'g'));
+  v_falla    int  := (select count(*) from regexp_matches(v_rep, E'\nFALLA ', 'g'));
+  v_omitida  int  := (select count(*) from regexp_matches(v_rep, E'\nOMITIDA ', 'g'));
+  v_prep     int  := (select count(*) from regexp_matches(v_rep, E'\nPREP ', 'g'));
+  v_raices   text := coalesce((select string_agg(m[1], E'\n') from regexp_matches(v_rep, E'\n(PREP [^\n]*)', 'g') m), '(ninguna)');
 begin
-  raise exception 'PRUEBAS ETAPA 5: % OK, % FALLA (este error es a propósito: deshace todos los datos de prueba)%',
-    v_ok, v_falla, v_rep;
+  raise exception E'PRUEBAS ETAPA 5: % OK, % FALLA, % OMITIDAS, % PREPARACIONES FALLIDAS (este error es a propósito: deshace todos los datos de prueba)\n\nPreparaciones fallidas (causa raíz de las omitidas):\n%\n\nDetalle:%',
+    v_ok, v_falla, v_omitida, v_prep, v_raices, v_rep;
 end $$;
