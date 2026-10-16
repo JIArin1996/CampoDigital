@@ -270,3 +270,13 @@ export async function getLinaje(lote_id: string) {
   if (error) throw error
   return (data ?? []) as FilaLinaje[]
 }
+
+// ── Stock a una fecha ────────────────────────────────────────────────────────
+
+// Stock por especie y categoría a una fecha (incluye lotes hoy cerrados). Respeta el RLS.
+export async function getStockAl(establecimiento_id: string, fecha: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('stock_al', { p_establecimiento_id: establecimiento_id, p_fecha: fecha })
+  if (error) throw error
+  return (data ?? []) as { especie_id: string; categoria_id: string; cabezas: number }[]
+}
