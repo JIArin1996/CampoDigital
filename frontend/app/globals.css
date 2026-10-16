@@ -84,6 +84,13 @@
   --sidebar-accent-foreground: oklch(0.3 0.07 150);
   --sidebar-border: oklch(0.84 0.012 150);
   --sidebar-ring: oklch(0.45 0.11 150);
+  /* Etiquetas de tipo (bitácora). Contraste texto/fondo: 8,8 a 9,7:1 */
+  --etiqueta-idea: oklch(0.95 0.06 85);
+  --etiqueta-idea-texto: oklch(0.38 0.08 60);
+  --etiqueta-observacion: oklch(0.95 0.03 230);
+  --etiqueta-observacion-texto: oklch(0.36 0.07 240);
+  --etiqueta-compra: oklch(0.95 0.03 300);
+  --etiqueta-compra-texto: oklch(0.36 0.09 300);
 }
 
 @layer base {

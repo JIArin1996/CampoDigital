@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
+import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
 import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
 import type { Potrero } from "@/types/database"
 import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
@@ -159,6 +160,13 @@ export default function LotePage() {
 
         {/* Linaje: de qué lotes viene y en cuáles terminó */}
         <LinajeLote loteId={lote.id} version={version} />
+
+        {/* Bitácora del lote */}
+        <BitacoraDelLote
+          establecimientoId={lote.establecimiento_id}
+          loteId={lote.id}
+          puedeOperar={puedeOperar}
+        />
 
         {/* Historial */}
         <section className="space-y-3">

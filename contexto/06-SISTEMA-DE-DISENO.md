@@ -23,6 +23,7 @@ Estado: vigente desde la Etapa 4 (2026-10-16). Fuente de verdad del código: `fr
 | `--destructive` | `#c2181d` | errores, bajas, cabezas negativas | 6,1:1 |
 | `--input` | gris verdoso medio | borde de campos de formulario | 3,6:1 (WCAG pide 3:1 para controles) |
 | `--border` | gris verdoso claro | separadores de tarjetas y listas | decorativo |
+| `--etiqueta-idea`, `--etiqueta-observacion`, `--etiqueta-compra` (+ `-texto`) | ámbar, celeste y violeta suaves | chips de tipo de la bitácora (la decisión usa `--accent`) | texto sobre su fondo: 8,8 a 9,7:1 |
 
 Los valores se definen en `oklch` en `globals.css`; los hex son de referencia. No se usan colores sueltos de Tailwind (`green-100`, etc.) para estados: siempre los tokens.
 
