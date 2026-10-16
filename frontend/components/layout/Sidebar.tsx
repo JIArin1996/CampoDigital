@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { MapPin, Grid3X3 } from "lucide-react"
+import { MapPin, Grid3X3, Layers } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { CerrarSesion } from "@/components/layout/CerrarSesion"
@@ -18,6 +18,7 @@ import {
 const NAV_ITEMS = [
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/potreros",         label: "Potreros",         icon: Grid3X3 },
+  { href: "/lotes",            label: "Lotes",            icon: Layers },
 ]
 
 // Los módulos de campo requieren establecimiento activo (todos excepto Establecimientos)

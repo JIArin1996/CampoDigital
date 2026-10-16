@@ -1,0 +1,184 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { ArrowLeft, SlidersHorizontal } from "lucide-react"
+
+import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import { getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
+import { getPotreros } from "@/lib/queries/potreros"
+import { mensajeDeError } from "@/lib/supabase/errores"
+import { PageContainer } from "@/components/layout/PageContainer"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
+import { AjusteForm } from "@/components/lotes/AjusteForm"
+import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
+import type { Potrero } from "@/types/database"
+import type { CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
+
+interface Ficha {
+  clave: string
+  lote: Lote | null
+  especies: Especie[]
+  categorias: CategoriaAnimal[]
+  potreros: Potrero[]
+  stock: StockLote[]
+  eventos: LoteEvento[]
+}
+
+export default function LotePage() {
+  const { id } = useParams<{ id: string }>()
+  const { rolEn, cargando: cargandoCtx } = useEstablecimiento()
+  const [ficha, setFicha] = useState<Ficha | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [version, setVersion] = useState(0)   // sube para recargar después de un ajuste
+  const [ajusteAbierto, setAjusteAbierto] = useState(false)
+
+  useEffect(() => {
+    let vigente = true
+    const clave = `${id}:${version}`
+    getLote(id)
+      .then(async lote => {
+        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [] }
+        const [especies, categorias, potreros, stock, eventos] = await Promise.all([
+          getEspecies(lote.establecimiento_id),
+          getCategorias(lote.establecimiento_id),
+          getPotreros(lote.establecimiento_id),
+          getStockLote(lote.id),
+          getEventosLote(lote.id),
+        ])
+        return { clave, lote, especies, categorias, potreros, stock, eventos }
+      })
+      .then(datos => {
+        if (vigente) setFicha(datos)
+      })
+      .catch(err => {
+        if (vigente) setError(mensajeDeError(err, "No se pudo cargar el lote"))
+      })
+    return () => { vigente = false }
+  }, [id, version])
+
+  const volver = (
+    <Link href="/lotes" className="inline-flex items-center gap-1.5 h-10 text-sm text-muted-foreground hover:text-foreground mb-3">
+      <ArrowLeft className="h-4 w-4" /> Volver a lotes
+    </Link>
+  )
+
+  // Mientras recarga después de un ajuste se sigue mostrando la ficha anterior
+  const vigente = ficha && ficha.clave.startsWith(`${id}:`) ? ficha : null
+
+  if (error && !vigente) {
+    return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
+  }
+
+  if (!vigente || cargandoCtx) {
+    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  }
+
+  const { lote } = vigente
+  if (!lote) {
+    return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró el lote.</p></PageContainer>
+  }
+
+  const esEditor = rolEn(lote.establecimiento_id) === "editor"
+  const especie = vigente.especies.find(e => e.id === lote.especie_id)
+  const categoriasEspecie = vigente.categorias.filter(c => c.especie_id === lote.especie_id)
+  const potrero = vigente.potreros.find(p => p.id === lote.potrero_id)
+  const nombreCategoria = (catId: string) => vigente.categorias.find(c => c.id === catId)?.nombre ?? "—"
+  const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
+
+  return (
+    <PageContainer>
+      {volver}
+
+      {/* Encabezado */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-2xl font-bold">{lote.nombre}</h1>
+          {lote.estado === "cerrado" && <Badge variant="secondary">cerrado</Badge>}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          {[
+            especie?.nombre,
+            potrero?.nombre,
+            lote.campana ? `campaña ${lote.campana}` : null,
+            `desde ${fechaCorta(lote.fecha_apertura)}`,
+            lote.fecha_cierre ? `cerrado el ${fechaCorta(lote.fecha_cierre)}` : null,
+          ].filter(Boolean).join(" · ")}
+        </p>
+        {lote.notas && <p className="text-sm mt-2">{lote.notas}</p>}
+      </div>
+
+      <div className="space-y-6">
+        {/* Stock actual */}
+        <Card>
+          <CardHeader className="pb-1 flex-row items-center justify-between gap-3">
+            <CardTitle className="text-base">Stock actual</CardTitle>
+            {esEditor && lote.estado === "activo" && (
+              <Button variant="outline" size="sm" className="h-10 md:h-8" onClick={() => setAjusteAbierto(true)}>
+                <SlidersHorizontal className="h-4 w-4 mr-1" />
+                Ajustar
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <StockPorCategoria filas={vigente.stock} categorias={categoriasEspecie} />
+          </CardContent>
+        </Card>
+
+        {/* Historial */}
+        <section className="space-y-3">
+          <h2 className="font-semibold">Historial</h2>
+          {vigente.eventos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin movimientos.</p>
+          ) : (
+            <ul className="rounded-lg border divide-y bg-card">
+              {vigente.eventos.map(ev => (
+                <li key={ev.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {ETIQUETA_EVENTO[ev.tipo]} · {nombreCategoria(ev.categoria_id)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{fechaCorta(ev.fecha)}</p>
+                    {ev.nota && <p className="text-sm text-muted-foreground mt-0.5">{ev.nota}</p>}
+                  </div>
+                  <span
+                    className={`text-base font-semibold tabular-nums shrink-0 ${ev.cabezas < 0 ? "text-destructive" : ""}`}
+                  >
+                    {ev.cabezas > 0 ? `+${ev.cabezas}` : ev.cabezas}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      {/* Ajuste de stock */}
+      <Dialog open={ajusteAbierto} onOpenChange={setAjusteAbierto}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ajustar stock</DialogTitle>
+            <DialogDescription>
+              Los movimientos no se editan: un error se corrige sumando o restando cabezas, con su motivo.
+            </DialogDescription>
+          </DialogHeader>
+          <AjusteForm
+            loteId={lote.id}
+            categorias={categoriasEspecie}
+            stockActual={stockActual}
+            onSuccess={() => {
+              setAjusteAbierto(false)
+              setVersion(v => v + 1)
+            }}
+            onCancel={() => setAjusteAbierto(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
+  )
+}
