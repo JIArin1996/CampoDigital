@@ -13,21 +13,49 @@ export type TipoActividad =
 
 export type TipoActividad6a = 'pesada' | 'mortandad' | 'compra' | 'venta' | 'paricion'
 
+// Las que no mueven stock (6b-1). Antiparasitario no se carga como tipo: es una categoría de producto de sanidad.
+export type TipoActividad6b1 = 'sanidad' | 'servicio' | 'diagnostico_gestacion' | 'esquila' | 'personalizada'
+
+// Lo que se puede cargar hoy desde "Nueva actividad"
+export type TipoCargable = TipoActividad6a | TipoActividad6b1
+
 export type Modalidad = 'productor' | 'remate' | 'frigorifico' | 'otra'
 export type Moneda = 'USD' | 'UYU'
 export type EstadoPago = 'pagado' | 'pendiente'
 
 type Requeridas = 'id' | 'establecimiento_id' | 'tipo' | 'fecha' | 'created_at'
 
-// Fila de v_actividades: la actividad con totales, detalle y monto (peso promedio y rendimiento calculados)
-export type ActividadResumen = Omit<Tables<'v_actividades'>, Requeridas | 'modalidad'> & {
+// Fila de v_actividades: la actividad con totales, detalle y monto (peso promedio, rendimiento,
+// vacías y kg de lana por cabeza calculados). lotes: todos los lotes de la actividad (actividad_lotes).
+export type ActividadResumen = Omit<Tables<'v_actividades'>, Requeridas | 'modalidad' | 'lotes' | 'campos'> & {
   id: string
   establecimiento_id: string
   tipo: TipoActividad
   fecha: string
   created_at: string
   modalidad: Modalidad | null
+  lotes: string[]
+  campos: CampoPersonalizado[] | null
 }
+
+// Producto de una sanidad
+export type ProductoSanidad = Tables<'act_sanidad_productos'>
+
+// Carencia de un lote (v_carencias); heredada = el lote viene de una división, unión o destete posterior a la sanidad
+export type Carencia = { [K in keyof Tables<'v_carencias'>]: NonNullable<Tables<'v_carencias'>[K]> }
+
+// Producto que se manda a registrar_sanidad
+export type ProductoCarga = {
+  producto: string
+  categoria: string
+  dosis?: string
+  via?: string
+  carencia_dias?: number
+  fecha_proxima_dosis?: string
+}
+
+// Par campo-valor de una actividad personalizada
+export type CampoPersonalizado = { campo: string; valor: string }
 
 export type LineaActividad = Tables<'actividad_lineas'>
 

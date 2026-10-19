@@ -8,7 +8,10 @@ import type { Tables } from './supabase'
 
 type SinNulos<T> = { [K in keyof T]: NonNullable<T[K]> }
 
-export type Especie = Tables<'especies'>
+// Grupo de la especie: la esquila acepta solo lotes de especies del grupo ovino
+export type GrupoEspecie = 'bovino' | 'ovino' | 'otro'
+
+export type Especie = Omit<Tables<'especies'>, 'grupo'> & { grupo: GrupoEspecie }
 
 export type CategoriaAnimal = Tables<'categorias_animales'>
 
