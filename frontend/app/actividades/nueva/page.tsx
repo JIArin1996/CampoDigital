@@ -7,7 +7,7 @@ import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import {
-  getNombresPersonalizadas, getRubros, registrarCompra, registrarMortandad, registrarParicion, registrarPesada,
+  getCarencias, getNombresPersonalizadas, getRubros, registrarCompra, registrarMortandad, registrarParicion, registrarPesada,
   registrarVenta,
 } from "@/lib/queries/actividades"
 import { getPersonas } from "@/lib/queries/bitacora"
@@ -26,13 +26,14 @@ import {
   esTipo6a, esTipoCargable, nuevoId,
 } from "@/components/actividades/formato"
 import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
+import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { hoyLocal } from "@/components/lotes/formato"
 import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, Lote, StockLote } from "@/types/lotes"
 import type {
-  EstadoPago, LineaCarga, LoteNuevoCarga, Modalidad, Moneda, PrecioCarga, TipoActividad6a,
+  Carencia, EstadoPago, LineaCarga, LoteNuevoCarga, Modalidad, Moneda, PrecioCarga, TipoActividad6a,
 } from "@/types/actividades"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
@@ -216,6 +217,19 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
 
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+
+  // Venta: carencias del lote vigentes a la fecha de la venta (aviso, no bloquea)
+  const [carencias, setCarencias] = useState<{ clave: string; lista: Carencia[] } | null>(null)
+  const claveCarencias = `${loteId}:${fecha}`
+  useEffect(() => {
+    if (tipo !== "venta" || !loteId || !fecha) return
+    let vigente = true
+    getCarencias([loteId], fecha)
+      .then(lista => { if (vigente) setCarencias({ clave: `${loteId}:${fecha}`, lista }) })
+      .catch(() => { /* el aviso es opcional */ })
+    return () => { vigente = false }
+  }, [tipo, loteId, fecha])
+  const carenciasVenta = tipo === "venta" && carencias?.clave === claveCarencias ? carencias.lista : []
 
   const lote = lotes.find(l => l.id === loteId)
   const especieId = tipo === "compra" && destinoNuevo ? nuevoEspecie : lote?.especie_id
@@ -455,6 +469,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
             )}
           </fieldset>
         )}
+
+        {carenciasVenta.length > 0 && <AvisoCarencia carencias={carenciasVenta} texto="El lote está en carencia ese día. Podés registrar la venta igual." />}
 
         {/* Compra y venta */}
         {(tipo === "compra" || tipo === "venta") && (

@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Merge, SlidersH
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
 import { getPotreros } from "@/lib/queries/potreros"
+import { getCarencias } from "@/lib/queries/actividades"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +19,9 @@ import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
 import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
-import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
+import { ETIQUETA_EVENTO, fechaCorta, hoyLocal } from "@/components/lotes/formato"
+import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
+import type { Carencia } from "@/types/actividades"
 import type { Potrero } from "@/types/database"
 import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
 
@@ -31,6 +34,7 @@ interface Ficha {
   stock: StockLote[]
   eventos: LoteEvento[]
   cambios: CambioEstadoLote[]
+  carencias: Carencia[]
 }
 
 export default function LotePage() {
@@ -46,16 +50,17 @@ export default function LotePage() {
     const clave = `${id}:${version}`
     getLote(id)
       .then(async lote => {
-        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [], cambios: [] }
-        const [especies, categorias, potreros, stock, eventos, cambios] = await Promise.all([
+        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [], cambios: [], carencias: [] }
+        const [especies, categorias, potreros, stock, eventos, cambios, carencias] = await Promise.all([
           getEspecies(lote.establecimiento_id),
           getCategorias(lote.establecimiento_id),
           getPotreros(lote.establecimiento_id),
           getStockLote(lote.id),
           getEventosLote(lote.id),
           getCambiosEstadoLote(lote.id),
+          getCarencias([lote.id], hoyLocal()),
         ])
-        return { clave, lote, especies, categorias, potreros, stock, eventos, cambios }
+        return { clave, lote, especies, categorias, potreros, stock, eventos, cambios, carencias }
       })
       .then(datos => {
         if (vigente) setFicha(datos)
@@ -122,6 +127,14 @@ export default function LotePage() {
           <p className="text-sm mt-2 text-muted-foreground">Motivo del cierre: {ultimoCierre.motivo}</p>
         )}
       </div>
+
+      {/* Carencia vigente (aviso; la venta también lo muestra) */}
+      {lote.estado === "activo" && vigente.carencias.length > 0 && (
+        <div className="mb-6">
+          <AvisoCarencia carencias={vigente.carencias}
+            texto={`En carencia hasta el ${fechaCorta(vigente.carencias.reduce((m, c) => (c.fin_carencia > m ? c.fin_carencia : m), ""))}`} />
+        </div>
+      )}
 
       {/* Operaciones de lote */}
       {operable && (
