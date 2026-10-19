@@ -1,6 +1,6 @@
 # Campo Digital — Diseño de la base, Etapa 6b (resto de las actividades)
 
-Estado: **en revisión** (2026-10-19). Incorpora las respuestas de Iñaki al primer borrador (sección 10). Quedan abiertas las preguntas de la sección 9. No hay migraciones escritas. Base: `00-ENFOQUE-V2.md` (secciones 7 y 8), `MODELO-DE-DATOS-V2.md` (sección 6), `DISENO-BASE-ETAPA-5.md` (operaciones de lote) y `DISENO-BASE-ETAPA-6A.md`.
+Estado: **aprobado** (2026-10-19), con la partición en 6b-1 y 6b-2. Incorpora las dos rondas de respuestas de Iñaki (secciones 9 y 10). Se implementa primero la **6b-1**. Base: `00-ENFOQUE-V2.md` (secciones 7 y 8), `MODELO-DE-DATOS-V2.md` (sección 6), `DISENO-BASE-ETAPA-5.md` (operaciones de lote) y `DISENO-BASE-ETAPA-6A.md`.
 
 Marcas: **[Decidido]** sale de esos documentos o de las respuestas de Iñaki; **[Propuesta]** es diseño a validar.
 
@@ -21,16 +21,16 @@ Se mantiene todo lo de la 6a: tabla común `actividades`, un detalle por tipo, u
 
 **Antiparasitario deja de ser un tipo propio** [Decidido]: es una categoría de producto dentro de sanidad. El valor `antiparasitario` queda en el check de `actividades.tipo` (no se migra el check), pero ninguna función lo escribe.
 
-**Partición recomendada** [Propuesta]: **6b-1** con todo lo que no mueve stock, y **6b-2** con el destete. Motivos:
+**Partición** [Decidido]: **6b-1** con todo lo que no mueve stock, y **6b-2** con el destete. Motivos:
 
 1. **Riesgo distinto.** La 6b-1 solo agrega tablas y funciones nuevas, sin tocar el libro de stock. La 6b-2 cambia los checks de `lote_eventos` y `operaciones_lote` (tablas inmutables con datos reales), reemplaza `linaje_lote` y `anular_actividad`, y abre y cierra lotes.
 2. **Pruebas más chicas y con causa clara.** Si algo falla en la 6b-2, se sabe que es el destete. Además, la 6b-2 obliga a volver a correr las pruebas de la Etapa 5 (linaje) y de la 6a (anulación); la 6b-1 no.
 3. **Valor antes.** Sanidad es lo que más se va a cargar; con la 6b-1 aplicada ya se puede usar mientras se revisa el destete.
-4. **Costo bajo.** Lo único que la 6b-1 tiene que prever para el destete es el rol de lote `origen` y `destino` en `actividad_lotes` (sección 2), para no migrarlo después.
+4. **Costo bajo.** Lo único que la 6b-1 tiene que prever para el destete es el rol de lote `origen` y `destino` en `actividad_lotes` (sección 2) y la columna `operaciones_lote.actividad_id` (sección 3.1, carencia), para no migrarlos después.
 
 ---
 
-## 2. Varios lotes por actividad: `actividad_lotes` [Propuesta]
+## 2. Varios lotes por actividad: `actividad_lotes` [Decidido]
 
 Una tabla nueva, **para todos los tipos**, dice a qué lotes concierne cada actividad:
 
@@ -47,12 +47,19 @@ PK `(actividad_id, lote_id, rol)`. Inmutable, como el resto de las tablas de act
 - **Tipos de un lote** (pesada, mortandad, compra, venta, parición, servicio, diagnóstico): `lote_id` sigue siendo el lote principal, como hoy. Además tienen su fila `principal` en `actividad_lotes`.
 - **Tipos de varios lotes** (sanidad, esquila, personalizada, destete): `lote_id` queda en null; los lotes están solo en `actividad_lotes`.
 - **Sin reescribir las funciones de la 6a**: dos triggers completan `actividad_lotes` solos. Uno, al insertar una actividad con `lote_id`, agrega su fila `principal`; otro, al insertar en `act_paricion`, agrega la fila `cria`. Las funciones de la 6a y sus pruebas quedan como están.
+- **Funciones de trigger** [Decidido]: `security definer`, `search_path` fijo y sin `execute` para `authenticated` (ni `anon`). La prueba las ejercita con la sesión de un operador, no como `postgres`.
 - **Datos existentes**: la migración carga las filas de las actividades ya registradas (`lote_id` como `principal` y el lote de cría de las pariciones como `cria`).
 
 **Cómo se ve:**
 - `v_actividades` suma la columna `lotes` (lista de ids, ordenada por nombre) para mostrar los nombres en el listado.
 - El **historial y el filtro por lote** buscan en `actividad_lotes`: una sanidad a tres lotes aparece en la ficha de cada uno. Hoy el filtro mira `lote_id` y `lote_cria_id`; pasa a mirar `actividad_lotes`.
 - La **ficha de la actividad** lista todos sus lotes con enlace.
+
+**`lote_id` en null** (verificado el 2026-10-19 en la migración `20261016000400`):
+- `actividades.lote_id` ya es nullable: no hay nada que relajar.
+- `anular_actividad` lo tolera: lo une a los lotes de los eventos y descarta los null antes de armar la lista de lotes a bloquear, y la lista vacía pasa por `coalesce(..., '{}')` (el patrón que corrigió el bug de `unir_lotes`).
+- `v_actividades` no hace join por `lote_id`; `proteger_actividad` lo compara con `is distinct from`. La vista nueva toma los lotes de `actividad_lotes` con left join.
+- En la app, la ficha y la tarjeta ya contemplan `lote_id` vacío. El filtro por lote (`lote_id` o `lote_cria_id`) pasa a `actividad_lotes`.
 
 **Validación de los lotes** (todas las funciones de varios lotes): sin repetidos, al menos uno, todos activos, del establecimiento y con permiso de carga. Se bloquean ordenados por id. La fecha no puede ser futura ni anterior a la apertura de ninguno.
 
@@ -79,11 +86,17 @@ Una carga lleva **uno o más productos** y se entiende que fue **a todo el lote*
 
 Hasta 20 productos por carga [Propuesta]. Sin inventario de insumos.
 
-**Carencia:** `fin_carencia = fecha + carencia_dias` por producto. Una vista nueva, `v_carencias` (`security_invoker`), da por lote las carencias de sanidades no anuladas: lote, producto, fin de carencia y actividad. El formulario de venta la consulta y **avisa sin bloquear** si algún lote está en carencia ese día, con producto y fecha. La ficha del lote muestra "En carencia hasta el …".
+**Carencia:** `fin_carencia = fecha + carencia_dias` por producto (solo productos con carencia > 0). Una vista nueva, `v_carencias` (`security_invoker`), da por lote las carencias de sanidades no anuladas: lote, producto, categoría, fin de carencia, actividad y si es heredada. El formulario de venta la consulta y **avisa sin bloquear** si algún lote está en carencia ese día, con producto y fecha. La ficha del lote muestra "En carencia hasta el …".
+
+**Propagación a los lotes descendientes** [Decidido]: si después de la sanidad el lote se divide, se une o se desteta, los animales tratados siguen en carencia en los lotes nuevos. La vista recorre `operacion_lote_vinculos` desde los lotes de la sanidad:
+- Toma **todas las operaciones salvo la recategorización** (que no cambia de lote), para que el destete de la 6b-2 entre sin reemplazar la vista.
+- Solo operaciones con fecha **igual o posterior** a la de la sanidad. Una operación del mismo día se toma como posterior (lo más prudente para una carencia).
+- Excluye las operaciones de **actividades anuladas**. Para eso, `operaciones_lote` gana `actividad_id` (FK compuesta, nullable) **ya en la 6b-1**; la división, la unión y la recategorización lo dejan en null, y el destete de la 6b-2 lo completa.
+- **Falso positivo conocido**: si al lote descendiente entran animales comprados después, la carencia se le marca a todo el lote. Es un aviso, no un bloqueo; se acepta.
 
 ### 3.2 Servicio [Decidido]
 
-Un lote (`actividades.lote_id`) y una sola fecha (la de realización). `act_servicio`: `vacas_entoradas` (int > 0) y `toros` (int > 0, opcional). Ver la pregunta 1 de la sección 9.
+Un lote (`actividades.lote_id`) y una sola fecha (la de realización). `act_servicio`: `vacas_entoradas` (int > 0, **obligatorio**) y `toros` (int > 0 si viene, opcional).
 
 ### 3.3 Diagnóstico de gestación [Decidido]
 
@@ -93,7 +106,7 @@ Un lote. `act_diagnostico`: `vacas_diagnosticadas` (int > 0) y `vacas_prenadas` 
 
 ### 3.4 Esquila [Decidido]
 
-Uno o más lotes, **todos ovinos**. `act_esquila`: `kg_lana_total` (numeric(10,1), > 0), uno solo para toda la carga (para tener kg por lote, una carga por lote). Sin líneas. **Kg por cabeza** = kg de lana / stock de esos lotes a la fecha, calculado en la vista.
+Uno o más lotes, **todos ovinos** (especie llamada "Ovinos" en el establecimiento). `act_esquila`: `kg_lana_total` (numeric(10,1), > 0), uno solo para toda la carga (para tener kg por lote, una carga por lote). Sin líneas. **Kg por cabeza, promedio aproximado** [Decidido]: kg de lana / stock total de esos lotes a la fecha (incluye todas las categorías, también las que no se esquilaron). La vista lo llama `kg_lana_cabeza_aprox` y la app lo rotula como aproximado.
 
 ### 3.5 Personalizada [Decidido]
 
@@ -129,11 +142,14 @@ Las de varios lotes reciben el establecimiento explícito, como `registrar_compr
 
 **Datos por lote de origen:** nombre del lote nuevo (sugerido "Destetados <nombre del origen> <año>", editable) y potrero opcional.
 
+**Se hace sobre el lote de cría** [Decidido]: no se prevé el lote con madres y crías juntas. La app avisa (sin bloquear) si el lote trae categorías de adultos.
+
 **Reglas:**
 - Lotes de origen activos, con stock, sin repetidos; bloqueo ordenado por id.
 - Fecha igual o posterior al último evento de cada origen, como `unir_lotes` (no puede haber movimientos después de que el lote se vació).
 - Eventos con saldo validado día por día; cierre del origen con registro en `lote_cambios_estado` (motivo "Destetado").
-- Linaje: una `operaciones_lote` de tipo `destete` **por cada par origen → destino**, con sus `operacion_lote_vinculos`. Si fuera una sola operación para toda la carga, el linaje cruzaría todos los orígenes con todos los destinos.
+- Linaje: una `operaciones_lote` de tipo `destete` **por cada par origen → destino**, con sus `operacion_lote_vinculos` y su `actividad_id`. Si fuera una sola operación para toda la carga, el linaje cruzaría todos los orígenes con todos los destinos.
+- `linaje_lote` se reemplaza para **excluir las operaciones de actividades anuladas** [Decidido].
 - Los eventos llevan `actividad_id` y `operacion_lote_id`.
 
 **Cambios en el esquema que exige** (verificado en la migración `20261015000100`):
@@ -144,11 +160,12 @@ Las de varios lotes reciben el establecimiento explícito, como `registrar_compr
 | `lote_eventos`, regla de operación | `(tipo in ('division','union','recategorizacion')) = (operacion_lote_id is not null)` | sumar `destete` a la lista |
 | `lote_eventos`, regla de actividad (6a) | paricion, compra, venta, mortandad exigen `actividad_id` | sumar `destete` |
 | `operaciones_lote.tipo` (check) | division, union, recategorizacion | agregar `destete` |
-| `linaje_lote` | toma todo menos recategorización | incluye el destete sin cambios; ver pregunta 4 |
+| `linaje_lote` | toma todo menos recategorización | se reemplaza para excluir operaciones de actividades anuladas |
+| `operaciones_lote.actividad_id` | no existe | **se agrega en la 6b-1** (carencia); el destete lo completa |
 
 Los checks se reemplazan con `drop constraint` + `add constraint`. Los de `lote_eventos` y el de `operaciones_lote` se crearon sin nombre, así que la migración tiene que buscar el nombre real en `pg_constraint` (por la definición) antes de borrarlo. Agregar un check revalida las filas existentes, que lo cumplen.
 
-**Anular un destete:** eventos inversos con la fecha original; reabre los orígenes (registro de reapertura) y cierra los destinos que quedan vacíos. Solo se puede si los animales **siguen en el lote nuevo** (pregunta 3). Reemplaza `anular_actividad`.
+**Anular un destete:** eventos inversos con la fecha original; reabre los orígenes (registro de reapertura) y cierra los destinos que quedan vacíos. **Regla estricta** [Decidido]: el lote destino no puede tener **ningún evento que no pertenezca al propio destete**, cualquiera sea su fecha (cubre eventos cargados después con fecha anterior). Si los tiene, primero se anulan esos. Reemplaza `anular_actividad`.
 
 **Función:** `registrar_destete(p_id, establecimiento, fecha, destetes jsonb [{lote_id, nombre, potrero_id}], persona, notas)`.
 
@@ -160,6 +177,8 @@ Los checks se reemplazan con `drop constraint` + `add constraint`. Los de `lote_
 - **Selector de lotes** en sanidad, esquila, personalizada y destete: lista de lotes activos con casillas (en esquila, solo ovinos).
 - **Sanidad:** filas de producto (producto, categoría, dosis, vía, carencia, próxima dosis), con "Agregar otro producto".
 - **Servicio y diagnóstico:** avisan (sin bloquear) si las cabezas superan el stock del lote a esa fecha.
+- **Esquila:** kg por cabeza rotulado como promedio aproximado.
+- **Destete:** aviso (sin bloquear) si el lote trae categorías de adultos.
 - **Venta:** aviso de carencia, con producto y fecha.
 - **Ficha del lote:** "En carencia hasta el …" y las actividades de varios lotes en su historial.
 - **Listado y ficha de la actividad:** los lotes de la actividad y el resumen de cada tipo.
@@ -180,7 +199,10 @@ Iguales a la 6a: `select` para miembros por RLS; escritura solo por funciones (a
 - Esquila con un lote vacuno entre los lotes: error. Kg por cabeza con el stock a la fecha.
 - Diagnóstico con preñadas > diagnosticadas: error. Entoradas mayores que el stock: **se guardan** (solo aviso).
 - Personalizada sin nombre, con campos vacíos, repetidos o más de 20: error.
-- `actividad_lotes`: filas cargadas para las actividades de la 6a (por los triggers y por la carga inicial) y filtro por lote que encuentra una sanidad de varios lotes.
+- `actividad_lotes`: filas cargadas para las actividades de la 6a por la carga inicial, y **creadas por los triggers con la sesión de un operador** (una pesada y una parición de la 6a, y un servicio de la 6b-1).
+- **Anular cada tipo de varios lotes** (sanidad, esquila, personalizada): solo se marcan.
+- **Listado y filtro por lote**: una sanidad de varios lotes aparece en el filtro de cada uno.
+- **Carencia**: una sanidad cuyo lote se divide después aparece en `v_carencias` también para los lotes nuevos (heredada); una sanidad anulada no aparece; un producto sin carencia no aparece.
 - Consulta, usuario ajeno y anon. Se actualiza `auditoria_permisos.sql`.
 
 **6b-2** (`supabase/tests/etapa6b2_rls.sql`): destete de uno y de varios lotes (stock, cierre, linaje por par), fecha anterior al último evento, lote vacío, anulación (stock, reapertura, cierre del destino), anulación con los animales ya movidos (error). Se vuelven a correr `etapa5_rls.sql` y `etapa6a_rls.sql`.
@@ -193,19 +215,19 @@ Iguales a la 6a: `select` para miembros por RLS; escritura solo por funciones (a
 
 ---
 
-## 9. Preguntas abiertas
+## 9. Respuestas de la segunda revisión (2026-10-19)
 
-1. **Servicio: ¿`vacas_entoradas` es obligatorio?** La respuesta dice "vacas_entoradas y toros opcional". Lo leí como entoradas obligatorio (es la base de los tres indicadores) y toros opcional. Si ambos son opcionales, un servicio sin entoradas no sirve para los indicadores.
-2. **Diagnóstico: ¿preñadas puede ser 0?** La respuesta dice "números > 0", pero un diagnóstico con todas vacías es real. Propongo diagnosticadas > 0 y preñadas ≥ 0.
-3. **Anular un destete "si los animales siguen en el lote nuevo"**: ¿alcanza con que el saldo del lote nuevo no quede negativo ningún día (la regla general), o se exige que el lote nuevo no haya tenido **ningún** movimiento después del destete? Con la regla general, si al lote nuevo entró una compra, la anulación devuelve los destetados, el lote nuevo queda con lo comprado y sigue abierto. Propongo la estricta: más simple de entender, y si hubo movimientos se anulan primero.
-4. **Linaje de un destete anulado**: los vínculos de `operacion_lote_vinculos` son inmutables, así que el linaje seguiría mostrando el destete anulado. Propongo agregar `actividad_id` a `operaciones_lote` y que `linaje_lote` (reemplazada) excluya las operaciones cuya actividad está anulada. Es parte de la 6b-2.
-5. **`actividad_lotes` con triggers** (sección 2) en vez de reescribir las cinco funciones de la 6a. ¿De acuerdo?
-6. **Destete de un lote con madres y crías juntas**: "todo su stock pasa" movería también a las madres. Asumo que el destete se hace sobre el lote de cría (que la parición ya separa). ¿Hace falta prever el caso mezclado?
-7. **Varios lotes de distinta especie** en sanidad y personalizada: los permito (por ejemplo, una curación a vacunos y ovinos el mismo día). Esquila exige todos ovinos.
-8. **Relación por lote para los indicadores (Etapa 7)**: si entre el servicio y la parición el rodeo se divide o se une, la relación por lote se pierde. No cambia nada ahora; en la Etapa 7 se puede seguir por el linaje. Lo anoto para no olvidarlo.
-9. **Partición en 6b-1 y 6b-2**: recomendada (sección 1).
+1. Servicio: `vacas_entoradas` obligatorio (> 0); `toros` opcional (> 0 si viene).
+2. Diagnóstico: diagnosticadas > 0; preñadas ≥ 0 y ≤ diagnosticadas.
+3. Anular destete con regla estricta: el destino no puede tener ningún evento ajeno al destete.
+4. `operaciones_lote` gana `actividad_id` (en la 6b-1, por la carencia); `linaje_lote` excluye las operaciones anuladas (6b-2).
+5. Triggers para `actividad_lotes`: sí, `security definer`, `search_path` fijo, sin `execute` para `authenticated`; probados con un operador.
+6. Destete sobre el lote de cría; la app avisa si hay categorías de adultos.
+7. Especies mezcladas permitidas, salvo en la esquila.
+8. Etapa 7: relacionar servicio, diagnóstico y parición siguiendo `linaje_lote`.
+9. Partición aprobada; se empieza por la 6b-1.
 
----
+Ajustes: carencia propagada a los descendientes (3.1), verificación de `lote_id` en null (sección 2), triggers `security definer` (sección 2) y kg de lana por cabeza como promedio aproximado (3.4).
 
 ## 10. Cambios por las respuestas de Iñaki (2026-10-19)
 
