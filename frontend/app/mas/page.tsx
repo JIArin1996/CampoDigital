@@ -18,7 +18,7 @@ export default function MasPage() {
   const configuracion = NAV_CONFIGURACION.filter(i => !i.soloAdmin || esAdmin)
 
   return (
-    <PageContainer title="Más">
+    <PageContainer title="Configuraciones">
       <div className="space-y-6 max-w-xl">
         <Grupo items={SECCIONES} hayActivo={hayActivo} />
 

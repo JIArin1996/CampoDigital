@@ -103,7 +103,7 @@ export default function InicioPage() {
         ) : (
           <p className="text-muted-foreground mt-1">
             {esAdmin
-              ? "Todavía no hay establecimientos. Creá el primero desde Más → Establecimientos."
+              ? "Todavía no hay establecimientos. Creá el primero desde Configuraciones → Establecimientos."
               : "Todavía no tenés establecimientos asignados. Pedile acceso al administrador."}
           </p>
         )}

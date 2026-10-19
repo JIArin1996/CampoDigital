@@ -100,7 +100,8 @@ export function Sidebar() {
               ? RUTAS_DE_MAS.some(r => enRuta(pathname, r))
               : enRuta(pathname, item.href)
             return (
-              <li key={item.href} className="flex-1">
+              // "Configuraciones" es más largo: un poco más de ancho para que entre en una línea
+              <li key={item.href} className={item.href === "/mas" ? "flex-[1.4]" : "flex-1"}>
                 {deshabilitado ? (
                   <span className="flex flex-col items-center justify-center gap-1 h-full text-[11px] font-medium text-muted-foreground opacity-50">
                     <Icono className="h-6 w-6" />
@@ -111,7 +112,7 @@ export function Sidebar() {
                     href={item.href}
                     aria-current={activo ? "page" : undefined}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 h-full text-[11px] font-semibold transition-colors",
+                      "flex flex-col items-center justify-center gap-1 h-full text-[11px] font-semibold whitespace-nowrap transition-colors",
                       activo ? "text-primary" : "text-muted-foreground"
                     )}
                   >
