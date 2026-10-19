@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { anularActividad, getActividad, getRubros } from "@/lib/queries/actividades"
 import { getPersonas } from "@/lib/queries/bitacora"
-import { getCategorias, getLote } from "@/lib/queries/lotes"
+import { getCategorias, getLote, getLotesPorIds } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,7 @@ interface Ficha extends Detalle {
   clave: string
   lote: Lote | null
   loteCria: Lote | null
+  lotesActividad: Lote[]     // todos los lotes de la actividad (actividad_lotes)
   categorias: CategoriaAnimal[]
   personas: Awaited<ReturnType<typeof getPersonas>>
   rubros: Awaited<ReturnType<typeof getRubros>>
@@ -52,14 +53,15 @@ export default function ActividadPage() {
       .then(async detalle => {
         if (!detalle) return null
         const a = detalle.actividad
-        const [lote, loteCria, categorias, personas, rubros] = await Promise.all([
+        const [lote, loteCria, lotesActividad, categorias, personas, rubros] = await Promise.all([
           a.lote_id ? getLote(a.lote_id) : null,
           a.lote_cria_id ? getLote(a.lote_cria_id) : null,
+          getLotesPorIds(a.lotes ?? []),
           getCategorias(a.establecimiento_id),
           getPersonas(a.establecimiento_id),
           getRubros(a.establecimiento_id),
         ])
-        return { ...detalle, clave, lote, loteCria, categorias, personas, rubros }
+        return { ...detalle, clave, lote, loteCria, lotesActividad, categorias, personas, rubros }
       })
       .then(f => { if (vigente) setFicha(f) })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar la actividad")) })
@@ -74,7 +76,8 @@ export default function ActividadPage() {
   }
   if (!ficha) return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró la actividad.</p></PageContainer>
 
-  const { actividad: a, lineas, movimientos, lote, loteCria } = ficha
+  const { actividad: a, lineas, productos, movimientos, lote, loteCria, lotesActividad } = ficha
+  const titulo = a.tipo === "personalizada" && a.personalizada ? a.personalizada : ETIQUETA_ACTIVIDAD[a.tipo]
   const anulada = !!a.anulada_en
   const puedeAnular = puedeOperarEn(a.establecimiento_id) && !anulada
   const nombreCategoria = (catId: string) => ficha.categorias.find(c => c.id === catId)?.nombre ?? "—"
@@ -110,7 +113,7 @@ export default function ActividadPage() {
 
       <div className="mb-6">
         <div className="flex items-center gap-2 flex-wrap">
-          <h1 className={`text-2xl font-bold ${anulada ? "line-through text-muted-foreground" : ""}`}>{ETIQUETA_ACTIVIDAD[a.tipo]}</h1>
+          <h1 className={`text-2xl font-bold ${anulada ? "line-through text-muted-foreground" : ""}`}>{titulo}</h1>
           {anulada && <Badge variant="secondary">anulada</Badge>}
         </div>
         <p className="text-sm text-muted-foreground mt-1">{fechaCorta(a.fecha)}{persona ? ` · ${persona.nombre}` : ""}</p>
@@ -125,6 +128,21 @@ export default function ActividadPage() {
             <dl className="divide-y">
               {lote && fila(a.tipo === "paricion" ? "Lote de madres" : "Lote", <Link href={`/lotes/${lote.id}`} className="font-medium text-primary">{lote.nombre}</Link>)}
               {loteCria && fila("Lote de cría", <Link href={`/lotes/${loteCria.id}`} className="font-medium text-primary">{loteCria.nombre}</Link>)}
+              {!a.lote_id && lotesActividad.length > 0 && fila(lotesActividad.length === 1 ? "Lote" : "Lotes", (
+                <span className="flex flex-wrap justify-end gap-x-2">
+                  {lotesActividad.map(l => <Link key={l.id} href={`/lotes/${l.id}`} className="font-medium text-primary">{l.nombre}</Link>)}
+                </span>
+              ))}
+              {a.vacas_entoradas != null && fila("Vacas entoradas", a.vacas_entoradas)}
+              {a.toros != null && fila("Toros", a.toros)}
+              {a.vacas_diagnosticadas != null && fila("Diagnosticadas", a.vacas_diagnosticadas)}
+              {a.vacas_prenadas != null && fila("Preñadas", a.vacas_prenadas)}
+              {a.vacas_vacias != null && fila("Vacías", a.vacas_vacias)}
+              {a.vacas_diagnosticadas != null && a.vacas_prenadas != null &&
+                fila("Preñez", porcentaje((a.vacas_prenadas / a.vacas_diagnosticadas) * 100))}
+              {a.kg_lana_total != null && fila("Lana", kg(a.kg_lana_total))}
+              {a.kg_lana_cabeza_aprox != null && fila("Por cabeza (aproximado)", kg(a.kg_lana_cabeza_aprox))}
+              {(a.campos ?? []).map(c => <div key={c.campo}>{fila(c.campo, c.valor)}</div>)}
               {a.lote_creado_id && fila("Lote nuevo", "creado por esta actividad")}
               {a.modalidad && fila("Modalidad", ETIQUETA_MODALIDAD[a.modalidad])}
               {a.contraparte && fila(a.tipo === "compra" ? "Vendedor" : "Comprador", a.contraparte)}
@@ -140,6 +158,28 @@ export default function ActividadPage() {
           </CardContent>
         </Card>
 
+        {productos.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="font-semibold">{productos.length === 1 ? "Producto" : "Productos"}</h2>
+            <ul className="rounded-lg border divide-y bg-card">
+              {productos.map(p => (
+                <li key={p.orden} className="px-4 py-3 space-y-0.5">
+                  <p className="text-sm font-medium">{p.producto} <span className="font-normal text-muted-foreground">· {p.categoria}</span></p>
+                  <p className="text-xs text-muted-foreground">
+                    {[
+                      p.dosis,
+                      p.via,
+                      p.carencia_dias ? `carencia ${p.carencia_dias} días (hasta el ${fechaCorta(sumarDias(a.fecha, p.carencia_dias))})` : null,
+                      p.fecha_proxima_dosis ? `próxima dosis ${fechaCorta(p.fecha_proxima_dosis)}` : null,
+                    ].filter(Boolean).join(" · ") || "Sin más datos"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {lineas.length > 0 && (
         <section className="space-y-2">
           <h2 className="font-semibold">{a.tipo === "paricion" ? "Crías vivas" : "Por categoría"}</h2>
           <ul className="rounded-lg border divide-y bg-card">
@@ -158,6 +198,7 @@ export default function ActividadPage() {
             ))}
           </ul>
         </section>
+        )}
 
         {(a.tipo === "compra" || a.tipo === "venta") && (
           <Card>
@@ -194,10 +235,10 @@ export default function ActividadPage() {
       <Dialog open={anulando} onOpenChange={setAnulando}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Anular {ETIQUETA_ACTIVIDAD[a.tipo].toLowerCase()}</DialogTitle>
+            <DialogTitle>Anular {titulo.toLowerCase()}</DialogTitle>
             <DialogDescription>
-              {a.tipo === "pesada"
-                ? "La pesada queda tachada en el historial, con su motivo."
+              {!["compra", "venta", "mortandad", "paricion"].includes(a.tipo)
+                ? "Queda tachada en el historial, con su motivo. No cambia el stock."
                 : "El stock vuelve a como estaba (con la fecha de la actividad) y el precio, si había, se anula. No se puede deshacer."}
             </DialogDescription>
           </DialogHeader>
@@ -216,4 +257,11 @@ export default function ActividadPage() {
       </Dialog>
     </PageContainer>
   )
+}
+
+// Fecha ISO + n días
+function sumarDias(iso: string, dias: number) {
+  const d = new Date(iso + "T00:00:00")
+  d.setDate(d.getDate() + dias)
+  return d.toLocaleDateString("en-CA")
 }

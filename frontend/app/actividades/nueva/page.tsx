@@ -7,7 +7,8 @@ import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import {
-  getRubros, registrarCompra, registrarMortandad, registrarParicion, registrarPesada, registrarVenta,
+  getNombresPersonalizadas, getRubros, registrarCompra, registrarMortandad, registrarParicion, registrarPesada,
+  registrarVenta,
 } from "@/lib/queries/actividades"
 import { getPersonas } from "@/lib/queries/bitacora"
 import { getCategorias, getEspecies, getLotes, getStockLotes } from "@/lib/queries/lotes"
@@ -21,9 +22,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import {
-  DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, ICONO_ACTIVIDAD, MODALIDADES, TIPOS_6A, esTipo6a,
-  nuevoId,
+  DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, ICONO_ACTIVIDAD, MODALIDADES, TIPOS_6A, TIPOS_6B1,
+  esTipo6a, esTipoCargable, nuevoId,
 } from "@/components/actividades/formato"
+import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { hoyLocal } from "@/components/lotes/formato"
 import { cn } from "@/lib/utils"
@@ -46,6 +48,9 @@ interface Datos {
   personas: Persona[]
   rubros: Rubro[]
   causas: string[]
+  categoriasSanidad: string[]
+  vias: string[]
+  nombresPersonalizadas: string[]
 }
 
 export default function NuevaActividadPage() {
@@ -72,9 +77,14 @@ function NuevaActividad() {
     Promise.all([
       getLotes(estId, "activo"), getEspecies(estId), getCategorias(estId), getStockLotes(estId),
       getPotreros(estId), getPersonas(estId), getRubros(estId), getParametros("causas_mortandad"),
+      getParametros("categorias_sanidad"), getParametros("vias_aplicacion"), getNombresPersonalizadas(estId),
     ])
-      .then(([lotes, especies, categorias, stock, potreros, personas, rubros, causas]) => {
-        if (vigente) setDatos({ estId, lotes, especies, categorias, stock, potreros, personas, rubros, causas })
+      .then(([lotes, especies, categorias, stock, potreros, personas, rubros, causas, categoriasSanidad, vias, nombresPersonalizadas]) => {
+        if (vigente) {
+          setDatos({
+            estId, lotes, especies, categorias, stock, potreros, personas, rubros, causas, categoriasSanidad, vias, nombresPersonalizadas,
+          })
+        }
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudieron cargar los datos")) })
     return () => { vigente = false }
@@ -93,33 +103,39 @@ function NuevaActividad() {
   }
 
   // Sin tipo: elegir qué se carga
-  if (!esTipo6a(tipoParam)) {
+  if (!esTipoCargable(tipoParam)) {
+    const opcion = (t: (typeof TIPOS_6A)[number] | (typeof TIPOS_6B1)[number]) => {
+      const Icono = ICONO_ACTIVIDAD[t]
+      const href = `/actividades/nueva?tipo=${t}${loteParam ? `&lote=${loteParam}` : ""}`
+      return (
+        <li key={t}>
+          <Link href={href} className="flex items-center gap-3 rounded-lg border bg-card px-3 py-3 hover:bg-muted active:bg-muted">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+              <Icono className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold">{ETIQUETA_ACTIVIDAD[t]}</span>
+              <span className="block text-sm text-muted-foreground">{DESCRIPCION_ACTIVIDAD[t]}</span>
+            </span>
+          </Link>
+        </li>
+      )
+    }
     return (
       <PageContainer>
         {volver}
         <h1 className="text-2xl font-bold mb-4">¿Qué actividad cargás?</h1>
-        <ul className="space-y-2 max-w-xl">
-          {TIPOS_6A.map(t => {
-            const Icono = ICONO_ACTIVIDAD[t]
-            const href = `/actividades/nueva?tipo=${t}${loteParam ? `&lote=${loteParam}` : ""}`
-            return (
-              <li key={t}>
-                <Link href={href} className="flex items-center gap-3 rounded-lg border bg-card px-3 py-3 hover:bg-muted active:bg-muted">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                    <Icono className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold">{ETIQUETA_ACTIVIDAD[t]}</span>
-                    <span className="block text-sm text-muted-foreground">{DESCRIPCION_ACTIVIDAD[t]}</span>
-                  </span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-        <p className="text-sm text-muted-foreground mt-4 max-w-xl">
-          Sanidad, servicio, diagnóstico, destete y esquila llegan en la próxima etapa.
-        </p>
+        <div className="space-y-5 max-w-xl">
+          <section>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Cambian el stock o lo miden</h2>
+            <ul className="space-y-2">{TIPOS_6A.map(opcion)}</ul>
+          </section>
+          <section>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Manejo y sanidad</h2>
+            <ul className="space-y-2">{TIPOS_6B1.map(opcion)}</ul>
+          </section>
+          <p className="text-sm text-muted-foreground">El destete llega en la próxima etapa.</p>
+        </div>
       </PageContainer>
     )
   }
@@ -133,17 +149,21 @@ function NuevaActividad() {
   return (
     <PageContainer>
       {volver}
-      <Formulario key={`${tipoParam}:${loteParam}`} tipo={tipoParam} loteInicial={loteParam} datos={datos} />
+      {esTipo6a(tipoParam) ? (
+        <Formulario key={`${tipoParam}:${loteParam}`} tipo={tipoParam} loteInicial={loteParam} datos={datos} />
+      ) : (
+        <FormularioSinStock key={`${tipoParam}:${loteParam}`} tipo={tipoParam} loteInicial={loteParam} datos={datos} />
+      )}
     </PageContainer>
   )
 }
 
 // Nombre por defecto del lote de cría
-function nombreLoteCria(especie: string | undefined, fecha: string) {
+// Por grupo de especie (no por nombre)
+function nombreLoteCria(grupo: string | undefined, fecha: string) {
   const anio = fecha.slice(0, 4)
-  const e = (especie ?? "").toLowerCase()
-  if (e === "vacunos") return `Terneros Nacidos ${anio}`
-  if (e === "ovinos") return `Corderos Nacidos ${anio}`
+  if (grupo === "bovino") return `Terneros Nacidos ${anio}`
+  if (grupo === "ovino") return `Corderos Nacidos ${anio}`
   return `Crías ${anio}`
 }
 
@@ -278,7 +298,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
     let criaNuevo: LoteNuevoCarga | null = null
     if (tipo === "paricion") {
       if (criaNueva) {
-        const nombre = criaNombre.trim() || nombreLoteCria(especie?.nombre, fecha)
+        const nombre = criaNombre.trim() || nombreLoteCria(especie?.grupo, fecha)
         criaNuevo = { nombre }
         if (criaPotrero) criaNuevo.potrero_id = criaPotrero
         if (criaCampana.trim()) criaNuevo.campana = criaCampana.trim()
@@ -546,7 +566,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
               </div>
               {criaNueva ? (
                 <div className="space-y-3">
-                  <Input aria-label="Nombre del lote de cría" className={CAMPO} placeholder={nombreLoteCria(especie?.nombre, fecha)}
+                  <Input aria-label="Nombre del lote de cría" className={CAMPO} placeholder={nombreLoteCria(especie?.grupo, fecha)}
                     value={criaNombre} onChange={e => setCriaNombre(e.target.value)} />
                   <div className="grid grid-cols-2 gap-3">
                     <select aria-label="Potrero del lote de cría" className={SELECT_NATIVO} value={criaPotrero} onChange={e => setCriaPotrero(e.target.value)}>

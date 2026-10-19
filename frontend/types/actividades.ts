@@ -27,14 +27,13 @@ type Requeridas = 'id' | 'establecimiento_id' | 'tipo' | 'fecha' | 'created_at'
 
 // Fila de v_actividades: la actividad con totales, detalle y monto (peso promedio, rendimiento,
 // vacías y kg de lana por cabeza calculados). lotes: todos los lotes de la actividad (actividad_lotes).
-export type ActividadResumen = Omit<Tables<'v_actividades'>, Requeridas | 'modalidad' | 'lotes' | 'campos'> & {
+export type ActividadResumen = Omit<Tables<'v_actividades'>, Requeridas | 'modalidad' | 'campos'> & {
   id: string
   establecimiento_id: string
   tipo: TipoActividad
   fecha: string
   created_at: string
   modalidad: Modalidad | null
-  lotes: string[]
   campos: CampoPersonalizado[] | null
 }
 

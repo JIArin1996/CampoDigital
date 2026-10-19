@@ -12,10 +12,10 @@ import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { buttonVariants } from "@/components/ui/button"
 import { TarjetaActividad } from "@/components/actividades/TarjetaActividad"
-import { ETIQUETA_ACTIVIDAD, TIPOS_6A, esTipo6a } from "@/components/actividades/formato"
+import { ETIQUETA_ACTIVIDAD, TIPOS_CARGABLES, esTipoCargable } from "@/components/actividades/formato"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
-import type { ActividadResumen, TipoActividad6a } from "@/types/actividades"
+import type { ActividadResumen, TipoCargable } from "@/types/actividades"
 
 interface Datos {
   clave: string
@@ -38,7 +38,7 @@ function Actividades() {
   const estId = establecimientoActivo?.id
 
   // Filtros (se pueden pasar por la URL: ?tipo=venta&lote=<id>)
-  const [tipo, setTipo] = useState<TipoActividad6a | null>(esTipo6a(params.get("tipo")) ? (params.get("tipo") as TipoActividad6a) : null)
+  const [tipo, setTipo] = useState<TipoCargable | null>(esTipoCargable(params.get("tipo")) ? (params.get("tipo") as TipoCargable) : null)
   const [loteId, setLoteId] = useState(params.get("lote") ?? "")
   const [incluirAnuladas, setIncluirAnuladas] = useState(false)
 
@@ -93,7 +93,7 @@ function Actividades() {
       <div className="space-y-3 mb-5">
         <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Tipo">
           <button type="button" className={chip(!tipo)} onClick={() => setTipo(null)}>Todas</button>
-          {TIPOS_6A.map(t => (
+          {TIPOS_CARGABLES.map(t => (
             <button key={t} type="button" aria-pressed={tipo === t} className={chip(tipo === t)} onClick={() => setTipo(t)}>
               {ETIQUETA_ACTIVIDAD[t]}
             </button>

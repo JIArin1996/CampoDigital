@@ -61,6 +61,14 @@ export async function getLote(id: string) {
   return data as Lote | null
 }
 
+// Varios lotes por id (los que el RLS deja ver), ordenados por nombre
+export async function getLotesPorIds(ids: string[]) {
+  if (ids.length === 0) return []
+  const { data, error } = await createClient().from('lotes').select('*').in('id', ids).order('nombre')
+  if (error) throw error
+  return data as Lote[]
+}
+
 // Historial del lote, del más nuevo al más viejo
 export async function getEventosLote(lote_id: string) {
   const supabase = createClient()
