@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { BOTON, CAMPO, SELECT_NATIVO, hoyLocal } from "@/components/lotes/formato"
+import { SelectorAnios } from "@/components/lotes/SelectorAnios"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 
@@ -35,7 +36,7 @@ export default function NuevoLotePage() {
   const [nombre, setNombre] = useState("")
   const [fecha, setFecha] = useState(hoyLocal())
   const [potreroId, setPotreroId] = useState("")
-  const [campana, setCampana] = useState("")
+  const [anios, setAnios] = useState<number[]>([])
   const [notas, setNotas] = useState("")
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
@@ -90,7 +91,7 @@ export default function NuevoLotePage() {
         fecha_apertura: fecha,
         composicion,
         potrero_id: potreroId || null,
-        campana: campana.trim() || null,
+        anios_nacimiento: anios,
         notas: notas.trim() || null,
       })
       toast.success("Lote creado")
@@ -190,8 +191,7 @@ export default function NuevoLotePage() {
           </div>
         </fieldset>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+        <div className="space-y-1.5">
             <Label htmlFor="lote-potrero">Potrero</Label>
             <select
               id="lote-potrero"
@@ -205,16 +205,10 @@ export default function NuevoLotePage() {
               ))}
             </select>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="lote-campana">Campaña</Label>
-            <Input
-              id="lote-campana"
-              placeholder="Ej: 2026"
-              className={CAMPO}
-              value={campana}
-              onChange={e => setCampana(e.target.value)}
-            />
-          </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="lote-anios">Año de nacimiento</Label>
+          <SelectorAnios id="lote-anios" valor={anios} onCambio={setAnios} />
         </div>
 
         <div className="space-y-1.5">

@@ -86,5 +86,5 @@ export type LoteNuevoCarga = {
   nombre: string
   especie_id?: string        // solo en la compra; en la parición es la del lote de madres
   potrero_id?: string
-  campana?: string
+  anios_nacimiento?: number[]   // solo en la compra (los que indique el formulario); la parición no los toca
 }

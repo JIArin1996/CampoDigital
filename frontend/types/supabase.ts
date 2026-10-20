@@ -620,6 +620,50 @@ export type Database = {
           },
         ]
       }
+      archivos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          ruta: string
+          tamano_bytes: number
+          tipo: string
+          tipo_mime: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          ruta: string
+          tamano_bytes: number
+          tipo: string
+          tipo_mime: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          ruta?: string
+          tamano_bytes?: number
+          tipo?: string
+          tipo_mime?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "archivos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bitacora_entradas: {
         Row: {
           anulada_en: string | null
@@ -887,6 +931,71 @@ export type Database = {
         }
         Relationships: []
       }
+      lote_archivos: {
+        Row: {
+          archivo_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          heredado_de_lote_id: string | null
+          lote_id: string
+          ocultado_en: string | null
+          ocultado_por: string | null
+          oculto: boolean
+        }
+        Insert: {
+          archivo_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          heredado_de_lote_id?: string | null
+          lote_id: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+        }
+        Update: {
+          archivo_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          heredado_de_lote_id?: string | null
+          lote_id?: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lote_archivos_archivo_id_establecimiento_id_fkey"
+            columns: ["archivo_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lote_archivos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_archivos_heredado_de_lote_id_establecimiento_id_fkey"
+            columns: ["heredado_de_lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lote_archivos_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       lote_cambios_estado: {
         Row: {
           created_at: string
@@ -1035,6 +1144,7 @@ export type Database = {
       }
       lotes: {
         Row: {
+          anios_nacimiento: number[]
           campana: string | null
           created_at: string
           created_by: string | null
@@ -1050,6 +1160,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          anios_nacimiento?: number[]
           campana?: string | null
           created_at?: string
           created_by?: string | null
@@ -1065,6 +1176,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          anios_nacimiento?: number[]
           campana?: string | null
           created_at?: string
           created_by?: string | null
@@ -1727,6 +1839,12 @@ export type Database = {
         Args: { p_establecimiento_id: string; p_id: string; p_tipo: string }
         Returns: boolean
       }
+      _anios_de_jsonb: { Args: { p_valor: Json }; Returns: number[] }
+      _anios_de_texto: { Args: { p_texto: string }; Returns: number[] }
+      _archivo_permitido: {
+        Args: { p_mime: string; p_nombre: string }
+        Returns: boolean
+      }
       _bloquear_entrada_bitacora: {
         Args: { p_entrada_id: string }
         Returns: {
@@ -1756,6 +1874,7 @@ export type Database = {
       _bloquear_lote_editable: {
         Args: { p_lote_id: string }
         Returns: {
+          anios_nacimiento: number[]
           campana: string | null
           created_at: string
           created_by: string | null
@@ -1860,6 +1979,15 @@ export type Database = {
         Args: { p_categoria_id: string; p_lote_id: string }
         Returns: undefined
       }
+      adjuntar_archivo_lote: {
+        Args: {
+          p_archivo_id: string
+          p_lote_id: string
+          p_nombre: string
+          p_tipo?: string
+        }
+        Returns: string
+      }
       anular_actividad: {
         Args: { p_actividad_id: string; p_motivo: string }
         Returns: undefined
@@ -1910,6 +2038,7 @@ export type Database = {
       }
       crear_lote: {
         Args: {
+          p_anios_nacimiento?: number[]
           p_campana?: string
           p_composicion: Json
           p_especie_id: string
@@ -1969,6 +2098,10 @@ export type Database = {
       puede_operar: { Args: { p_est: string }; Returns: boolean }
       quitar_acceso: {
         Args: { p_establecimiento_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      quitar_archivo_lote: {
+        Args: { p_archivo_id: string; p_lote_id: string }
         Returns: undefined
       }
       reabrir_lote: {
@@ -2124,6 +2257,10 @@ export type Database = {
           p_precio?: Json
         }
         Returns: string
+      }
+      restaurar_archivo_lote: {
+        Args: { p_archivo_id: string; p_lote_id: string }
+        Returns: undefined
       }
       restaurar_entrada_bitacora: {
         Args: { p_entrada_id: string }

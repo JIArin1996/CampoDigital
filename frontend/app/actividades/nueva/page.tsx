@@ -27,6 +27,7 @@ import {
 } from "@/components/actividades/formato"
 import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
+import { SelectorAnios } from "@/components/lotes/SelectorAnios"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { hoyLocal } from "@/components/lotes/formato"
 import { cn } from "@/lib/utils"
@@ -189,7 +190,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [nuevoNombre, setNuevoNombre] = useState("")
   const [nuevoEspecie, setNuevoEspecie] = useState(especies[0]?.id ?? "")
   const [nuevoPotrero, setNuevoPotrero] = useState("")
-  const [nuevoCampana, setNuevoCampana] = useState("")
+  const [nuevoAnios, setNuevoAnios] = useState<number[]>([])   // los que se indiquen; no se infieren
 
   // Compra y venta
   const [modalidad, setModalidad] = useState<Modalidad>(tipo === "venta" ? "frigorifico" : "productor")
@@ -212,7 +213,6 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [criaId, setCriaId] = useState("")
   const [criaNombre, setCriaNombre] = useState("")
   const [criaPotrero, setCriaPotrero] = useState("")
-  const [criaCampana, setCriaCampana] = useState("")
   const [nacidosMuertos, setNacidosMuertos] = useState("")
 
   const [error, setError] = useState<string | null>(null)
@@ -315,7 +315,6 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
         const nombre = criaNombre.trim() || nombreLoteCria(especie?.grupo, fecha)
         criaNuevo = { nombre }
         if (criaPotrero) criaNuevo.potrero_id = criaPotrero
-        if (criaCampana.trim()) criaNuevo.campana = criaCampana.trim()
       } else if (!criaId) {
         return setError("Elegí el lote de cría")
       }
@@ -336,7 +335,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
               nombre: nuevoNombre.trim(),
               especie_id: nuevoEspecie,
               ...(nuevoPotrero ? { potrero_id: nuevoPotrero } : {}),
-              ...(nuevoCampana.trim() ? { campana: nuevoCampana.trim() } : {}),
+              ...(nuevoAnios.length > 0 ? { anios_nacimiento: nuevoAnios } : {}),
             }
           : null
         await registrarCompra({
@@ -396,18 +395,16 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                   {especies.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="act-nuevo-potrero">Potrero</Label>
-                  <select id="act-nuevo-potrero" className={SELECT_NATIVO} value={nuevoPotrero} onChange={e => setNuevoPotrero(e.target.value)}>
-                    <option value="">Sin potrero</option>
-                    {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="act-nuevo-campana">Campaña</Label>
-                  <Input id="act-nuevo-campana" className={CAMPO} placeholder="Ej: 2026" value={nuevoCampana} onChange={e => setNuevoCampana(e.target.value)} />
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="act-nuevo-potrero">Potrero</Label>
+                <select id="act-nuevo-potrero" className={SELECT_NATIVO} value={nuevoPotrero} onChange={e => setNuevoPotrero(e.target.value)}>
+                  <option value="">Sin potrero</option>
+                  {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="act-nuevo-anios">Año de nacimiento <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                <SelectorAnios id="act-nuevo-anios" valor={nuevoAnios} onCambio={setNuevoAnios} />
               </div>
             </CardContent>
           </Card>
@@ -584,13 +581,10 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                 <div className="space-y-3">
                   <Input aria-label="Nombre del lote de cría" className={CAMPO} placeholder={nombreLoteCria(especie?.grupo, fecha)}
                     value={criaNombre} onChange={e => setCriaNombre(e.target.value)} />
-                  <div className="grid grid-cols-2 gap-3">
-                    <select aria-label="Potrero del lote de cría" className={SELECT_NATIVO} value={criaPotrero} onChange={e => setCriaPotrero(e.target.value)}>
-                      <option value="">Sin potrero</option>
-                      {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
-                    <Input aria-label="Campaña del lote de cría" className={CAMPO} placeholder="Campaña" value={criaCampana} onChange={e => setCriaCampana(e.target.value)} />
-                  </div>
+                  <select aria-label="Potrero del lote de cría" className={SELECT_NATIVO} value={criaPotrero} onChange={e => setCriaPotrero(e.target.value)}>
+                    <option value="">Sin potrero</option>
+                    {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </select>
                 </div>
               ) : (
                 <select aria-label="Lote de cría existente" className={SELECT_NATIVO} value={criaId} onChange={e => setCriaId(e.target.value)}>

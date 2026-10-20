@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { hoyLocal } from "@/components/lotes/formato"
+import { SelectorAnios } from "@/components/lotes/SelectorAnios"
 
 type Contexto = NonNullable<Awaited<ReturnType<typeof getContextoLote>>>
 
@@ -23,12 +24,12 @@ interface DestinoForm {
   clave: number
   nombre: string
   potrero_id: string
-  campana: string
+  anios: number[] | null   // null = sin tocar: los del origen (precargados)
   cantidades: Record<string, string>
 }
 
 let siguienteClave = 1
-const destinoVacio = (): DestinoForm => ({ clave: siguienteClave++, nombre: "", potrero_id: "", campana: "", cantidades: {} })
+const destinoVacio = (): DestinoForm => ({ clave: siguienteClave++, nombre: "", potrero_id: "", anios: null, cantidades: {} })
 
 export default function DividirLotePage() {
   const { id } = useParams<{ id: string }>()
@@ -89,7 +90,8 @@ export default function DividirLotePage() {
       armados.push({
         nombre: d.nombre.trim(),
         potrero_id: d.potrero_id || null,
-        campana: d.campana.trim() || null,
+        // Lo que muestra la pantalla: los del origen si no se tocaron
+        anios_nacimiento: d.anios ?? lote.anios_nacimiento,
         composicion,
       })
     }
@@ -171,20 +173,21 @@ export default function DividirLotePage() {
                   </div>
                 </fieldset>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`div-potrero-${d.clave}`}>Potrero</Label>
-                    <select id={`div-potrero-${d.clave}`} className={SELECT_NATIVO} value={d.potrero_id}
-                      onChange={e => cambiarDestino(d.clave, { potrero_id: e.target.value })}>
-                      <option value="">Sin potrero</option>
-                      {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`div-campana-${d.clave}`}>Campaña</Label>
-                    <Input id={`div-campana-${d.clave}`} className={CAMPO} placeholder="Ej: 2026"
-                      value={d.campana} onChange={e => cambiarDestino(d.clave, { campana: e.target.value })} />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`div-potrero-${d.clave}`}>Potrero</Label>
+                  <select id={`div-potrero-${d.clave}`} className={SELECT_NATIVO} value={d.potrero_id}
+                    onChange={e => cambiarDestino(d.clave, { potrero_id: e.target.value })}>
+                    <option value="">Sin potrero</option>
+                    {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`div-anios-${d.clave}`}>Año de nacimiento</Label>
+                  <SelectorAnios id={`div-anios-${d.clave}`} valor={d.anios ?? lote.anios_nacimiento}
+                    onCambio={anios => cambiarDestino(d.clave, { anios })} />
+                  {d.anios === null && lote.anios_nacimiento.length > 0 && (
+                    <p className="text-xs text-muted-foreground">Precargado con los del lote de origen.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

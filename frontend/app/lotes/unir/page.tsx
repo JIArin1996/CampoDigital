@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getDestinosOperacion, getEspecies, getLotes, getStockLotes, unirLotes } from "@/lib/queries/lotes"
+import { formatoAnios, normalizarAnios } from "@/components/lotes/anios"
 import { getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
@@ -49,7 +50,6 @@ function UnirLotes() {
   const [destinoId, setDestinoId] = useState("")
   const [nombre, setNombre] = useState("")
   const [potreroId, setPotreroId] = useState("")
-  const [campana, setCampana] = useState("")
   const [fecha, setFecha] = useState(hoyLocal())
   const [notas, setNotas] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +86,10 @@ function UnirLotes() {
   const candidatos = listos.lotes.filter(l => !especieElegida || l.especie_id === especieElegida)
   const destinosPosibles = candidatos.filter(l => !origenes.includes(l.id))
   const totalOrigenes = origenes.reduce((s, id) => s + total(id), 0)
+  // Años de nacimiento del destino: los calcula la base (unión de todos los lotes); acá, la vista previa
+  const aniosDestino = normalizarAnios(
+    [...origenes, ...(modo === "existente" && destinoId ? [destinoId] : [])]
+      .flatMap(id => listos.lotes.find(l => l.id === id)?.anios_nacimiento ?? []))
 
   const alternar = (id: string) => {
     setOrigenes(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
@@ -106,7 +110,7 @@ function UnirLotes() {
         lotes_origen: origenes,
         fecha,
         destino_id: modo === "existente" ? destinoId : null,
-        nuevo: modo === "nuevo" ? { nombre: nombre.trim(), potrero_id: potreroId || null, campana: campana.trim() || null } : null,
+        nuevo: modo === "nuevo" ? { nombre: nombre.trim(), potrero_id: potreroId || null } : null,
         notas: notas.trim() || null,
       })
       const [destino] = await getDestinosOperacion(operacion)
@@ -187,20 +191,19 @@ function UnirLotes() {
                 <Label htmlFor="unir-nombre">Nombre del lote nuevo</Label>
                 <Input id="unir-nombre" className={CAMPO} value={nombre} onChange={e => setNombre(e.target.value)} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="unir-potrero">Potrero</Label>
-                  <select id="unir-potrero" className={SELECT_NATIVO} value={potreroId} onChange={e => setPotreroId(e.target.value)}>
-                    <option value="">Sin potrero</option>
-                    {listos.potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="unir-campana">Campaña</Label>
-                  <Input id="unir-campana" className={CAMPO} value={campana} onChange={e => setCampana(e.target.value)} />
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="unir-potrero">Potrero</Label>
+                <select id="unir-potrero" className={SELECT_NATIVO} value={potreroId} onChange={e => setPotreroId(e.target.value)}>
+                  <option value="">Sin potrero</option>
+                  {listos.potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
               </div>
             </div>
+          )}
+          {origenes.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Año de nacimiento del destino: {aniosDestino.length > 0 ? formatoAnios(aniosDestino) : "sin año"} (se juntan los de todos los lotes).
+            </p>
           )}
         </fieldset>
 

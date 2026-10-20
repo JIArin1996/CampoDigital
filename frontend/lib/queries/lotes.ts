@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { exigirFilas } from '@/lib/supabase/errores'
 import { ordenarEspecies } from '@/components/lotes/agrupacion'
 import type {
   CategoriaAnimal, ComposicionItem, Especie, EstadoLote, Lote, LoteEvento, StockEstablecimiento, StockLote,
@@ -131,7 +132,7 @@ export async function crearLote(params: {
   fecha_apertura: string
   composicion: ComposicionItem[]
   potrero_id?: string | null
-  campana?: string | null
+  anios_nacimiento?: number[]
   notas?: string | null
 }): Promise<string> {
   const supabase = createClient()
@@ -142,8 +143,8 @@ export async function crearLote(params: {
     p_fecha_apertura: params.fecha_apertura,
     p_composicion: params.composicion,
     p_potrero_id: params.potrero_id ?? undefined,
-    p_campana: params.campana ?? undefined,
     p_notas: params.notas ?? undefined,
+    p_anios_nacimiento: params.anios_nacimiento ?? [],
   })
 
   if (error) throw error
@@ -171,13 +172,22 @@ export async function registrarAjuste(params: {
   return data as string
 }
 
+// Edición del lote (nombre, notas y años de nacimiento): update directo con permiso de columna;
+// la política exige poder cargar en el establecimiento. Los años los valida la base.
+export async function editarLote(id: string, cambios: { nombre: string; notas: string | null; anios_nacimiento: number[] }) {
+  const { data, error } = await createClient().from('lotes').update(cambios).eq('id', id).select()
+  if (error) throw error
+  return exigirFilas(data) as Lote
+}
+
 // ── Operaciones de lote (funciones atómicas de la base) ──────────────────────
 
-// Destino de una división: lote nuevo con su composición
+// Destino de una división: lote nuevo con su composición y sus años de nacimiento
+// (la pantalla los precarga con los del origen; si no vinieran, la base hereda los del origen)
 export type DestinoDivision = {
   nombre: string
   potrero_id?: string | null
-  campana?: string | null
+  anios_nacimiento?: number[]
   composicion: ComposicionItem[]
 }
 
@@ -199,7 +209,7 @@ export async function unirLotes(params: {
   lotes_origen: string[]
   fecha: string
   destino_id?: string | null
-  nuevo?: { nombre: string; potrero_id?: string | null; campana?: string | null } | null
+  nuevo?: { nombre: string; potrero_id?: string | null } | null   // los años son la unión de los de los lotes unidos
   notas?: string | null
 }) {
   const supabase = createClient()
