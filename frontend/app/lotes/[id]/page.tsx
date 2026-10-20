@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
+import { ArchivosDelLote } from "@/components/lotes/ArchivosDelLote"
 import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
 import { ETIQUETA_EVENTO, fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { formatoAnios } from "@/components/lotes/anios"
@@ -40,7 +41,7 @@ interface Ficha {
 
 export default function LotePage() {
   const { id } = useParams<{ id: string }>()
-  const { puedeOperarEn, cargando: cargandoCtx } = useEstablecimiento()
+  const { puedeOperarEn, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [ficha, setFicha] = useState<Ficha | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)   // sube para recargar después de un ajuste
@@ -184,6 +185,9 @@ export default function LotePage() {
             <StockPorCategoria filas={vigente.stock} categorias={categoriasEspecie} />
           </CardContent>
         </Card>
+
+        {/* Archivos (trazabilidad y otros); se descargan, nunca se muestran adentro de la app */}
+        <ArchivosDelLote key={`${lote.id}:${lote.estado}`} lote={lote} puedeOperar={puedeOperar} esAdmin={esAdmin} />
 
         {/* Linaje: de qué lotes viene y en cuáles terminó */}
         <LinajeLote loteId={lote.id} version={version} />

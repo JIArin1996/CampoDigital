@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { BOTON, CAMPO, SELECT_NATIVO, hoyLocal } from "@/components/lotes/formato"
 import { SelectorAnios } from "@/components/lotes/SelectorAnios"
+import { ArchivosNuevoLote } from "@/components/lotes/ArchivosNuevoLote"
+import { guardarPendientes } from "@/components/lotes/archivosPendientes"
+import { subirArchivoALote } from "@/lib/queries/archivos"
+import type { ArchivoPorSubir } from "@/types/archivos"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 
@@ -38,6 +42,8 @@ export default function NuevoLotePage() {
   const [potreroId, setPotreroId] = useState("")
   const [anios, setAnios] = useState<number[]>([])
   const [notas, setNotas] = useState("")
+  const [archivos, setArchivos] = useState<ArchivoPorSubir[]>([])
+  const [progreso, setProgreso] = useState<string | null>(null)
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -94,7 +100,29 @@ export default function NuevoLotePage() {
         anios_nacimiento: anios,
         notas: notas.trim() || null,
       })
-      toast.success("Lote creado")
+
+      // Archivos: después de crear el lote. Si alguno falla, el lote queda creado y la ficha
+      // ofrece reintentar (sin volver a elegirlos).
+      const fallidos: ArchivoPorSubir[] = []
+      for (const [i, a] of archivos.entries()) {
+        setProgreso(`Subiendo archivos (${i + 1} de ${archivos.length})...`)
+        try {
+          await subirArchivoALote(estId, id, a)
+        } catch {
+          fallidos.push(a)
+        }
+      }
+      guardarPendientes(id, fallidos)
+
+      if (fallidos.length === 0) {
+        toast.success("Lote creado")
+      } else {
+        toast.warning(
+          `El lote se creó, pero no se ${fallidos.length === 1 ? "pudo subir 1 archivo" : `pudieron subir ${fallidos.length} archivos`}. ` +
+          "Podés reintentar desde la ficha del lote.",
+          { duration: 10000 },
+        )
+      }
       router.push(`/lotes/${id}`)
     } catch (err) {
       setError(mensajeDeError(err))
@@ -222,11 +250,16 @@ export default function NuevoLotePage() {
           />
         </div>
 
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium">Archivos</p>
+          <ArchivosNuevoLote valor={archivos} onCambio={setArchivos} disabled={enviando} />
+        </div>
+
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-3">
           <Button type="submit" className={BOTON} disabled={enviando}>
-            {enviando ? "Creando..." : "Crear lote"}
+            {enviando ? (progreso ?? "Creando...") : "Crear lote"}
           </Button>
           <Button type="button" variant="outline" className={BOTON} onClick={() => router.back()} disabled={enviando}>
             Cancelar
