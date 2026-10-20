@@ -131,15 +131,18 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
 
   const cambiado = nombre.trim() !== especie.nombre || grupo !== especie.grupo || activo !== especie.activo
 
-  const ejecutar = async (accion: () => Promise<unknown>, ok: string) => {
+  const ejecutar = async (accion: () => Promise<unknown>, ok: string, despues?: () => void) => {
     setEnviando(true)
     setError(null)
     try {
       await accion()
       toast.success(ok)
+      despues?.()
       onCambio()
     } catch (err) {
       setError(mensajeDeError(err))
+    } finally {
+      // La tarjeta sigue montada después de recargar: hay que volver a habilitarla
       setEnviando(false)
     }
   }
@@ -152,7 +155,8 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
   const agregarCategoria = () => {
     if (!nuevaCategoria.trim()) return setError("La categoría necesita un nombre")
     const orden = categorias.reduce((m, c) => Math.max(m, c.orden), 0) + 1
-    void ejecutar(() => crearCategoria(especie.establecimiento_id, especie.id, nuevaCategoria.trim(), orden), "Categoría agregada")
+    void ejecutar(() => crearCategoria(especie.establecimiento_id, especie.id, nuevaCategoria.trim(), orden), "Categoría agregada",
+      () => setNuevaCategoria(""))
   }
 
   return (
