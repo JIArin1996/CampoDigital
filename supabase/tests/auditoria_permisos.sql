@@ -58,9 +58,9 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Lista todo permiso de anon, authenticated o public que no sea "authenticated: select".
 --
--- ESPERADO (después de la Etapa 6b-1): exactamente estas 13 filas, todas de authenticated y a nivel columna.
--- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. La 6b-1 suma la
--- columna grupo a los permisos de especies, que siguen limitados al administrador por las políticas.)
+-- ESPERADO (después de especies con color): exactamente estas 13 filas, todas de authenticated y a nivel columna.
+-- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
+-- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas.)
 -- Cualquier fila "tabla" (por ejemplo un delete o un insert sobre toda la tabla) o
 -- cualquier fila de anon o PUBLIC es un error.
 --
@@ -68,8 +68,8 @@ order by 1, 2;
 --   --------+---------------+---------------------+---------+------------------------------------------------
 --   columna | authenticated | categorias_animales | INSERT  | activo, especie_id, establecimiento_id, nombre, orden
 --   columna | authenticated | categorias_animales | UPDATE  | activo, nombre, orden
---   columna | authenticated | especies            | INSERT  | activo, establecimiento_id, grupo, nombre
---   columna | authenticated | especies            | UPDATE  | activo, grupo, nombre
+--   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre
+--   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
 --           |               |                     |         | observaciones, paraje, propietario, rut, sistema_productivo, superficie_total
 --   columna | authenticated | lotes               | UPDATE  | campana, nombre, notas, potrero_id
@@ -108,7 +108,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de la Etapa 6b-1): 59 filas, todas con ok = true.
+-- ESPERADO (después de especies con color): 60 filas, todas con ok = true.
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -171,6 +171,7 @@ order by 1 desc, 2, 3, 4;
 --   set_updated_at              | false            | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
+--   validar_baja_categoria      | true             | false         | false | false
 --
 -- Además, todas con search_path_fijo = true.
 
@@ -197,7 +198,7 @@ select
     -- internas y de trigger: nadie las ejecuta por la API
     and f.authenticated = not (f.funcion like '\_%' or f.funcion in ('set_updated_at', 'bloquear_modificacion', 'proteger_ultimo_admin', 'bloquear_borrado',
                                                                            'proteger_actividad', 'actividad_lotes_desde_actividad',
-                                                                           'actividad_lotes_desde_paricion'))
+                                                                           'actividad_lotes_desde_paricion', 'validar_baja_categoria'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -210,7 +211,8 @@ select
                                             'registrar_venta', 'registrar_paricion', 'anular_actividad',
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
                                             'registrar_esquila', 'registrar_personalizada',
-                                            'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion'))
+                                            'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion',
+                                            'validar_baja_categoria'))
   ) as ok
 from f
 order by f.funcion;
