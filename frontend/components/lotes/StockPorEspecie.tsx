@@ -1,5 +1,4 @@
-import { COLOR_ESPECIE, ordenarCategorias, ordenarEspecies } from "@/components/lotes/agrupacion"
-import { cn } from "@/lib/utils"
+import { colorDeEspecie, ordenarCategorias, ordenarEspecies } from "@/components/lotes/agrupacion"
 import type { CategoriaAnimal, Especie, GrupoEspecie, Lote, StockLote } from "@/types/lotes"
 
 interface Props {
@@ -57,10 +56,10 @@ export function StockPorEspecie({ lotes, stock, potreros, especies, categorias }
   }
 
   // Especies en orden fijo; una que no esté en el catálogo activo, al final
-  const cuadros: { id: string; nombre: string; grupo: GrupoEspecie }[] = [
-    ...ordenarEspecies(especies).filter(e => porEspecie.has(e.id)),
+  const cuadros: { id: string; nombre: string; color: string }[] = [
+    ...ordenarEspecies(especies).filter(e => porEspecie.has(e.id)).map(e => ({ id: e.id, nombre: e.nombre, color: colorDeEspecie(e) })),
     ...[...porEspecie.keys()].filter(id => !especies.some(e => e.id === id))
-      .map(id => ({ id, nombre: "Otra especie", grupo: "otro" as const })),
+      .map(id => ({ id, nombre: "Otra especie", color: colorDeEspecie({ grupo: "otro" as GrupoEspecie }) })),
   ]
 
   return (
@@ -73,11 +72,11 @@ export function StockPorEspecie({ lotes, stock, potreros, especies, categorias }
         return (
           <section key={especie.id}
             className="snap-start shrink-0 w-[85%] sm:w-auto sm:flex-1 sm:min-w-72 overflow-hidden rounded-lg border bg-card">
-            <div aria-hidden className={cn("h-1.5", COLOR_ESPECIE[especie.grupo].solido)} />
+            <div aria-hidden className="h-1.5" style={{ backgroundColor: especie.color }} />
             <div className="px-4 py-3">
               <div className="flex items-baseline justify-between gap-3 mb-2">
                 <h3 className="flex items-center gap-2 font-semibold">
-                  <span aria-hidden className={cn("h-2.5 w-2.5 rounded-full", COLOR_ESPECIE[especie.grupo].solido)} />
+                  <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: especie.color }} />
                   {especie.nombre}
                 </h3>
                 <p className="text-sm text-muted-foreground shrink-0">

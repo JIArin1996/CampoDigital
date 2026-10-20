@@ -12,8 +12,7 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { TarjetaLote } from "@/components/lotes/TarjetaLote"
 import { StockPorEspecie } from "@/components/lotes/StockPorEspecie"
-import { COLOR_ESPECIE, ORDEN_CLASE, claseDeLote, ordenarEspecies } from "@/components/lotes/agrupacion"
-import { cn } from "@/lib/utils"
+import { ORDEN_CLASE, claseDeLote, colorDeEspecie, ordenarEspecies } from "@/components/lotes/agrupacion"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, EstadoLote, Lote, StockLote } from "@/types/lotes"
 
@@ -27,7 +26,7 @@ interface Datos {
 }
 
 // Un lote de una especie que ya no está en el catálogo activo va al grupo "Otras"
-const ESPECIE_DESCONOCIDA = { id: "", nombre: "Otra especie", grupo: "otro" as const }
+const ESPECIE_DESCONOCIDA = { id: "", nombre: "Otra especie", grupo: "otro" as const, color: null }
 
 export default function LotesPage() {
   const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
@@ -176,7 +175,7 @@ function LotesPorEspecie({ datos }: { datos: Datos }) {
         return (
           <div key={especie.id || "otra"} className="space-y-2">
             <h3 className="flex items-center gap-2 text-sm">
-              <span aria-hidden className={cn("h-2.5 w-2.5 rounded-full", COLOR_ESPECIE[especie.grupo].solido)} />
+              <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorDeEspecie(especie) }} />
               <span className="font-semibold">{especie.nombre}</span>
               <span className="text-muted-foreground">
                 {activos && <>· <span className="tabular-nums">{total}</span> {total === 1 ? "cabeza" : "cabezas"} </>}
@@ -186,7 +185,7 @@ function LotesPorEspecie({ datos }: { datos: Datos }) {
             <ul className="space-y-2">
               {delGrupo.map(f => (
                 <li key={f.lote.id}>
-                  <TarjetaLote lote={f.lote} grupo={especie.grupo} cabezas={f.cabezas} potrero={f.potrero} />
+                  <TarjetaLote lote={f.lote} color={colorDeEspecie(especie)} cabezas={f.cabezas} potrero={f.potrero} />
                 </li>
               ))}
             </ul>

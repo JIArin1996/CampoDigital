@@ -789,6 +789,7 @@ export type Database = {
       especies: {
         Row: {
           activo: boolean
+          color: string | null
           created_at: string
           created_by: string | null
           establecimiento_id: string
@@ -799,6 +800,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          color?: string | null
           created_at?: string
           created_by?: string | null
           establecimiento_id: string
@@ -809,6 +811,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          color?: string | null
           created_at?: string
           created_by?: string | null
           establecimiento_id?: string
