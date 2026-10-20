@@ -24,7 +24,7 @@ Estado: vigente desde la Etapa 4 (2026-10-16). Fuente de verdad del código: `fr
 | `--input` | gris verdoso medio | borde de campos de formulario | 3,6:1 (WCAG pide 3:1 para controles) |
 | `--border` | gris verdoso claro | separadores de tarjetas y listas | decorativo |
 | `--etiqueta-idea`, `--etiqueta-observacion`, `--etiqueta-compra` (+ `-texto`) | ámbar, celeste y violeta suaves | chips de tipo de la bitácora (la decisión usa `--accent`) | texto sobre su fondo: 8,8 a 9,7:1 |
-| `--especie-bovino`, `--especie-ovino`, `--especie-otro` (+ `-suave`) | verde de la marca, ámbar y gris pizarra | color de la especie en la pantalla Lotes: franja de la tarjeta, punto del encabezado y barras del stock (la pista usa `-suave`). Se elige por `especies.grupo`, no por el nombre | gráfico, ≥ 3:1; nunca como color de texto |
+| `--especie-bovino`, `--especie-ovino`, `--especie-otro` (+ `-suave`) | verde de la marca, ámbar y gris pizarra | color de la especie en la pantalla Lotes: franja de la tarjeta, punto del encabezado y franja del cuadro de stock por especie (`-suave` queda disponible para fondos). Se elige por `especies.grupo`, no por el nombre | gráfico, ≥ 3:1; nunca como color de texto |
 
 Los valores se definen en `oklch` en `globals.css`; los hex son de referencia. No se usan colores sueltos de Tailwind (`green-100`, etc.) para estados: siempre los tokens.
 
@@ -84,7 +84,7 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 - **Avisos breves**: `toast` (sonner) arriba a la derecha.
 - **Rol**: chip con `ETIQUETA_ROL`; Consulta en gris (`secondary`), Administrador y Operador en verde.
 - **Cabezas**: los números negativos (bajas) en rojo, con signo.
-- **Lotes** (pantalla Lotes): primero los lotes activos, agrupados por especie en orden Bovinos, Ovinos, Otros (por `especies.grupo`), con encabezado "especie · cabezas · lotes"; dentro, por clase de lote (cría, recría, engorde, toros, otras) y de mayor a menor cabezas. La clase se deriva de la categoría predominante del lote (`components/lotes/agrupacion.ts`). Debajo, "Stock por potrero": una línea por categoría con barra proporcional al total de la especie en ese potrero.
+- **Lotes** (pantalla Lotes): primero los lotes activos, agrupados por especie en orden Bovinos, Ovinos, Otros (por `especies.grupo`), con encabezado "especie · cabezas · lotes"; dentro, por clase de lote (cría, recría, engorde, toros, otras) y de mayor a menor cabezas. La clase se deriva de la categoría predominante del lote (`components/lotes/agrupacion.ts`). Debajo, "Stock por especie": un cuadro por especie, uno al lado del otro (en el celular se deslizan de costado), con las columnas Categoría, Cantidad y Potrero, una fila por categoría y potrero, y el total.
 
 ## 7. App instalable
 

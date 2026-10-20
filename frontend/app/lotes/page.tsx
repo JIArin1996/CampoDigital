@@ -11,7 +11,7 @@ import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { TarjetaLote } from "@/components/lotes/TarjetaLote"
-import { StockPorPotrero } from "@/components/lotes/StockPorPotrero"
+import { StockPorEspecie } from "@/components/lotes/StockPorEspecie"
 import { COLOR_ESPECIE, ORDEN_CLASE, claseDeLote, ordenarEspecies } from "@/components/lotes/agrupacion"
 import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
@@ -121,14 +121,14 @@ export default function LotesPage() {
           )}
         </section>
 
-        {/* Stock por potrero (solo lotes activos) */}
+        {/* Stock por especie (solo lotes activos) */}
         {estado === "activo" && (
           <section className="space-y-3">
-            <h2 className="font-semibold">Stock por potrero</h2>
+            <h2 className="font-semibold">Stock por especie</h2>
             {!listo ? (
               <Esqueleto filas={2} />
             ) : (
-              <StockPorPotrero lotes={listo.lotes} stock={listo.stockLotes} potreros={listo.potreros}
+              <StockPorEspecie lotes={listo.lotes} stock={listo.stockLotes} potreros={listo.potreros}
                 especies={listo.especies} categorias={listo.categorias} />
             )}
           </section>
