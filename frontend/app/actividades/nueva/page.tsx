@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import {
   DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, ICONO_ACTIVIDAD, MODALIDADES, TIPOS_6A, TIPOS_6B1,
-  esTipo6a, esTipoCargable, nuevoId,
+  errorKg, esTipo6a, esTipoCargable, nuevoId,
 } from "@/components/actividades/formato"
 import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
@@ -279,8 +279,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       const linea: LineaCarga = { categoria_id: c.id, cabezas: cab }
       const peso = llevaPeso ? leer(pesos[c.id] ?? "") : null
       if (peso !== null) {
-        // Mínimo 0,1 kg: la base redondea a 1 decimal (0,04 se guardaría como 0,0)
-        if (Number.isNaN(peso) || peso < 0.1) return setError("El peso vivo tiene que ser de al menos 0,1 kg")
+        const errorPeso = errorKg(pesos[c.id] ?? "", `El peso vivo de ${c.nombre.toLowerCase()}`)
+        if (errorPeso) return setError(errorPeso)
         linea.peso_vivo_total_kg = peso
       } else if (tipo === "pesada") {
         return setError(`Falta el peso vivo total de ${c.nombre.toLowerCase()}`)
@@ -291,7 +291,10 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
 
     // Compra y venta: kg al gancho y precio
     const gancho = leer(kgGancho)
-    if (gancho !== null && (Number.isNaN(gancho) || gancho < 0.1)) return setError("Los kg al gancho tienen que ser de al menos 0,1 kg")
+    if (gancho !== null) {
+      const errorGancho = errorKg(kgGancho, "Los kg al gancho")
+      if (errorGancho) return setError(errorGancho)
+    }
     let precio: PrecioCarga | null = null
     if ((tipo === "compra" || tipo === "venta") && conPrecio) {
       const m = leer(monto)

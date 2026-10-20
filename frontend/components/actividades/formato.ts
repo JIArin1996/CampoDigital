@@ -65,7 +65,18 @@ export const esTipoCargable = (v: string | null): v is TipoCargable => !!v && (T
 const numero = (n: number, decimales: number) =>
   n.toLocaleString("es-UY", { minimumFractionDigits: decimales, maximumFractionDigits: decimales })
 
-export const kg = (n: number) => `${numero(n, n % 1 === 0 ? 0 : 1)} kg`
+// Kilos: hasta dos decimales, sin ceros de más ("1.350 kg", "512,5 kg", "45,67 kg")
+export const kg = (n: number) => `${n.toLocaleString("es-UY", { maximumFractionDigits: 2 })} kg`
+
+// Kilos cargados a mano: mayor a 0 y con hasta dos decimales, como los guarda la base.
+// null si está bien; si no, el mensaje (que: "El peso vivo", "Los kg al gancho"...).
+export function errorKg(texto: string, que: string): string | null {
+  const t = texto.trim()
+  if (!/^\d+([.,]\d{1,2})?$/.test(t) || Number(t.replace(",", ".")) <= 0) {
+    return `${que}: un número mayor a 0, con hasta dos decimales`
+  }
+  return null
+}
 export const usd = (n: number) => `USD ${numero(n, 2)}`
 export const porcentaje = (n: number) => `${numero(n, 1)} %`
 

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, nuevoId } from "@/components/actividades/formato"
+import { DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, errorKg, nuevoId } from "@/components/actividades/formato"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import type { Especie, Lote, StockLote } from "@/types/lotes"
@@ -156,8 +156,8 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
       enviar = () => registrarSanidad({ ...variosLotes, productos: lista })
     } else if (tipo === "esquila") {
       const kg = leer(kgLana)
-      // Mínimo 0,1 kg: la base redondea a 1 decimal
-      if (kg === null || Number.isNaN(kg) || kg < 0.1) return setError("Los kg de lana tienen que ser al menos 0,1")
+      const errorLana = errorKg(kgLana, "Los kg de lana")
+      if (kg === null || errorLana) return setError(errorLana ?? "Los kg de lana: un número mayor a 0, con hasta dos decimales")
       enviar = () => registrarEsquila({ ...variosLotes, kg_lana_total: kg })
     } else if (tipo === "personalizada") {
       if (!nombre.trim()) return setError("La actividad necesita un nombre")
