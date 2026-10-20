@@ -29,3 +29,10 @@ Idea a desarrollar (reemplazaría la 6b-2 tal como estaba diseñada): el destete
 - **Storage**: bucket privado `lote-archivos`, ruta `{establecimiento_id}/{id del archivo}` (el nombre original va en la tabla, nunca en la ruta). Subir: solo en la carpeta de un establecimiento donde el usuario puede cargar. Leer: miembros. Sin update ni delete. Descarga con URL firmada de vida corta; nunca URLs públicas.
 - **Lotes cerrados**: sus archivos se ven, pero no se adjunta, quita ni restaura.
 - **Orden de subida en la app**: primero el objeto a Storage (con el id generado por la app), después `adjuntar_archivo_lote`. Si la subida falla, el lote queda creado y se reintenta desde la ficha.
+- **En la app** (`components/lotes/ArchivosDelLote.tsx`, `ArchivosNuevoLote.tsx`, `lib/queries/archivos.ts`):
+  - El tipo MIME con el que se sube sale de la extensión, no de lo que diga el navegador (Windows manda los `.csv` como `application/vnd.ms-excel` y algunos teléfonos mandan los `.heic` sin tipo). Así coincide siempre con lo que exige la base.
+  - El id de cada archivo se genera una vez al elegirlo: un reintento sube y adjunta con el mismo id (si el objeto ya estaba subido, sigue con el adjuntar).
+  - Al crear un lote, los archivos que fallan quedan en memoria y la ficha ofrece "Reintentar" o "Descartar" sin volver a elegirlos. Si se recarga la página se pierden: se vuelven a adjuntar desde la ficha.
+  - En el celular, además de "Elegir archivo" (archivos, galería o cámara según el teléfono), hay "Sacar foto" directo con la cámara.
+  - Descarga: URL firmada por 60 segundos con el nombre original y como adjunto. La app no muestra los archivos adentro.
+  - Consulta y lotes cerrados: solo ver y descargar.
