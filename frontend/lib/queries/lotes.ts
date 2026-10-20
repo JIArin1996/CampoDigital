@@ -187,6 +187,18 @@ export async function editarLote(id: string, cambios: { nombre: string; notas: s
   return exigirFilas(data) as Lote
 }
 
+// Cerrar: solo con stock en cero; la fecha va entre el último movimiento del lote y hoy
+export async function cerrarLote(lote_id: string, fecha: string, motivo?: string | null) {
+  const { error } = await createClient().rpc('cerrar_lote', { p_lote_id: lote_id, p_fecha: fecha, p_motivo: motivo ?? undefined })
+  if (error) throw error
+}
+
+// Reabrir: la fecha va entre el cierre y hoy
+export async function reabrirLote(lote_id: string, fecha: string, motivo?: string | null) {
+  const { error } = await createClient().rpc('reabrir_lote', { p_lote_id: lote_id, p_fecha: fecha, p_motivo: motivo ?? undefined })
+  if (error) throw error
+}
+
 // ── Operaciones de lote (funciones atómicas de la base) ──────────────────────
 
 // Destino de una división: lote nuevo con su composición y sus años de nacimiento

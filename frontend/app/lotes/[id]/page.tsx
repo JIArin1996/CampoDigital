@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Merge, Pencil, SlidersHorizontal, Split } from "lucide-react"
+import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Lock, LockOpen, Merge, Pencil, SlidersHorizontal, Split } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
@@ -19,6 +19,7 @@ import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
 import { ArchivosDelLote } from "@/components/lotes/ArchivosDelLote"
+import { CerrarReabrirLote } from "@/components/lotes/CerrarReabrirLote"
 import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
 import { ETIQUETA_EVENTO, fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { formatoAnios } from "@/components/lotes/anios"
@@ -46,6 +47,7 @@ export default function LotePage() {
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)   // sube para recargar después de un ajuste
   const [ajusteAbierto, setAjusteAbierto] = useState(false)
+  const [estadoAbierto, setEstadoAbierto] = useState(false)
 
   useEffect(() => {
     let vigente = true
@@ -118,10 +120,19 @@ export default function LotePage() {
             <h1 className="text-2xl font-bold">{lote.nombre}</h1>
             {lote.estado === "cerrado" && <Badge variant="secondary">cerrado</Badge>}
           </div>
-          {operable && (
-            <Link href={`/lotes/${lote.id}/editar`} className={buttonVariants({ variant: "outline", size: "sm", className: "h-10 md:h-8 shrink-0" })}>
-              <Pencil className="h-4 w-4 mr-1" /> Editar
-            </Link>
+          {puedeOperar && (
+            <div className="flex flex-wrap justify-end gap-2 shrink-0">
+              {operable && (
+                <Link href={`/lotes/${lote.id}/editar`} className={buttonVariants({ variant: "outline", size: "sm", className: "h-10 md:h-8" })}>
+                  <Pencil className="h-4 w-4 mr-1" /> Editar
+                </Link>
+              )}
+              <Button variant="outline" size="sm" className="h-10 md:h-8" onClick={() => setEstadoAbierto(true)}>
+                {lote.estado === "activo"
+                  ? <><Lock className="h-4 w-4 mr-1" /> Cerrar</>
+                  : <><LockOpen className="h-4 w-4 mr-1" /> Reabrir</>}
+              </Button>
+            </div>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
@@ -231,6 +242,19 @@ export default function LotePage() {
           )}
         </section>
       </div>
+
+      {/* Cerrar o reabrir (key: el formulario arranca limpio en cada estado) */}
+      <CerrarReabrirLote
+        key={lote.estado}
+        lote={lote}
+        cabezas={vigente.stock.reduce((s, f) => s + f.cabezas, 0)}
+        abierto={estadoAbierto}
+        onCerrar={() => setEstadoAbierto(false)}
+        onHecho={() => {
+          setEstadoAbierto(false)
+          setVersion(v => v + 1)
+        }}
+      />
 
       {/* Ajuste de stock */}
       <Dialog open={ajusteAbierto} onOpenChange={setAjusteAbierto}>
