@@ -1,6 +1,6 @@
 -- Campo Digital v2 — Auditoría de permisos del esquema public
 --
--- Cuatro consultas de solo lectura: no modifican nada. Correrlas en el SQL Editor de
+-- Cinco consultas de solo lectura: no modifican nada. Correrlas en el SQL Editor de
 -- Supabase, una por vez, después de aplicar las migraciones (y después de cada etapa
 -- que agregue tablas o funciones). Debajo de cada una está el resultado esperado.
 --
@@ -8,6 +8,7 @@
 --   2. Políticas: ninguna de delete, ninguna para anon ni public
 --   3. Permisos (GRANT) sobre tablas y columnas para anon, authenticated y public
 --   4. Funciones: search_path fijo, security definer donde corresponde y permisos de execute
+--   5. Políticas de Storage del bucket lote-archivos
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -58,9 +59,10 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Lista todo permiso de anon, authenticated o public que no sea "authenticated: select".
 --
--- ESPERADO (después de especies con color): exactamente estas 13 filas, todas de authenticated y a nivel columna.
+-- ESPERADO (después de años de nacimiento y archivos): exactamente estas 13 filas, todas de authenticated y a nivel columna.
 -- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
--- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas.)
+-- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
+-- dejó de ser editable y su lugar lo toma anios_nacimiento. archivos y lote_archivos: solo lectura.)
 -- Cualquier fila "tabla" (por ejemplo un delete o un insert sobre toda la tabla) o
 -- cualquier fila de anon o PUBLIC es un error.
 --
@@ -72,7 +74,7 @@ order by 1, 2;
 --   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
 --           |               |                     |         | observaciones, paraje, propietario, rut, sistema_productivo, superficie_total
---   columna | authenticated | lotes               | UPDATE  | campana, nombre, notas, potrero_id
+--   columna | authenticated | lotes               | UPDATE  | anios_nacimiento, nombre, notas, potrero_id
 --   columna | authenticated | perfiles            | UPDATE  | apellido, celular, foto_path, nombre
 --   columna | authenticated | personas            | INSERT  | activo, establecimiento_id, nombre, rol, user_id
 --   columna | authenticated | personas            | UPDATE  | activo, nombre, rol, user_id
@@ -108,11 +110,14 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de especies con color): 60 filas, todas con ok = true.
+-- ESPERADO (después de años de nacimiento y archivos): 68 filas, todas con ok = true.
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
 --   _actividad_ya_registrada    | false            | false         | false | false
+--   _anios_de_jsonb             | false            | false         | false | false
+--   _anios_de_texto             | false            | false         | false | false
+--   _archivo_permitido          | false            | false         | false | false
 --   _bloquear_entrada_bitacora  | false            | false         | false | false
 --   _bloquear_lote_editable     | false            | false         | false | false
 --   _bloquear_lotes_actividad   | false            | false         | false | false
@@ -131,6 +136,7 @@ order by 1 desc, 2, 3, 4;
 --   _validar_saldo              | false            | false         | false | false
 --   actividad_lotes_desde_actividad | true             | false         | false | false
 --   actividad_lotes_desde_paricion | true             | false         | false | false
+--   adjuntar_archivo_lote       | true             | true          | false | false
 --   anular_actividad            | true             | true          | false | false
 --   anular_entrada_bitacora     | true             | true          | false | false
 --   asignar_rol                 | true             | true          | false | false
@@ -151,9 +157,11 @@ order by 1 desc, 2, 3, 4;
 --   linaje_lote                 | false            | true          | false | false
 --   mi_rol                      | true             | true          | false | false
 --   proteger_actividad          | false            | false         | false | false
+--   proteger_lote_archivo       | false            | false         | false | false
 --   proteger_ultimo_admin       | false            | false         | false | false
 --   puede_operar                | true             | true          | false | false
 --   quitar_acceso               | true             | true          | false | false
+--   quitar_archivo_lote         | true             | true          | false | false
 --   reabrir_lote                | true             | true          | false | false
 --   recategorizar_lote          | true             | true          | false | false
 --   registrar_ajuste            | true             | true          | false | false
@@ -167,10 +175,12 @@ order by 1 desc, 2, 3, 4;
 --   registrar_sanidad           | true             | true          | false | false
 --   registrar_servicio          | true             | true          | false | false
 --   registrar_venta             | true             | true          | false | false
+--   restaurar_archivo_lote      | true             | true          | false | false
 --   restaurar_entrada_bitacora  | true             | true          | false | false
 --   set_updated_at              | false            | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
+--   validar_anios_nacimiento    | false            | false         | false | false
 --   validar_baja_categoria      | true             | false         | false | false
 --
 -- Además, todas con search_path_fijo = true.
@@ -198,7 +208,8 @@ select
     -- internas y de trigger: nadie las ejecuta por la API
     and f.authenticated = not (f.funcion like '\_%' or f.funcion in ('set_updated_at', 'bloquear_modificacion', 'proteger_ultimo_admin', 'bloquear_borrado',
                                                                            'proteger_actividad', 'actividad_lotes_desde_actividad',
-                                                                           'actividad_lotes_desde_paricion', 'validar_baja_categoria'))
+                                                                           'actividad_lotes_desde_paricion', 'validar_baja_categoria',
+                                                                           'validar_anios_nacimiento', 'proteger_lote_archivo'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -212,7 +223,32 @@ select
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
                                             'registrar_esquila', 'registrar_personalizada',
                                             'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion',
-                                            'validar_baja_categoria'))
+                                            'validar_baja_categoria',
+                                            'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote'))
   ) as ok
 from f
 order by f.funcion;
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 5. Políticas de Storage del bucket lote-archivos
+-- ════════════════════════════════════════════════════════════════════════════
+-- ESPERADO: exactamente 2 filas, las dos solo para authenticated:
+--
+--   policyname           | cmd    | roles
+--   ---------------------+--------+-----------------
+--   lote_archivos_insert | INSERT | {authenticated}
+--   lote_archivos_select | SELECT | {authenticated}
+--
+-- Ninguna de update ni delete (un archivo subido no se reemplaza ni se borra) y ninguna para anon ni public.
+-- Además, el bucket tiene que ser privado (public = false) con límite de 20 MB.
+
+select p.policyname, p.cmd, p.roles
+from pg_policies p
+where p.schemaname = 'storage' and p.tablename = 'objects'
+  and (coalesce(p.qual, '') like '%lote-archivos%' or coalesce(p.with_check, '') like '%lote-archivos%')
+order by p.policyname;
+
+select id, public, file_size_limit, array_length(allowed_mime_types, 1) as tipos_permitidos
+from storage.buckets where id = 'lote-archivos';
+-- ESPERADO: lote-archivos | false | 20971520 | 14
