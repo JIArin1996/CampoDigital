@@ -18,6 +18,8 @@ Estado: **aplicado y verificado** (2026-10-20; migraciones `20261020000200` y `2
 
 ## 1 bis. Destete como acción propia [Pendiente, no implementado]
 
+> Desarrollada en `DISENO-BASE-ETAPA-6B2-DESTETE.md` (2026-10-20).
+
 Idea a desarrollar (reemplazaría la 6b-2 tal como estaba diseñada): el destete como una **división de las categorías de terneros** (terneros, terneras; corderos, corderas) hacia un lote nuevo, con los **años de nacimiento sugeridos desde las pariciones del lote** (los años de las pariciones registradas en ese lote de cría) y editables antes de confirmar. Usaría `dividir_lote` con años propios por lote nuevo, que ya existe. Queda pendiente de diseño: cómo se eligen las categorías, si el lote de origen se cierra y qué indicadores (% destete) lo toman.
 
 ## 2. Archivos del lote

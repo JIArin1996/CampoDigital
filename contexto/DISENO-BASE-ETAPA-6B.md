@@ -138,6 +138,8 @@ Las de varios lotes reciben el establecimiento explícito, como `registrar_compr
 
 ## 4. 6b-2: destete (mueve stock) [Decidido]
 
+> **Reemplazada (2026-10-20)** por `DISENO-BASE-ETAPA-6B2-DESTETE.md`: el destete pasa a mover cabezas de cría al pie de uno o más orígenes a uno o más destinos, con destetes parciales. Se deja lo que sigue como registro de la decisión anterior.
+
 **Qué hace:** por cada lote destetado, **todo su stock pasa a un lote nuevo propio** (sin mezclar con otros), con las mismas categorías, y el lote de origen se cierra. Sin líneas ni peso: el peso al destete se carga con una pesada.
 
 **Datos por lote de origen:** nombre del lote nuevo (sugerido "Destetados <nombre del origen> <año>", editable) y potrero opcional.
