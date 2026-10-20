@@ -2,6 +2,9 @@
 --
 -- Solo lectura. Correr la consulta 1 ANTES de aplicar la migración (y guardar el resultado),
 -- y la 2 DESPUÉS.
+--
+-- Desde 20261020000500_borrar_campana la columna campana ya no existe: estas consultas dan error.
+-- Correr la 2 por última vez (y guardar el resultado) antes de aplicar la 500.
 
 -- 1. ANTES: todas las campañas cargadas
 select l.id, l.nombre, l.campana

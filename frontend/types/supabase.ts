@@ -1145,7 +1145,6 @@ export type Database = {
       lotes: {
         Row: {
           anios_nacimiento: number[]
-          campana: string | null
           created_at: string
           created_by: string | null
           especie_id: string
@@ -1161,7 +1160,6 @@ export type Database = {
         }
         Insert: {
           anios_nacimiento?: number[]
-          campana?: string | null
           created_at?: string
           created_by?: string | null
           especie_id: string
@@ -1177,7 +1175,6 @@ export type Database = {
         }
         Update: {
           anios_nacimiento?: number[]
-          campana?: string | null
           created_at?: string
           created_by?: string | null
           especie_id?: string
@@ -1875,7 +1872,6 @@ export type Database = {
         Args: { p_lote_id: string }
         Returns: {
           anios_nacimiento: number[]
-          campana: string | null
           created_at: string
           created_by: string | null
           especie_id: string
@@ -2039,7 +2035,6 @@ export type Database = {
       crear_lote: {
         Args: {
           p_anios_nacimiento?: number[]
-          p_campana?: string
           p_composicion: Json
           p_especie_id: string
           p_establecimiento_id: string

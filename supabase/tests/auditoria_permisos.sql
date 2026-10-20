@@ -62,7 +62,7 @@ order by 1, 2;
 -- ESPERADO (después de años de nacimiento y archivos): exactamente estas 13 filas, todas de authenticated y a nivel columna.
 -- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
 -- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
--- dejó de ser editable y su lugar lo toma anios_nacimiento. archivos y lote_archivos: solo lectura.)
+-- dejó de ser editable y su lugar lo toma anios_nacimiento (la columna se borró en 20261020000500). archivos y lote_archivos: solo lectura.)
 -- Cualquier fila "tabla" (por ejemplo un delete o un insert sobre toda la tabla) o
 -- cualquier fila de anon o PUBLIC es un error.
 --

@@ -1,7 +1,8 @@
 -- Campo Digital v2 — Pruebas de años de nacimiento del lote
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261020000200_lotes_anios_y_archivos).
+--   1. Con todas las migraciones aplicadas (hasta 20261020000500_borrar_campana: A12 espera que la
+--      columna campana ya no exista).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS AÑOS DE NACIMIENTO: N OK, ...", que deshace todo
 --      (también los objetos de Storage simulados).
@@ -262,8 +263,8 @@ select pruebas.espera_filas('A10 El operador edita los años del lote',
   $q$ update public.lotes set anios_nacimiento = '{2022,2023}' where id = pruebas.id('L0') $q$, 1);
 select pruebas.espera_error('A11 Edición con años desordenados',
   $q$ update public.lotes set anios_nacimiento = '{2023,2022}' where id = pruebas.id('L0') $q$, '23514');
-select pruebas.espera_error('A12 La campaña ya no se edita (sin permiso de columna)',
-  $q$ update public.lotes set campana = '2025' where id = pruebas.id('L0') $q$, '42501');
+select pruebas.espera_error('A12 La campaña ya no existe (columna borrada en 20261020000500)',
+  $q$ update public.lotes set campana = '2025' where id = pruebas.id('L0') $q$, '42703');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 3. Herencia: dividir, unir y recategorizar
@@ -378,9 +379,8 @@ select pruebas.espera_valor('P02 crear_lote: una sola versión (la nueva, con a�
   $q$ select (count(*) = 1 and bool_and(pg_get_function_identity_arguments(p.oid) like '%p_anios_nacimiento integer[]'
               and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute')))::text
       from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'crear_lote' $q$, 'true');
-select pruebas.espera_valor('P03 Permisos de columna de lotes: authenticated edita anios_nacimiento, ya no campana',
+select pruebas.espera_valor('P03 Permisos de columna de lotes: authenticated edita anios_nacimiento, anon no',
   $q$ select (has_column_privilege('authenticated', 'public.lotes', 'anios_nacimiento', 'UPDATE')
-              and not has_column_privilege('authenticated', 'public.lotes', 'campana', 'UPDATE')
               and not has_column_privilege('anon', 'public.lotes', 'anios_nacimiento', 'UPDATE'))::text $q$, 'true');
 select pruebas.espera_error('P04 La base rechaza años inválidos aun como postgres',
   $q$ update public.lotes set anios_nacimiento = '{1950}' where id = pruebas.id('L0') $q$, '23514');

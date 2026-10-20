@@ -242,12 +242,12 @@ select pruebas.espera_valor('D02 El intento fallido no dejó lotes ni eventos',
   $q$ select (select count(*) from public.lotes where nombre = 'Separados') + (select count(*) from public.lote_eventos where lote_id = pruebas.id('L1') and tipo = 'division') $q$, '0');
 
 select pruebas.guardar('op_div', $q$ select public.dividir_lote(pruebas.id('L1'), pruebas.d(5),
-      jsonb_build_array(jsonb_build_object('nombre', 'L2 Pesados', 'campana', '2026', 'composicion', pruebas.comp('terneros', 30)))) $q$);
+      jsonb_build_array(jsonb_build_object('nombre', 'L2 Pesados', 'composicion', pruebas.comp('terneros', 30)))) $q$);
 select pruebas.guardar('L2', $q$ select l.lote_id from public.operacion_lote_vinculos l where l.operacion_id = pruebas.id('op_div') and l.rol = 'destino' $q$);
 select pruebas.espera_valor('D03 Dividir 30 el mismo día que entraron los 40: origen 20, destino 30',
   $q$ select pruebas.stock('L1', 'terneros') || '/' || pruebas.stock('L2', 'terneros') $q$, '20/30');
 select pruebas.espera_valor('D04 El lote nuevo abre en la fecha de la operación, con la misma especie',
-  $q$ select (fecha_apertura = pruebas.d(5) and especie_id = pruebas.id('vacunos') and campana = '2026')::text from public.lotes where id = pruebas.id('L2') $q$, 'true');
+  $q$ select (fecha_apertura = pruebas.d(5) and especie_id = pruebas.id('vacunos'))::text from public.lotes where id = pruebas.id('L2') $q$, 'true');
 select pruebas.espera_valor('D05 Vínculos: un origen y un destino',
   $q$ select string_agg(rol, ',' order by rol) from public.operacion_lote_vinculos where operacion_id = pruebas.id('op_div') $q$, 'destino,origen');
 select pruebas.espera_valor('D06 El origen con stock sigue activo',
