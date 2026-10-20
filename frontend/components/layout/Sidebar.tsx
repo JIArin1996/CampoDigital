@@ -11,7 +11,7 @@ import { SelectorEstablecimiento } from "@/components/layout/SelectorEstablecimi
 import { Avatar } from "@/components/usuarios/Avatar"
 import { nombreCompleto } from "@/components/usuarios/roles"
 import {
-  NAV_CONFIGURACION, NAV_MOVIL, NAV_PRINCIPAL, RUTAS_DE_MAS, enRuta, type ItemNav,
+  BOTON_CONFIGURACIONES, NAV_MOVIL, NAV_PRINCIPAL, RUTAS_DE_MAS, enRuta, itemActivo, visibleParaRol, type ItemNav,
 } from "@/components/layout/navegacion"
 
 /**
@@ -27,7 +27,7 @@ export function Sidebar() {
   if (pathname === "/login") return null
 
   const hayActivo = !!establecimientoActivo
-  const visible = (item: ItemNav) => !item.soloAdmin || esAdmin
+  const visible = visibleParaRol(esAdmin)
 
   return (
     <>
@@ -46,13 +46,12 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-          <ListaEscritorio items={NAV_PRINCIPAL} pathname={pathname} hayActivo={hayActivo} />
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 px-3">
-              Configuración
-            </p>
-            <ListaEscritorio items={NAV_CONFIGURACION.filter(visible)} pathname={pathname} hayActivo={hayActivo} />
-          </div>
+          <ListaEscritorio items={NAV_PRINCIPAL.filter(visible)} pathname={pathname} hayActivo={hayActivo} />
+          {esAdmin && (
+            <div className="pt-3 border-t border-sidebar-border">
+              <ListaEscritorio items={[BOTON_CONFIGURACIONES]} pathname={pathname} hayActivo={hayActivo} />
+            </div>
+          )}
         </nav>
 
         <div className="px-2 py-3 border-t border-sidebar-border shrink-0 space-y-0.5">
@@ -100,8 +99,7 @@ export function Sidebar() {
               ? RUTAS_DE_MAS.some(r => enRuta(pathname, r))
               : enRuta(pathname, item.href)
             return (
-              // "Configuraciones" es más largo: un poco más de ancho para que entre en una línea
-              <li key={item.href} className={item.href === "/mas" ? "flex-[1.4]" : "flex-1"}>
+              <li key={item.href} className="flex-1">
                 {deshabilitado ? (
                   <span className="flex flex-col items-center justify-center gap-1 h-full text-[11px] font-medium text-muted-foreground opacity-50">
                     <Icono className="h-6 w-6" />
@@ -112,7 +110,7 @@ export function Sidebar() {
                     href={item.href}
                     aria-current={activo ? "page" : undefined}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 h-full text-[11px] font-semibold whitespace-nowrap transition-colors",
+                      "flex flex-col items-center justify-center gap-1 h-full text-[11px] font-semibold transition-colors",
                       activo ? "text-primary" : "text-muted-foreground"
                     )}
                   >
@@ -137,7 +135,7 @@ function ListaEscritorio({ items, pathname, hayActivo }: { items: ItemNav[]; pat
       {items.map(item => {
         const Icono = item.icon
         const deshabilitado = item.necesitaEstablecimiento && !hayActivo
-        const activo = enRuta(pathname, item.href)
+        const activo = itemActivo(pathname, item)
         return (
           <li key={item.href}>
             {deshabilitado ? (
