@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Layers, ChevronRight, Merge } from "lucide-react"
+import { Plus, Layers, Merge } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { getCategorias, getEspecies, getLotes, getStockEstablecimiento, getStockLotes } from "@/lib/queries/lotes"
+import { getCategorias, getEspecies, getLotes, getStockLotes } from "@/lib/queries/lotes"
 import { getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
-import { fechaCorta } from "@/components/lotes/formato"
+import { TarjetaLote } from "@/components/lotes/TarjetaLote"
+import { StockPorPotrero } from "@/components/lotes/StockPorPotrero"
+import { COLOR_ESPECIE, ORDEN_CLASE, claseDeLote, ordenarEspecies } from "@/components/lotes/agrupacion"
+import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
-import type { CategoriaAnimal, Especie, EstadoLote, Lote, StockEstablecimiento, StockLote } from "@/types/lotes"
+import type { CategoriaAnimal, Especie, EstadoLote, Lote, StockLote } from "@/types/lotes"
 
 interface Datos {
   clave: string   // establecimiento + estado: si cambia, los datos guardados ya no sirven
@@ -24,8 +24,10 @@ interface Datos {
   lotes: Lote[]
   potreros: Potrero[]
   stockLotes: StockLote[]
-  stockEstablecimiento: StockEstablecimiento[]
 }
+
+// Un lote de una especie que ya no está en el catálogo activo va al grupo "Otras"
+const ESPECIE_DESCONOCIDA = { id: "", nombre: "Otra especie", grupo: "otro" as const }
 
 export default function LotesPage() {
   const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
@@ -45,10 +47,9 @@ export default function LotesPage() {
       getLotes(estId, estado),
       getPotreros(estId),
       getStockLotes(estId),
-      getStockEstablecimiento(estId),
     ])
-      .then(([especies, categorias, lotes, potreros, stockLotes, stockEstablecimiento]) => {
-        if (vigente) setDatos({ clave: `${estId}:${estado}`, especies, categorias, lotes, potreros, stockLotes, stockEstablecimiento })
+      .then(([especies, categorias, lotes, potreros, stockLotes]) => {
+        if (vigente) setDatos({ clave: `${estId}:${estado}`, especies, categorias, lotes, potreros, stockLotes })
       })
       .catch(err => {
         if (vigente) setError(mensajeDeError(err, "No se pudieron cargar los lotes"))
@@ -69,8 +70,6 @@ export default function LotesPage() {
   }
 
   const listo = datos && datos.clave === clave ? datos : null
-  const nombreEspecie = (id: string) => listo?.especies.find(e => e.id === id)?.nombre ?? ""
-  const nombrePotrero = (id: string | null) => (id ? listo?.potreros.find(p => p.id === id)?.nombre ?? null : null)
 
   return (
     <PageContainer>
@@ -93,103 +92,115 @@ export default function LotesPage() {
 
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}
 
-      {!listo ? (
-        <Esqueleto />
-      ) : (
-        <div className="space-y-8">
+      <div className="space-y-8">
+        {/* Lotes, agrupados por especie */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">{estado === "activo" ? "Lotes activos" : "Lotes cerrados"}</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-10 md:h-8"
+              onClick={() => setEstado(estado === "activo" ? "cerrado" : "activo")}
+            >
+              {estado === "activo" ? "Ver cerrados" : "Ver activos"}
+            </Button>
+          </div>
 
-          {/* Stock del establecimiento (solo lotes activos) */}
-          {estado === "activo" && (
-            <section className="space-y-3">
-              <h2 className="font-semibold">Stock del establecimiento</h2>
-              {listo.especies.map(especie => {
-                const filas = listo.stockEstablecimiento.filter(s => s.especie_id === especie.id)
-                if (filas.length === 0) return null
-                return (
-                  <Card key={especie.id}>
-                    <CardHeader className="pb-1">
-                      <CardTitle className="text-base">{especie.nombre}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <StockPorCategoria
-                        filas={filas}
-                        categorias={listo.categorias.filter(c => c.especie_id === especie.id)}
-                      />
-                    </CardContent>
-                  </Card>
-                )
-              })}
-              {listo.stockEstablecimiento.length === 0 && (
-                <p className="text-sm text-muted-foreground">Todavía no hay animales cargados.</p>
-              )}
-            </section>
-          )}
-
-          {/* Lotes */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold">{estado === "activo" ? "Lotes activos" : "Lotes cerrados"}</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-10 md:h-8"
-                onClick={() => setEstado(estado === "activo" ? "cerrado" : "activo")}
-              >
-                {estado === "activo" ? "Ver cerrados" : "Ver activos"}
-              </Button>
+          {!listo ? (
+            <Esqueleto />
+          ) : listo.lotes.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-8 text-center">
+              <Layers className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">
+                {estado === "activo" ? "No hay lotes activos" : "No hay lotes cerrados"}
+              </p>
             </div>
+          ) : (
+            <LotesPorEspecie datos={listo} />
+          )}
+        </section>
 
-            {listo.lotes.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-8 text-center">
-                <Layers className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {estado === "activo" ? "No hay lotes activos" : "No hay lotes cerrados"}
-                </p>
-              </div>
+        {/* Stock por potrero (solo lotes activos) */}
+        {estado === "activo" && (
+          <section className="space-y-3">
+            <h2 className="font-semibold">Stock por potrero</h2>
+            {!listo ? (
+              <Esqueleto filas={2} />
             ) : (
-              <ul className="space-y-3">
-                {listo.lotes.map(lote => {
-                  const total = listo.stockLotes
-                    .filter(s => s.lote_id === lote.id)
-                    .reduce((sum, s) => sum + s.cabezas, 0)
-                  const potrero = nombrePotrero(lote.potrero_id)
-                  return (
-                    <li key={lote.id}>
-                      <Link
-                        href={`/lotes/${lote.id}`}
-                        className="flex items-center gap-3 rounded-lg border bg-card px-4 py-4 active:bg-muted/50 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{lote.nombre}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {[nombreEspecie(lote.especie_id), potrero, `desde ${fechaCorta(lote.fecha_apertura)}`]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xl font-bold tabular-nums leading-none">{total}</p>
-                          <p className="text-xs text-muted-foreground">cabezas</p>
-                        </div>
-                        {lote.campana && <Badge variant="outline" className="hidden sm:inline-flex">{lote.campana}</Badge>}
-                        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
+              <StockPorPotrero lotes={listo.lotes} stock={listo.stockLotes} potreros={listo.potreros}
+                especies={listo.especies} categorias={listo.categorias} />
             )}
           </section>
-        </div>
-      )}
+        )}
+      </div>
     </PageContainer>
   )
 }
 
-function Esqueleto() {
+/**
+ * Lotes agrupados por especie (Bovinos, Ovinos, Otros). Activos: dentro de cada especie, por
+ * clase del lote (cría, recría, engorde, toros, otras) y de mayor a menor cantidad de cabezas.
+ * Cerrados: del cierre más reciente al más viejo.
+ */
+function LotesPorEspecie({ datos }: { datos: Datos }) {
+  const { especies, categorias, lotes, potreros, stockLotes } = datos
+
+  const filas = lotes.map(lote => {
+    const stock = stockLotes.filter(s => s.lote_id === lote.id)
+    return {
+      lote,
+      cabezas: stock.reduce((s, x) => s + x.cabezas, 0),
+      clase: claseDeLote(stock, categorias),
+      potrero: lote.potrero_id ? potreros.find(p => p.id === lote.potrero_id)?.nombre ?? null : null,
+    }
+  })
+
+  const grupos = [...ordenarEspecies(especies), ESPECIE_DESCONOCIDA]
+    .map(especie => {
+      const delGrupo = filas.filter(f =>
+        especie.id ? f.lote.especie_id === especie.id : !especies.some(e => e.id === f.lote.especie_id))
+      delGrupo.sort((a, b) =>
+        a.lote.estado === "cerrado"
+          ? (b.lote.fecha_cierre ?? "").localeCompare(a.lote.fecha_cierre ?? "")
+          : ORDEN_CLASE.indexOf(a.clase) - ORDEN_CLASE.indexOf(b.clase) || b.cabezas - a.cabezas || a.lote.nombre.localeCompare(b.lote.nombre, "es"))
+      return { especie, filas: delGrupo }
+    })
+    .filter(g => g.filas.length > 0)
+
+  return (
+    <div className="space-y-6">
+      {grupos.map(({ especie, filas: delGrupo }) => {
+        const total = delGrupo.reduce((s, f) => s + f.cabezas, 0)
+        const activos = delGrupo[0].lote.estado === "activo"
+        return (
+          <div key={especie.id || "otra"} className="space-y-2">
+            <h3 className="flex items-center gap-2 text-sm">
+              <span aria-hidden className={cn("h-2.5 w-2.5 rounded-full", COLOR_ESPECIE[especie.grupo].solido)} />
+              <span className="font-semibold">{especie.nombre}</span>
+              <span className="text-muted-foreground">
+                {activos && <>· <span className="tabular-nums">{total}</span> {total === 1 ? "cabeza" : "cabezas"} </>}
+                · {delGrupo.length} {delGrupo.length === 1 ? "lote" : "lotes"}
+              </span>
+            </h3>
+            <ul className="space-y-2">
+              {delGrupo.map(f => (
+                <li key={f.lote.id}>
+                  <TarjetaLote lote={f.lote} grupo={especie.grupo} cabezas={f.cabezas} potrero={f.potrero} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function Esqueleto({ filas = 3 }: { filas?: number }) {
   return (
     <div className="space-y-3">
-      {[1, 2, 3].map(i => (
+      {Array.from({ length: filas }, (_, i) => (
         <div key={i} className="h-20 rounded-lg border bg-muted/30 animate-pulse" />
       ))}
     </div>
