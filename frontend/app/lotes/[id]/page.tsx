@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Merge, SlidersHorizontal, Split } from "lucide-react"
+import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Merge, Pencil, SlidersHorizontal, Split } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
@@ -20,6 +20,7 @@ import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
 import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
 import { ETIQUETA_EVENTO, fechaCorta, hoyLocal } from "@/components/lotes/formato"
+import { formatoAnios } from "@/components/lotes/anios"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import type { Carencia } from "@/types/actividades"
 import type { Potrero } from "@/types/database"
@@ -111,15 +112,22 @@ export default function LotePage() {
 
       {/* Encabezado */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-2xl font-bold">{lote.nombre}</h1>
-          {lote.estado === "cerrado" && <Badge variant="secondary">cerrado</Badge>}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold">{lote.nombre}</h1>
+            {lote.estado === "cerrado" && <Badge variant="secondary">cerrado</Badge>}
+          </div>
+          {operable && (
+            <Link href={`/lotes/${lote.id}/editar`} className={buttonVariants({ variant: "outline", size: "sm", className: "h-10 md:h-8 shrink-0" })}>
+              <Pencil className="h-4 w-4 mr-1" /> Editar
+            </Link>
+          )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
           {[
             especie?.nombre,
             potrero?.nombre,
-            lote.campana ? `campaña ${lote.campana}` : null,
+            lote.anios_nacimiento.length > 0 ? `nacidos en ${formatoAnios(lote.anios_nacimiento)}` : null,
             `desde ${fechaCorta(lote.fecha_apertura)}`,
             lote.fecha_cierre ? `cerrado el ${fechaCorta(lote.fecha_cierre)}` : null,
           ].filter(Boolean).join(" · ")}

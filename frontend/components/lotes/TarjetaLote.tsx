@@ -3,12 +3,13 @@ import { ChevronRight } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { fechaCorta } from "@/components/lotes/formato"
+import { formatoAnios } from "@/components/lotes/anios"
 import { cn } from "@/lib/utils"
 import type { Lote } from "@/types/lotes"
 
 /**
  * Tarjeta de un lote en la lista: franja del color de la especie, nombre, potrero y fecha
- * de inicio, campaña (chip) y cabezas grandes a la derecha. Los cerrados muestran la fecha
+ * de inicio, año de nacimiento (chip) y cabezas grandes a la derecha. Los cerrados muestran la fecha
  * de cierre en lugar de las cabezas.
  */
 export function TarjetaLote({ lote, color, cabezas, potrero }: {
@@ -31,7 +32,7 @@ export function TarjetaLote({ lote, color, cabezas, potrero }: {
           <p className="text-sm text-muted-foreground truncate">
             {[potrero, `desde ${fechaCorta(lote.fecha_apertura)}`].filter(Boolean).join(" · ")}
           </p>
-          {lote.campana && <Badge variant="outline" className="mt-1.5">{lote.campana}</Badge>}
+          {lote.anios_nacimiento.length > 0 && <Badge variant="outline" className="mt-1.5">{formatoAnios(lote.anios_nacimiento)}</Badge>}
         </div>
         <div className="text-right shrink-0">
           {cerrado ? (
