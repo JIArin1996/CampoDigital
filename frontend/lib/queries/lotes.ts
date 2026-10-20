@@ -19,15 +19,17 @@ export async function getEspecies(establecimiento_id: string) {
   return data as Especie[]
 }
 
-// Todas las categorías del establecimiento (activas), ordenadas por especie y orden
-export async function getCategorias(establecimiento_id: string) {
+// Categorías del establecimiento, ordenadas por orden. Por defecto solo las activas (para cargar
+// animales); el historial pide también las dadas de baja, para seguir mostrando su nombre.
+export async function getCategorias(establecimiento_id: string, opciones: { incluirInactivas?: boolean } = {}) {
   const supabase = createClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('categorias_animales')
     .select('*')
     .eq('establecimiento_id', establecimiento_id)
-    .eq('activo', true)
     .order('orden')
+  if (!opciones.incluirInactivas) query = query.eq('activo', true)
+  const { data, error } = await query
 
   if (error) throw error
   return data as CategoriaAnimal[]

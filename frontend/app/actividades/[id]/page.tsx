@@ -57,7 +57,7 @@ export default function ActividadPage() {
           a.lote_id ? getLote(a.lote_id) : null,
           a.lote_cria_id ? getLote(a.lote_cria_id) : null,
           getLotesPorIds(a.lotes ?? []),
-          getCategorias(a.establecimiento_id),
+          getCategorias(a.establecimiento_id, { incluirInactivas: true }),   // el historial muestra también las dadas de baja
           getPersonas(a.establecimiento_id),
           getRubros(a.establecimiento_id),
         ])

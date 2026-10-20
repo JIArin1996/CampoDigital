@@ -53,7 +53,7 @@ export default function LotePage() {
         if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [], cambios: [], carencias: [] }
         const [especies, categorias, potreros, stock, eventos, cambios, carencias] = await Promise.all([
           getEspecies(lote.establecimiento_id),
-          getCategorias(lote.establecimiento_id),
+          getCategorias(lote.establecimiento_id, { incluirInactivas: true }),
           getPotreros(lote.establecimiento_id),
           getStockLote(lote.id),
           getEventosLote(lote.id),
@@ -95,7 +95,9 @@ export default function LotePage() {
 
   const puedeOperar = puedeOperarEn(lote.establecimiento_id)
   const especie = vigente.especies.find(e => e.id === lote.especie_id)
+  // Con las dadas de baja: el historial y el stock siguen mostrando su nombre. Para cargar, solo las activas.
   const categoriasEspecie = vigente.categorias.filter(c => c.especie_id === lote.especie_id)
+  const categoriasActivas = categoriasEspecie.filter(c => c.activo)
   const potrero = vigente.potreros.find(p => p.id === lote.potrero_id)
   const nombreCategoria = (catId: string) => vigente.categorias.find(c => c.id === catId)?.nombre ?? "—"
   const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
@@ -229,7 +231,7 @@ export default function LotePage() {
           </DialogHeader>
           <AjusteForm
             loteId={lote.id}
-            categorias={categoriasEspecie}
+            categorias={categoriasActivas}
             stockActual={stockActual}
             onSuccess={() => {
               setAjusteAbierto(false)
