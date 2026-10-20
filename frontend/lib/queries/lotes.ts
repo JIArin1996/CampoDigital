@@ -174,9 +174,16 @@ export async function registrarAjuste(params: {
 
 // Edición del lote (nombre, notas y años de nacimiento): update directo con permiso de columna;
 // la política exige poder cargar en el establecimiento. Los años los valida la base.
+// Edición directa (permiso de columna). La base solo deja editar lotes abiertos: sobre uno cerrado
+// el UPDATE afecta 0 filas sin error. En ese caso se relee el estado para decir por qué.
 export async function editarLote(id: string, cambios: { nombre: string; notas: string | null; anios_nacimiento: number[] }) {
-  const { data, error } = await createClient().from('lotes').update(cambios).eq('id', id).select()
+  const supabase = createClient()
+  const { data, error } = await supabase.from('lotes').update(cambios).eq('id', id).select()
   if (error) throw error
+  if (!data || data.length === 0) {
+    const { data: actual } = await supabase.from('lotes').select('estado').eq('id', id).maybeSingle()
+    if (actual?.estado === 'cerrado') throw new Error('El lote está cerrado: reabrilo para editarlo')
+  }
   return exigirFilas(data) as Lote
 }
 
