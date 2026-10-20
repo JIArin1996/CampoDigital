@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
+import { ordenarEspecies } from '@/components/lotes/agrupacion'
 import type { CategoriaAnimal, Especie, GrupoEspecie } from '@/types/lotes'
 
 // Catálogo de especies del establecimiento (también las inactivas) con sus categorías.
@@ -8,13 +9,13 @@ import type { CategoriaAnimal, Especie, GrupoEspecie } from '@/types/lotes'
 export async function getCatalogoEspecies(establecimiento_id: string) {
   const supabase = createClient()
   const [especies, categorias] = await Promise.all([
-    supabase.from('especies').select('*').eq('establecimiento_id', establecimiento_id).order('nombre'),
+    supabase.from('especies').select('*').eq('establecimiento_id', establecimiento_id),
     supabase.from('categorias_animales').select('*').eq('establecimiento_id', establecimiento_id).order('orden'),
   ])
   if (especies.error) throw especies.error
   if (categorias.error) throw categorias.error
   return {
-    especies: (especies.data ?? []) as Especie[],
+    especies: ordenarEspecies((especies.data ?? []) as Especie[]),   // orden único del sistema
     categorias: (categorias.data ?? []) as CategoriaAnimal[],
   }
 }

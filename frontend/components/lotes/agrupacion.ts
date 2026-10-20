@@ -8,12 +8,19 @@
 
 import type { CategoriaAnimal, Especie, GrupoEspecie } from "@/types/lotes"
 
-// ── Especies: orden fijo Bovinos, Ovinos, Otros (por grupo, no por nombre) ──
+// ── Especies: orden único en todo el sistema ──
+// Por grupo (bovino, ovino, otro) y, dentro de cada grupo, por fecha de creación: las que se
+// van agregando quedan al final de su grupo. Hoy: Vacunos, Ovinos, Equinos, y las nuevas después.
+// Desempate por nombre. Las consultas de especies (getEspecies, getCatalogoEspecies) ya devuelven
+// este orden, así que todo selector o listado lo hereda.
 
 const ORDEN_GRUPO: Record<GrupoEspecie, number> = { bovino: 0, ovino: 1, otro: 2 }
 
-export function ordenarEspecies<T extends Pick<Especie, "grupo" | "nombre">>(especies: T[]): T[] {
-  return [...especies].sort((a, b) => ORDEN_GRUPO[a.grupo] - ORDEN_GRUPO[b.grupo] || a.nombre.localeCompare(b.nombre, "es"))
+export function ordenarEspecies<T extends Pick<Especie, "grupo" | "nombre" | "created_at">>(especies: T[]): T[] {
+  return [...especies].sort((a, b) =>
+    ORDEN_GRUPO[a.grupo] - ORDEN_GRUPO[b.grupo]
+    || a.created_at.localeCompare(b.created_at)
+    || a.nombre.localeCompare(b.nombre, "es"))
 }
 
 // ── Color de la especie ──

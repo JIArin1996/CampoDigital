@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { ordenarEspecies } from '@/components/lotes/agrupacion'
 import type {
   CategoriaAnimal, ComposicionItem, Especie, EstadoLote, Lote, LoteEvento, StockEstablecimiento, StockLote,
   CambioEstadoLote, FilaLinaje,
@@ -13,10 +14,10 @@ export async function getEspecies(establecimiento_id: string) {
     .select('*')
     .eq('establecimiento_id', establecimiento_id)
     .eq('activo', true)
-    .order('nombre')
 
   if (error) throw error
-  return data as Especie[]
+  // Orden único del sistema: grupo y fecha de creación (ver ordenarEspecies)
+  return ordenarEspecies(data as Especie[])
 }
 
 // Categorías del establecimiento, ordenadas por orden. Por defecto solo las activas (para cargar
