@@ -77,7 +77,8 @@ export default function EspeciesPage() {
     <PageContainer>
       <h1 className="text-2xl font-bold">Especies</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-xl">
-        El grupo dice qué es cada especie, sin importar su nombre: la esquila acepta solo lotes de especies del grupo ovino.
+        El grupo se elige al agregar la especie y no cambia: dice qué es cada especie, sin importar su nombre (la esquila acepta solo
+        lotes de especies del grupo ovino, y la pantalla Lotes ordena Bovinos, Ovinos y Otros).
       </p>
 
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}
@@ -123,13 +124,12 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
   onCambio: () => void
 }) {
   const [nombre, setNombre] = useState(especie.nombre)
-  const [grupo, setGrupo] = useState<GrupoEspecie>(especie.grupo)
   const [activo, setActivo] = useState(especie.activo)
   const [nuevaCategoria, setNuevaCategoria] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
-  const cambiado = nombre.trim() !== especie.nombre || grupo !== especie.grupo || activo !== especie.activo
+  const cambiado = nombre.trim() !== especie.nombre || activo !== especie.activo
 
   const ejecutar = async (accion: () => Promise<unknown>, ok: string, despues?: () => void) => {
     setEnviando(true)
@@ -149,7 +149,7 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
 
   const guardar = () => {
     if (!nombre.trim()) return setError("La especie necesita un nombre")
-    void ejecutar(() => actualizarEspecie(especie.id, { nombre: nombre.trim(), grupo, activo }), "Especie actualizada")
+    void ejecutar(() => actualizarEspecie(especie.id, { nombre: nombre.trim(), activo }), "Especie actualizada")
   }
 
   const agregarCategoria = () => {
@@ -168,18 +168,9 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
           {!especie.activo && <Badge variant="outline">inactiva</Badge>}
         </div>
 
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <div className="space-y-1.5">
-            <Label htmlFor={`esp-nombre-${especie.id}`}>Nombre</Label>
-            <Input id={`esp-nombre-${especie.id}`} className={CAMPO} value={nombre} onChange={e => setNombre(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`esp-grupo-${especie.id}`}>Grupo</Label>
-            <select id={`esp-grupo-${especie.id}`} className={`${SELECT_NATIVO} w-32`} value={grupo}
-              onChange={e => setGrupo(e.target.value as GrupoEspecie)}>
-              {GRUPOS.map(g => <option key={g.valor} value={g.valor}>{g.etiqueta}</option>)}
-            </select>
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`esp-nombre-${especie.id}`}>Nombre</Label>
+          <Input id={`esp-nombre-${especie.id}`} className={CAMPO} value={nombre} onChange={e => setNombre(e.target.value)} />
         </div>
 
         <label className="flex items-center gap-2 min-h-11 cursor-pointer select-none w-fit">

@@ -28,7 +28,8 @@ export async function crearEspecie(establecimiento_id: string, nombre: string, g
   return exigirFilas(data) as Especie
 }
 
-export async function actualizarEspecie(id: string, cambios: { nombre?: string; grupo?: GrupoEspecie; activo?: boolean }) {
+// El grupo no se cambia: se elige al crear la especie
+export async function actualizarEspecie(id: string, cambios: { nombre?: string; activo?: boolean }) {
   const { data, error } = await createClient().from('especies').update(cambios).eq('id', id).select()
   if (error) throw error
   return exigirFilas(data) as Especie
