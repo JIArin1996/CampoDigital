@@ -45,10 +45,11 @@ export function Sidebar() {
           <SelectorEstablecimiento />
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-4">
           <ListaEscritorio items={NAV_PRINCIPAL.filter(visible)} pathname={pathname} hayActivo={hayActivo} />
+          {/* Configuraciones: al fondo del menú, justo arriba de la cuenta */}
           {esAdmin && (
-            <div className="pt-3 border-t border-sidebar-border">
+            <div className="mt-auto">
               <ListaEscritorio items={[BOTON_CONFIGURACIONES]} pathname={pathname} hayActivo={hayActivo} />
             </div>
           )}
