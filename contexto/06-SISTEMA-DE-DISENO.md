@@ -24,7 +24,7 @@ Estado: vigente desde la Etapa 4 (2026-10-16). Fuente de verdad del código: `fr
 | `--input` | gris verdoso medio | borde de campos de formulario | 3,6:1 (WCAG pide 3:1 para controles) |
 | `--border` | gris verdoso claro | separadores de tarjetas y listas | decorativo |
 | `--etiqueta-idea`, `--etiqueta-observacion`, `--etiqueta-compra` (+ `-texto`) | ámbar, celeste y violeta suaves | chips de tipo de la bitácora (la decisión usa `--accent`) | texto sobre su fondo: 8,8 a 9,7:1 |
-| `--especie-bovino`, `--especie-ovino`, `--especie-otro` (+ `-suave`) | verde de la marca, ámbar y gris pizarra | color de la especie en la pantalla Lotes: franja de la tarjeta, punto del encabezado y franja del cuadro de stock por especie (`-suave` queda disponible para fondos). Se elige por `especies.grupo`, no por el nombre | gráfico, ≥ 3:1; nunca como color de texto |
+| Color de especie (`especies.color`, `#rrggbb`) | lo elige el administrador en Especies; vacío = el de su grupo: bovino `#196632` (el verde de la marca), ovino `#c5770f`, otro `#667383` | pantalla Lotes (franja de la tarjeta, punto del encabezado, franja del cuadro de stock) y tarjeta de la especie. Helper `colorDeEspecie` en `components/lotes/agrupacion.ts`; el tono suave se deriva con `color-mix` (no se guarda) y el texto encima lo elige `textoSobre` (blanco o casi negro, el de mayor contraste) | gráfico; el texto encima se calcula |
 
 Los valores se definen en `oklch` en `globals.css`; los hex son de referencia. No se usan colores sueltos de Tailwind (`green-100`, etc.) para estados: siempre los tokens.
 
