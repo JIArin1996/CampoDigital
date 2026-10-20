@@ -1,7 +1,7 @@
 -- Campo Digital v2 — Pruebas de la Etapa 6b-1: actividades que no mueven stock
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261019000100_etapa6b1_actividades).
+--   1. Con todas las migraciones aplicadas (los kilos se guardan con dos decimales desde 20261020000600).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ETAPA 6B-1: N OK, M FALLA ...", que deshace todo.
 --      El resultado esperado es "129 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
@@ -447,13 +447,13 @@ select pruebas.espera_valor('D07 Diagnosticadas mayores que el stock (25, hay 20
 
 select pruebas.guardar('e1', $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'),
       array[pruebas.id('LO'), pruebas.id('LO2')], pruebas.d(3), 120.54) $q$);
-select pruebas.espera_valor('E01 Esquila de dos lotes ovinos: 120,5 kg (redondeado), sin lote_id, dos filas principal, sin eventos',
+select pruebas.espera_valor('E01 Esquila de dos lotes ovinos: 120,54 kg (dos decimales), sin lote_id, dos filas principal, sin eventos',
   $q$ select es.kg_lana_total || '|' || coalesce(a.lote_id::text, 'sin lote') || '|'
           || (select count(*) from public.actividad_lotes where actividad_id = a.id) || '|'
           || (select count(*) from public.lote_eventos where actividad_id = a.id)
       from public.actividades a join public.act_esquila es on es.actividad_id = a.id where a.id = pruebas.id('e1') $q$,
-  '120.5|sin lote|2|0');
-select pruebas.espera_valor('E02 Kg por cabeza, promedio aproximado: 120,5 / 30 = 4,02',
+  '120.54|sin lote|2|0');
+select pruebas.espera_valor('E02 Kg por cabeza, promedio aproximado: 120,54 / 30 = 4,02',
   $q$ select kg_lana_cabeza_aprox::text from public.v_actividades where id = pruebas.id('e1') $q$, '4.02');
 select pruebas.espera_error('E03 Esquila con un lote vacuno entre los lotes',
   $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LO'), pruebas.id('LV')], public.fecha_hoy(), 50) $q$, '22023');
@@ -461,8 +461,8 @@ select pruebas.espera_error('E04 Esquila con 0 kg',
   $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LO')], public.fecha_hoy(), 0) $q$, '22023');
 select pruebas.espera_error('E05 Esquila sin kg (NULL)',
   $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LO')], public.fecha_hoy(), null) $q$, '22023');
-select pruebas.espera_error('E06 Esquila con 0,04 kg: redondeado a 1 decimal da 0,0 y lo rechaza la función (22023, no el check de la tabla)',
-  $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LO')], public.fecha_hoy(), 0.04) $q$, '22023');
+select pruebas.espera_error('E06 Esquila con 0,004 kg: redondeado a 2 decimales da 0,00 y lo rechaza la función (22023, no el check de la tabla)',
+  $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LO')], public.fecha_hoy(), 0.004) $q$, '22023');
 
 -- Grupo de especie: la esquila mira especies.grupo, no el nombre
 select pruebas.espera_valor('G01 Catálogo base de un establecimiento nuevo: Vacunos bovino, Ovinos ovino',

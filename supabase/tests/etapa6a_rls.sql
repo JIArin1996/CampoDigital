@@ -1,7 +1,7 @@
 -- Campo Digital v2 — Pruebas de la Etapa 6a: actividades que mueven stock
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261016000400_etapa6a_actividades).
+--   1. Con todas las migraciones aplicadas (los kilos se guardan con dos decimales desde 20261020000600).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ETAPA 6A: N OK, M FALLA ...", que deshace todo.
 --      El resultado esperado es "146 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS"
@@ -380,9 +380,9 @@ select pruebas.espera_valor('PE00 Pesada con responsable y notas NULL: se guarda
 select pruebas.espera_valor('PE01 Pesada: no mueve stock (0 eventos, LV sigue en 25 novillos)',
   $q$ select (select count(*) from public.lote_eventos where actividad_id = pruebas.id('pe1')) || '|' || pruebas.stock('LV', 'novillos') $q$, '0|25');
 select pruebas.espera_valor('PE02 Se guarda el peso vivo de cada línea (novillos: 3500,5 kg)',
-  $q$ select peso_vivo_total_kg::text from public.actividad_lineas where actividad_id = pruebas.id('pe1') and categoria_id = pruebas.id('novillos') $q$, '3500.5');
-select pruebas.espera_valor('PE03 Vista: 20 cabezas, 5000,5 kg, promedio 250,0 kg (calculado, no guardado)',
-  $q$ select cabezas || '|' || peso_vivo_total_kg || '|' || peso_promedio_kg from public.v_actividades where id = pruebas.id('pe1') $q$, '20|5000.5|250.0');
+  $q$ select peso_vivo_total_kg::text from public.actividad_lineas where actividad_id = pruebas.id('pe1') and categoria_id = pruebas.id('novillos') $q$, '3500.50');
+select pruebas.espera_valor('PE03 Vista: 20 cabezas, 5000,50 kg, promedio 250,0 kg (calculado, no guardado)',
+  $q$ select cabezas || '|' || peso_vivo_total_kg || '|' || peso_promedio_kg from public.v_actividades where id = pruebas.id('pe1') $q$, '20|5000.50|250.0');
 select pruebas.espera_error('PE04 Pesada sin peso vivo',
   $q$ select public.registrar_pesada(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 5))) $q$, '22023');
@@ -418,8 +418,8 @@ select pruebas.guardar('v1', $q$ select public.registrar_venta(
       p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(2),
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 5, 2400)), p_modalidad => 'frigorifico',
       p_contraparte => 'Frigorífico (prueba)', p_kg_gancho => 1260, p_precio => pruebas.precio(6000, 'USD', null, 'pagado')) $q$);
-select pruebas.espera_valor('V01 Venta con kg al gancho: se guardan 1260,0 kg',
-  $q$ select kg_gancho::text from public.act_compraventa where actividad_id = pruebas.id('v1') $q$, '1260.0');
+select pruebas.espera_valor('V01 Venta con kg al gancho: se guardan 1260,00 kg',
+  $q$ select kg_gancho::text from public.act_compraventa where actividad_id = pruebas.id('v1') $q$, '1260.00');
 select pruebas.espera_valor('V02 Rendimiento = gancho / peso vivo = 52,5 %; promedio 480,0 kg; 5 cabezas',
   $q$ select rendimiento_pct || '|' || peso_promedio_kg || '|' || cabezas from public.v_actividades where id = pruebas.id('v1') $q$, '52.5|480.0|5');
 select pruebas.espera_valor('V03 Movimiento: ingreso USD 6000; LV queda con 20 novillos y activo',
