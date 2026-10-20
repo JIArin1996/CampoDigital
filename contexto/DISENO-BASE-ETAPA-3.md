@@ -163,7 +163,7 @@ Valores iniciales [Decidido]:
 | establecimiento_id | uuid | |
 | especie_id | uuid | FK compuesta a especies |
 | nombre | text | ej. "Terneros Nacidos 2026" |
-| campana | text | opcional [Propuesta] |
+| campana | text | opcional [Propuesta] — *Reemplazada por `anios_nacimiento` (año de nacimiento) en 2026-10-20; ver `DISENO-LOTES-ANIOS-Y-ARCHIVOS.md`.* |
 | estado | text | `activo` o `cerrado` |
 | fecha_apertura | date | not null |
 | fecha_cierre | date | null mientras está activo |
@@ -544,7 +544,7 @@ El RLS decide **qué filas**. Los permisos deciden **qué operaciones** se puede
   - `select` en todas las tablas y vistas (el RLS filtra las filas);
   - `insert` y `update` solo en `personas`, `especies`, `categorias_animales`, `rubros` y `potreros`, y **por columna**: nunca `id`, `created_by`, `created_at` ni `updated_at` (la auditoría no se puede falsear), y `establecimiento_id` (y `especie_id` en categorías) solo al dar de alta, no al editar;
   - en `establecimientos`, `update` solo de los datos descriptivos y `estado`;
-  - en `lotes`, **sin `update` sobre la tabla**: solo por columna (`nombre`, `campana`, `potrero_id`, `notas`);
+  - en `lotes`, **sin `update` sobre la tabla**: solo por columna (`nombre`, `campana`, `potrero_id`, `notas`); *desde 2026-10-20, `anios_nacimiento` en lugar de `campana`.*
   - ningún `delete` ni `truncate` en ninguna tabla.
 - **Funciones `security definer`**: todas llevan `set search_path = ''`, `revoke execute ... from public, anon` y `grant execute ... to authenticated`. Las que escriben validan `es_editor` adentro antes de hacer nada.
 - **Funciones internas** (con `_` adelante, como `_cargar_catalogos_base` y `_validar_saldo`) y **funciones de trigger**: `revoke execute` también a `authenticated`. No se pueden llamar por la API.

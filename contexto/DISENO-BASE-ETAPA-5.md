@@ -84,7 +84,7 @@ unir_lotes(
   p_lotes_origen uuid[],
   p_fecha        date,
   p_destino_id   uuid  default null,   -- lote existente, o null para crear uno nuevo
-  p_nuevo        jsonb default null,   -- {"nombre", "potrero_id", "campana"} si se crea uno nuevo
+  p_nuevo        jsonb default null,   -- {"nombre", "potrero_id", "campana"} si se crea uno nuevo (desde 2026-10-20 la app no manda campana: el destino recibe la unión de los años de nacimiento)
   p_notas        text  default null
 ) returns uuid                          -- id de la operación
 ```

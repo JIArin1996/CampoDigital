@@ -1,12 +1,13 @@
 # Campo Digital — Lotes: año de nacimiento y archivos
 
-Estado: **migración escrita, sin aplicar** (2026-10-20). Migración: `supabase/migrations/20261020000200_lotes_anios_y_archivos.sql`; pruebas: `supabase/tests/lotes_anios_nacimiento.sql` y `supabase/tests/lote_archivos_rls.sql`.
+Estado: **aplicado y verificado** (2026-10-20; migraciones `20261020000200` y `20261020000300`). La app de años de nacimiento (C1) dejó de mandar `campana`. Migración: `supabase/migrations/20261020000200_lotes_anios_y_archivos.sql`; pruebas: `supabase/tests/lotes_anios_nacimiento.sql` y `supabase/tests/lote_archivos_rls.sql`.
 
 ## 1. Año de nacimiento (reemplaza a campaña)
 
 - `lotes.anios_nacimiento int[]`, por defecto vacío. Sin repetidos, ordenados de menor a mayor, cada año entre 1990 y el año actual, hasta 10. Lo valida un trigger (el tope es el año actual, que no puede ir en un check).
 - Se cargó desde `campana`: todos los años de 4 dígitos del texto ("2024 y 2025" → {2024, 2025}). Un texto sin años queda vacío; la migración avisa qué lotes revisar.
-- `campana` sigue en la tabla hasta una migración posterior, pero ya no se edita: el permiso de UPDATE pasó a `anios_nacimiento`.
+- `campana` sigue en la tabla hasta una migración posterior, pero ya no se edita: el permiso de UPDATE pasó a `anios_nacimiento`. La app ya no la manda (crear, dividir, unir, comprar) y en todas las pantallas dice "Año de nacimiento".
+- **Edición del lote**: pantalla propia (nombre, notas y años), solo para lotes abiertos y quien puede cargar. La base hoy **no** impide editar un lote cerrado: la política `lotes_update` solo exige `puede_operar` (y `_bloquear_lote_editable` tampoco mira el estado). Si se quiere que la base lo haga cumplir, va en una migración aparte.
 - **Herencia**:
   - `crear_lote` los recibe.
   - `dividir_lote`: cada lote nuevo puede traer sus años (`anios_nacimiento` en el destino); si no vienen, hereda los del origen. La pantalla de dividir los precarga con los del origen y se pueden cambiar antes de confirmar.
