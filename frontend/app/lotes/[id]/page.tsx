@@ -107,7 +107,10 @@ export default function LotePage() {
   const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
   const ultimoCierre = vigente.cambios.find(c => c.tipo === "cierre")
   const operable = puedeOperar && lote.estado === "activo"
-  const tieneCrias = vigente.stock.some(s => s.cabezas > 0 && categoriasEspecie.some(c => c.id === s.categoria_id && c.cria_al_pie))
+  // Destete: solo si hay crías al pie de verdad (con sus madres, o que vengan de una parición); no en lotes de destetados o de recría
+  const esCria = (catId: string) => categoriasEspecie.some(c => c.id === catId && c.cria_al_pie)
+  const tieneCrias = vigente.stock.some(s => s.cabezas > 0 && esCria(s.categoria_id))
+    && (vigente.stock.some(s => s.cabezas > 0 && !esCria(s.categoria_id)) || vigente.eventos.some(e => e.tipo === "paricion" && e.cabezas > 0))
   const accion = buttonVariants({ variant: "outline", className: "h-auto flex-col gap-1 py-3 text-sm" })
 
   return (

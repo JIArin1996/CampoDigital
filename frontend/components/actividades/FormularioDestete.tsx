@@ -89,7 +89,12 @@ export function FormularioDestete({ loteInicial, datos }: {
   const stockDe = (loteId: string, catId: string) => stock.find(s => s.lote_id === loteId && s.categoria_id === catId)?.cabezas ?? 0
   const criasDe = (loteId: string) =>
     categorias.filter(c => c.cria_al_pie && stockDe(loteId, c.id) > 0).sort((a, b) => a.orden - b.orden)
-  const lotesConCria = lotes.filter(l => stock.some(s => s.lote_id === l.id && s.cabezas > 0 && esCria(s.categoria_id)))
+  // Lotes con crías al pie: tienen crías y además madres, o recibieron una parición. Así no aparecen los
+  // lotes de destetados ni los de recría (Terneros y Terneras siguen siendo cría al pie después del destete).
+  const tieneCrias = (loteId: string) => stock.some(s => s.lote_id === loteId && s.cabezas > 0 && esCria(s.categoria_id))
+  const tieneMadres = (loteId: string) => stock.some(s => s.lote_id === loteId && s.cabezas > 0 && !esCria(s.categoria_id))
+  const parioEn = (loteId: string) => (historial?.pariciones ?? []).some(p => p.lote_id === loteId)
+  const lotesConCria = lotes.filter(l => tieneCrias(l.id) && (tieneMadres(l.id) || parioEn(l.id)))
 
   const elegidos = Object.keys(cantidades)
   const especieId = lotes.find(l => l.id === elegidos[0])?.especie_id ?? null
@@ -121,6 +126,13 @@ export function FormularioDestete({ loteInicial, datos }: {
     if (t > 0) totales.set(c.id, t)
   }
   const totalCrias = [...sale.values()].reduce((s, n) => s + n, 0)
+
+  // El destete no puede ser anterior a la última parición de los lotes elegidos (la base lo rechazaría:
+  // ese día el lote todavía no tenía esas crías)
+  const ultimaParicion = (historial?.pariciones ?? [])
+    .filter(p => elegidos.includes(p.lote_id))
+    .reduce((max, p) => (p.fecha > max ? p.fecha : max), "")
+  const fechaAntesDeParicion = !!ultimaParicion && fecha < ultimaParicion
 
   // ── Años sugeridos: fechas de las pariciones de cada origen posteriores a su último destete ──
   const aniosSugeridos = (() => {
@@ -203,6 +215,9 @@ export function FormularioDestete({ loteInicial, datos }: {
       if (lineas.length > 0) origenes.push({ lote_id: loteId, lineas })
     }
     if (origenes.length === 0) return setError("Elegí al menos un lote y cuántas crías se destetan")
+    if (fechaAntesDeParicion) {
+      return setError(`La última parición de los lotes elegidos es del ${fechaCorta(ultimaParicion)}: el destete no puede ser anterior`)
+    }
     if (!sexadoValido) return setError(`De las ${sinSexar} crías sin sexar, indicá cuántas son machos (entre 0 y ${sinSexar})`)
     if (sinSexar > 0 && (!catMacho || !catHembra)) {
       return setError("La especie necesita una categoría de cría macho y una hembra (Especies) para separar las sin sexar")
@@ -277,14 +292,22 @@ export function FormularioDestete({ loteInicial, datos }: {
       <form onSubmit={onSubmit} className="space-y-6 max-w-xl">
         <div className="space-y-1.5">
           <Label htmlFor="destete-fecha">Fecha</Label>
-          <Input id="destete-fecha" type="date" max={hoyLocal()} className={CAMPO} value={fecha} onChange={e => setFecha(e.target.value)} />
+          <Input id="destete-fecha" type="date" min={ultimaParicion || undefined} max={hoyLocal()} className={CAMPO}
+            value={fecha} onChange={e => setFecha(e.target.value)} />
+          {fechaAntesDeParicion && (
+            <p role="alert" className="text-sm text-destructive">
+              La última parición de los lotes elegidos es del {fechaCorta(ultimaParicion)}: el destete tiene que ser ese día o después.
+            </p>
+          )}
         </div>
 
         {/* 1. Orígenes */}
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium mb-1">1. De qué lotes salen las crías</legend>
-          {lotesConCria.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay lotes con crías al pie.</p>
+          {!historial ? (
+            <div className="h-24 rounded-lg border bg-muted/30 animate-pulse" />
+          ) : lotesConCria.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay lotes con crías al pie (crías con sus madres, o que vengan de una parición).</p>
           ) : (
             <ul className="space-y-2">
               {lotesConCria.map(l => {
@@ -303,16 +326,23 @@ export function FormularioDestete({ loteInicial, datos }: {
                       </span>
                     </label>
                     {elegido && (
-                      <div className="border-t divide-y">
-                        {criasDe(l.id).map(c => (
-                          <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2">
-                            <span className="text-sm">{c.nombre} <span className="text-muted-foreground">(hay {stockDe(l.id, c.id)})</span></span>
-                            <Input aria-label={`${c.nombre} que se destetan de ${l.nombre}`} type="number" inputMode="numeric" min="0"
-                              max={stockDe(l.id, c.id)} step="1" className={`${CAMPO} w-20 text-right tabular-nums`}
-                              value={cantidades[l.id]?.[c.id] ?? ""}
-                              onChange={e => cambiarSalida(prev => ({ ...prev, [l.id]: { ...prev[l.id], [c.id]: e.target.value } }))} />
-                          </div>
-                        ))}
+                      <div className="border-t">
+                        <p className="px-3 pt-2 text-sm font-medium">¿Cuántos se destetan?</p>
+                        <p className="px-3 text-xs text-muted-foreground">Por defecto, todos. Podés destetar una parte: el resto queda en el lote.</p>
+                        <div className="divide-y">
+                          {criasDe(l.id).map(c => (
+                            <div key={c.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                              <span className="text-sm">{c.nombre}</span>
+                              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Input aria-label={`${c.nombre} que se destetan de ${l.nombre}`} type="number" inputMode="numeric" min="0"
+                                  max={stockDe(l.id, c.id)} step="1" className={`${CAMPO} w-20 text-right tabular-nums text-foreground`}
+                                  value={cantidades[l.id]?.[c.id] ?? ""}
+                                  onChange={e => cambiarSalida(prev => ({ ...prev, [l.id]: { ...prev[l.id], [c.id]: e.target.value } }))} />
+                                de {stockDe(l.id, c.id)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </li>
