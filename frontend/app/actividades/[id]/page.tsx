@@ -7,7 +7,7 @@ import { Ban } from "lucide-react"
 import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { anularActividad, getActividad, getRubros } from "@/lib/queries/actividades"
+import { anularActividad, getActividad, getLotesConRol, getRubros } from "@/lib/queries/actividades"
 import { getPersonas } from "@/lib/queries/bitacora"
 import { getCategorias, getLote, getLotesPorIds } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
@@ -30,6 +30,7 @@ interface Ficha extends Detalle {
   lote: Lote | null
   loteCria: Lote | null
   lotesActividad: Lote[]     // todos los lotes de la actividad (actividad_lotes)
+  roles: Awaited<ReturnType<typeof getLotesConRol>>   // destete: qué lote es origen y cuál destino
   categorias: CategoriaAnimal[]
   personas: Awaited<ReturnType<typeof getPersonas>>
   rubros: Awaited<ReturnType<typeof getRubros>>
@@ -53,15 +54,16 @@ export default function ActividadPage() {
       .then(async detalle => {
         if (!detalle) return null
         const a = detalle.actividad
-        const [lote, loteCria, lotesActividad, categorias, personas, rubros] = await Promise.all([
+        const [lote, loteCria, lotesActividad, categorias, personas, rubros, roles] = await Promise.all([
           a.lote_id ? getLote(a.lote_id) : null,
           a.lote_cria_id ? getLote(a.lote_cria_id) : null,
           getLotesPorIds(a.lotes ?? []),
           getCategorias(a.establecimiento_id, { incluirInactivas: true }),   // el historial muestra también las dadas de baja
           getPersonas(a.establecimiento_id),
           getRubros(a.establecimiento_id),
+          a.tipo === "destete" ? getLotesConRol(a.id) : Promise.resolve([]),
         ])
-        return { ...detalle, clave, lote, loteCria, lotesActividad, categorias, personas, rubros }
+        return { ...detalle, clave, lote, loteCria, lotesActividad, categorias, personas, rubros, roles }
       })
       .then(f => { if (vigente) setFicha(f) })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar la actividad")) })
@@ -128,7 +130,19 @@ export default function ActividadPage() {
             <dl className="divide-y">
               {lote && fila(a.tipo === "paricion" ? "Lote de madres" : "Lote", <Link href={`/lotes/${lote.id}`} className="font-medium text-primary">{lote.nombre}</Link>)}
               {loteCria && fila("Lote de cría", <Link href={`/lotes/${loteCria.id}`} className="font-medium text-primary">{loteCria.nombre}</Link>)}
-              {!a.lote_id && lotesActividad.length > 0 && fila(lotesActividad.length === 1 ? "Lote" : "Lotes", (
+              {a.tipo === "destete" && (["origen", "destino"] as const).map(rol => {
+                const delRol = lotesActividad.filter(l => ficha.roles.some(r => r.lote_id === l.id && r.rol === rol))
+                return delRol.length > 0 && (
+                  <div key={rol}>
+                    {fila(rol === "origen" ? "Destetados de" : "Lotes nuevos", (
+                      <span className="flex flex-wrap justify-end gap-x-2">
+                        {delRol.map(l => <Link key={l.id} href={`/lotes/${l.id}`} className="font-medium text-primary">{l.nombre}</Link>)}
+                      </span>
+                    ))}
+                  </div>
+                )
+              })}
+              {!a.lote_id && a.tipo !== "destete" && lotesActividad.length > 0 && fila(lotesActividad.length === 1 ? "Lote" : "Lotes", (
                 <span className="flex flex-wrap justify-end gap-x-2">
                   {lotesActividad.map(l => <Link key={l.id} href={`/lotes/${l.id}`} className="font-medium text-primary">{l.nombre}</Link>)}
                 </span>

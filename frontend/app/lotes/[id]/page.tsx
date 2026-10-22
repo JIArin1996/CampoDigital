@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Lock, LockOpen, Merge, Pencil, SlidersHorizontal, Split } from "lucide-react"
+import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Lock, LockOpen, Merge, MilkOff, Pencil, SlidersHorizontal, Split } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
@@ -107,6 +107,7 @@ export default function LotePage() {
   const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
   const ultimoCierre = vigente.cambios.find(c => c.tipo === "cierre")
   const operable = puedeOperar && lote.estado === "activo"
+  const tieneCrias = vigente.stock.some(s => s.cabezas > 0 && categoriasEspecie.some(c => c.id === s.categoria_id && c.cria_al_pie))
   const accion = buttonVariants({ variant: "outline", className: "h-auto flex-col gap-1 py-3 text-sm" })
 
   return (
@@ -177,6 +178,12 @@ export default function LotePage() {
             <Merge className="h-5 w-5" />
             Unir
           </Link>
+          {tieneCrias && (
+            <Link href={`/actividades/nueva?tipo=destete&lote=${lote.id}`} className={accion}>
+              <MilkOff className="h-5 w-5" />
+              Destete
+            </Link>
+          )}
         </nav>
       )}
 
