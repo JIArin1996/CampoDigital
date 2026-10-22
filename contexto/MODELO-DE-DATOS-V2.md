@@ -110,7 +110,7 @@ Se sigue usando para listas simples sin relaciones (modalidades de venta, causas
 | establecimiento_id | bigint |  |
 | especie_id | bigint |  |
 | nombre | text | Ej: "Terneros Nacidos 2026" |
-| anios_nacimiento | int[] | Año de nacimiento: años de nacimiento de los animales del lote, sin repetir y ordenados, de 1990 a hoy, hasta 10. Se muestra "2025", "2024 y 2025". Reemplaza a `campana` (texto libre), que queda en la tabla sin editarse hasta borrarla [Decidido, 2026-10-20] |
+| anios_nacimiento | int[] | Año de nacimiento: años de nacimiento de los animales del lote, sin repetir y ordenados, de 1990 a hoy, hasta 10. Se muestra "2025", "2024 y 2025". Reemplaza a `campana` (texto libre), borrada en la migración `20261020000500` [Decidido, 2026-10-20; verificado 2026-10-22] |
 | estado | text | activo o cerrado |
 | fecha_apertura | date |  |
 | fecha_cierre | date | null mientras esté activo |

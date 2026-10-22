@@ -1,8 +1,8 @@
 # Campo Digital — Diseño de la base, Etapa 6b-2: destete
 
-> **EN REVISIÓN — no implementar hasta cerrar las decisiones abiertas (sección 13).** A1 a A9 quedaron respondidas el 2026-10-20; quedan abiertas A10 (ovinos) y A11 (sexo de la categoría).
+> **Decisiones cerradas (A1 a A11, 2026-10-22).** Se implementa en dos migraciones (sección 11): primero la parición al pie con las marcas de cría y sexo; después el destete.
 
-Estado: **en revisión** (2026-10-20). Sin migraciones. Reemplaza la sección 4 de `DISENO-BASE-ETAPA-6B.md` (destete "cada lote pasa entero a un lote nuevo") y la sección 1 bis de `DISENO-LOTES-ANIOS-Y-ARCHIVOS.md` (destete como división).
+Estado: **aprobado** (2026-10-22; A10 y A11 aceptadas como se recomendaron). Sin migraciones. Reemplaza la sección 4 de `DISENO-BASE-ETAPA-6B.md` (destete "cada lote pasa entero a un lote nuevo") y la sección 1 bis de `DISENO-LOTES-ANIOS-Y-ARCHIVOS.md` (destete como división).
 
 Base: las respuestas de Iñaki del 2026-10-20 (dos rondas), `DISENO-BASE-ETAPA-5.md` (operaciones de lote y linaje), `DISENO-BASE-ETAPA-6A.md` (parición y anulación) y `DISENO-BASE-ETAPA-6B.md` (actividad_lotes, operaciones_lote.actividad_id, v_carencias).
 
@@ -42,7 +42,7 @@ Casos que cubre:
 | Destete parcial (los más grandes primero) | cualquiera de los dos | el origen sigue abierto con los que quedan |
 | Varios lotes a la vez | varios orígenes | cada uno según lo que le quede |
 
-**Ovinos:** la marca "Cría al pie" es por categoría, así que el destete funciona igual con corderos y corderas, **sin cambios en la base ni en las funciones**. Solo hace falta marcar esas categorías. Si se marcan desde el principio o más adelante es la decisión A10.
+**Ovinos:** la marca "Cría al pie" es por categoría, así que el destete funciona igual con corderos y corderas, **sin cambios en la base ni en las funciones**. Solo hace falta marcar esas categorías. Se marcan desde el principio [Decidido, A10].
 
 ---
 
@@ -71,7 +71,7 @@ La parición puede cargar "20 Terneros/as" sin definir machos y hembras.
   - **ningún destino puede recibir crías sin sexar**;
   - es el único cambio de categoría permitido en el destete.
 - **También se puede asignar antes**, con `recategorizar_lote` (Terneros/as → Terneros o Terneras), sin cambios en esa función: ya permite cualquier categoría de la misma especie.
-- Para saber qué categoría es macho, hembra o sin sexar, cada categoría de cría al pie lleva su sexo (sección 3, decisión A11).
+- Para saber qué categoría es macho, hembra o sin sexar, cada categoría de cría al pie lleva su sexo (sección 3).
 
 ---
 
@@ -81,11 +81,11 @@ El destete tiene que saber qué categorías puede mover y de qué sexo son, sin 
 
 - [Propuesta] Columnas nuevas en `categorias_animales`:
   - `cria_al_pie boolean not null default false`;
-  - `sexo text null check (sexo in ('macho', 'hembra'))` (A11). Solo tiene sentido con `cria_al_pie`; null con `cria_al_pie` significa "sin sexar".
+  - `sexo text null check (sexo in ('macho', 'hembra'))` Solo tiene sentido con `cria_al_pie`; null con `cria_al_pie` significa "sin sexar".
 - **La migración marca** [Decidido, A2]:
   - **Terneros** (macho) y **Terneras** (hembra), los que ya existen;
   - **Terneros/as** (sin sexar), que es nueva.
-  - Con A10: también Corderos, Corderas y Corderos/as.
+  - También Corderos (macho), Corderas (hembra) y **Corderos/as** (sin sexar, nueva) [Decidido, A10].
 - **El administrador las edita** en Especies, con una casilla "Cría al pie" y el sexo en cada categoría.
 - **El destete** rechaza mover cualquier categoría sin la marca (22023, "Solo se destetan categorías de cría al pie").
 - **La parición** acepta **solo categorías de cría al pie** [Decidido, A2]: no puede sumar vacas por error.
@@ -255,7 +255,7 @@ El detalle de la actividad muestra orígenes, destinos (con sus orígenes aporta
   - Si el lote tiene crías al pie **y** otras categorías, las muestra por separado: "100 vacas + 20 crías al pie".
   - Si solo tiene crías al pie, por ejemplo un lote de destetados o de cría propio, muestra el total como hoy: "40 terneros".
 - **`agrupacion.ts`:**
-  - Mapea las categorías nuevas: "Terneros/as" y, con A10, "Corderos/as".
+  - Mapea las categorías nuevas: "Terneros/as" y "Corderos/as".
   - Pasa a usar la marca `cria_al_pie` en lugar del nombre para separar las crías.
 - **Clase predominante del lote:**
   - **Las crías al pie no cuentan** cuando el lote tiene otras categorías: 100 vacas y 80 terneros al pie es un lote de **cría**.
@@ -267,9 +267,9 @@ El detalle de la actividad muestra orígenes, destinos (con sus orígenes aporta
 
 | Objeto | Hoy | Cambio |
 |---|---|---|
-| `categorias_animales` | sin marca | `cria_al_pie boolean not null default false` y `sexo` (macho, hembra o null; A11); se marcan Terneros, Terneras y Terneros/as |
-| Catálogo base (`_cargar_catalogos_base`) | sin crías sin sexar | agrega "Terneros/as" (y "Corderos/as" con A10), con la marca |
-| Establecimientos existentes | sin crías sin sexar | la migración agrega "Terneros/as" en cada especie bovina |
+| `categorias_animales` | sin marca | `cria_al_pie boolean not null default false` y `sexo` (macho, hembra o null); se marcan Terneros, Terneras y Terneros/as |
+| Catálogo base (`_cargar_catalogos_base`) | sin crías sin sexar | agrega "Terneros/as" y "Corderos/as", con la marca |
+| Establecimientos existentes | sin crías sin sexar | la migración agrega "Terneros/as" en cada especie bovina y "Corderos/as" en cada ovina |
 | `registrar_paricion` | rechaza cría = madres; acepta cualquier categoría | permite cría = madres; solo categorías de cría al pie |
 | `lote_eventos.tipo` (check) | sin `destete` | agregar `destete` |
 | `lote_eventos`, regla de operación | division, union, recategorizacion | **sin cambio**: los eventos del destete no llevan operación (7.2) |
@@ -340,5 +340,5 @@ Se vuelven a correr `etapa5`, `etapa6a`, `etapa6b1`, `lotes_anios_nacimiento`, `
 | A7 | Asignación origen → destino | **Cerrada.** Vínculos a nivel lote (X aportó a Y); carencia más restrictiva de todos los aportantes; linaje con todos |
 | A8 | Archivos | **Cerrada.** Cada destino recibe los visibles de todos los orígenes, por referencia |
 | A9 | Parición por defecto y tarjeta | **Cerrada.** "Quedan con las madres" por defecto; tarjeta "100 vacas + 20 crías al pie"; las crías no cuentan para la clase si hay otras categorías |
-| **A10** | **Ovinos:** ¿la migración marca también Corderos, Corderas y Corderos/as como cría al pie? | **Abierta.** Recomendación: **sí**, desde el principio. No cambia nada más y el destete de corderos funciona igual. Si no se marcan, el destete de ovinos queda disponible cuando el administrador las marque en Especies |
-| **A11** | **Sexo en `categorias_animales`** (sección 3): ¿columna `sexo` junto a `cria_al_pie`? | **Abierta.** Recomendación: **sí**; es lo que permite exigir que ninguna sin sexar quede en los destinos y que una ternera no entre como ternero, sin depender de los nombres |
+| A10 | Ovinos | **Cerrada.** La migración marca también Corderos (macho), Corderas (hembra) y la nueva Corderos/as (sin sexar) como cría al pie |
+| A11 | Sexo de la categoría | **Cerrada.** Columna `sexo` (macho, hembra o null) junto a `cria_al_pie` |

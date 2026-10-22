@@ -106,7 +106,7 @@ Un lote. `act_diagnostico`: `vacas_diagnosticadas` (int > 0) y `vacas_prenadas` 
 
 ### 3.4 Esquila [Decidido]
 
-Uno o más lotes, **todos ovinos**: especie con `grupo = 'ovino'`. `especies` gana la columna `grupo` (`bovino`, `ovino`, `otro`), que carga el administrador; las existentes se clasifican por el nombre del catálogo base y `_cargar_catalogos_base` la completa en los establecimientos nuevos. Renombrar una especie no cambia su grupo. `act_esquila`: `kg_lana_total` (numeric(10,1), > 0, validado ya redondeado a 1 decimal), uno solo para toda la carga (para tener kg por lote, una carga por lote). Sin líneas. **Kg por cabeza, promedio aproximado** [Decidido]: kg de lana / stock total de esos lotes a la fecha (incluye todas las categorías, también las que no se esquilaron). La vista lo llama `kg_lana_cabeza_aprox` y la app lo rotula como aproximado.
+Uno o más lotes, **todos ovinos**: especie con `grupo = 'ovino'`. `especies` gana la columna `grupo` (`bovino`, `ovino`, `otro`), que carga el administrador; las existentes se clasifican por el nombre del catálogo base y `_cargar_catalogos_base` la completa en los establecimientos nuevos. Renombrar una especie no cambia su grupo. `act_esquila`: `kg_lana_total` (numeric(10,1), > 0, validado ya redondeado a 1 decimal; desde la migración `20261020000600`: numeric(12,2), hasta dos decimales), uno solo para toda la carga (para tener kg por lote, una carga por lote). Sin líneas. **Kg por cabeza, promedio aproximado** [Decidido]: kg de lana / stock total de esos lotes a la fecha (incluye todas las categorías, también las que no se esquilaron). La vista lo llama `kg_lana_cabeza_aprox` y la app lo rotula como aproximado.
 
 ### 3.5 Personalizada [Decidido]
 
@@ -233,7 +233,7 @@ Ajustes: carencia propagada a los descendientes (3.1), verificación de `lote_id
 
 ## 9 bis. Pendientes anotados (2026-10-19)
 
-- **Redondeo en la 6a** [Decidido: no va en la 6b-1]: `_insertar_lineas` (peso vivo) y `registrar_compra`/`registrar_venta` (kg al gancho) validan `> 0` antes de redondear a 1 decimal, así que 0,04 kg cae en el check de la tabla (23514) en vez de 22023. Se corrige en la **próxima migración que toque** `_insertar_lineas`, `registrar_compra` o `registrar_venta`, validando el valor ya redondeado como la esquila. Mientras tanto, el formulario de la app exige **mínimo 0,1 kg**.
+- **Redondeo en la 6a** [Decidido: no va en la 6b-1]: `_insertar_lineas` (peso vivo) y `registrar_compra`/`registrar_venta` (kg al gancho) validan `> 0` antes de redondear a 1 decimal, así que 0,04 kg cae en el check de la tabla (23514) en vez de 22023. Se corrige en la **próxima migración que toque** `_insertar_lineas`, `registrar_compra` o `registrar_venta`, validando el valor ya redondeado como la esquila. Mientras tanto, el formulario de la app exige **mínimo 0,1 kg**. **Resuelto (2026-10-22)** en la migración `20261020000600`: los kilos aceptan cualquier número mayor a 0 con hasta dos decimales y se validan ya redondeados; la app dejó de exigir 0,1 kg.
 - **App: campo "grupo"** (bovino, ovino, otro) en la pantalla de especies, para el administrador.
 - **Etapa 7: rubro por defecto de compra y venta por `grupo`** de la especie, en lugar de buscar un rubro con el mismo nombre que la especie (hoy `_registrar_movimiento` compara nombres).
 

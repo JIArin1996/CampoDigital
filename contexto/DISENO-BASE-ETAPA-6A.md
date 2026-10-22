@@ -46,7 +46,7 @@ Se mantienen los criterios de siempre: `uuid`, `created_by` sin FK, FKs compuest
 | establecimiento_id | uuid | |
 | categoria_id | uuid | de la especie del lote |
 | cabezas | int | `> 0` |
-| peso_vivo_total_kg | numeric(10,1) | `> 0` si viene. **Obligatorio en la pesada**, opcional en compra y venta; la mortandad y la parición no llevan [Decidido] |
+| peso_vivo_total_kg | numeric(10,1) | `> 0` si viene. **Desde 2026-10-22 (migración `20261020000600`, verificada): numeric(12,2), cualquier número mayor a 0 con hasta dos decimales; se valida ya redondeado (22023).** **Obligatorio en la pesada**, opcional en compra y venta; la mortandad y la parición no llevan [Decidido] |
 
 PK `(actividad_id, categoria_id)`. El **peso promedio se calcula** (`peso_vivo_total_kg / cabezas`), no se guarda [Decidido]. Inmutable.
 
@@ -54,7 +54,7 @@ PK `(actividad_id, categoria_id)`. El **peso promedio se calcula** (`peso_vivo_t
 
 | Tabla | Columnas | |
 |---|---|---|
-| `act_compraventa` | `modalidad` (`productor`, `remate`, `frigorifico`, `otra`) [Decidido], `contraparte`, `kg_gancho` (numeric(10,1), opcional, `> 0`): peso de carcasa en las ventas a frigorífico [Decidido] | compra y venta. El **rendimiento** (`kg_gancho / peso vivo`) se calcula, no se guarda, y no tiene validación dura [Decidido] |
+| `act_compraventa` | `modalidad` (`productor`, `remate`, `frigorifico`, `otra`) [Decidido], `contraparte`, `kg_gancho` (numeric(10,1), opcional, `> 0`; desde la migración `20261020000600`: numeric(12,2), hasta dos decimales): peso de carcasa en las ventas a frigorífico [Decidido] | compra y venta. El **rendimiento** (`kg_gancho / peso vivo`) se calcula, no se guarda, y no tiene validación dura [Decidido] |
 | `act_mortandad` | `causa` (valor de `parametros`, clave `causas_mortandad`; **no es un check**), por defecto `Desconocida`; `observaciones` libres | [Decidido] |
 | `act_paricion` | `lote_cria_id` (lote de crías, creado o existente) [Decidido], `nacidos_muertos` (int ≥ 0, default 0) [Decidido]. **Sin `servicio_id`**: se agrega en la 6b con su FK a `act_servicio` [Decidido] | el lote de madres es `actividades.lote_id` [Decidido] |
 

@@ -6,7 +6,7 @@ Estado: **aplicado y verificado** (2026-10-20; migraciones `20261020000200` y `2
 
 - `lotes.anios_nacimiento int[]`, por defecto vacío. Sin repetidos, ordenados de menor a mayor, cada año entre 1990 y el año actual, hasta 10. Lo valida un trigger (el tope es el año actual, que no puede ir en un check).
 - Se cargó desde `campana`: todos los años de 4 dígitos del texto ("2024 y 2025" → {2024, 2025}). Un texto sin años queda vacío; la migración avisa qué lotes revisar.
-- `campana` sigue en la tabla hasta una migración posterior, pero ya no se edita: el permiso de UPDATE pasó a `anios_nacimiento`. La app ya no la manda (crear, dividir, unir, comprar) y en todas las pantallas dice "Año de nacimiento".
+- `campana` se borró en la migración `20261020000500` (verificada el 2026-10-22, `campana_borrada.sql` 12 OK): las funciones que la escribían dejaron de hacerlo y `crear_lote` perdió el parámetro `p_campana`. Antes, el permiso de UPDATE ya había pasado a `anios_nacimiento`, y la app dejó de mandarla (crear, dividir, unir, comprar); en todas las pantallas dice "Año de nacimiento".
 - **Edición del lote**: pantalla propia (nombre, notas y años), solo para lotes abiertos y quien puede cargar. Desde la migración `20261020000400` la base también lo impide: la política `lotes_update` exige `puede_operar` y `estado = 'activo'` (un UPDATE sobre un lote cerrado afecta 0 filas). Las funciones que cierran, reabren o escriben en lotes no dependen de esa política: son `security definer` y corren como el dueño de la tabla, que no está sujeto a RLS (prueba `lote_cerrado_no_se_edita.sql`, 41 OK).
 - **Herencia**:
   - `crear_lote` los recibe.
