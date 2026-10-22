@@ -2145,6 +2145,18 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_destete: {
+        Args: {
+          p_destinos: Json
+          p_establecimiento_id: string
+          p_fecha: string
+          p_id: string
+          p_notas?: string
+          p_origenes: Json
+          p_persona_id?: string
+        }
+        Returns: string
+      }
       registrar_diagnostico: {
         Args: {
           p_fecha: string

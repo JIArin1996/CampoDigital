@@ -16,8 +16,11 @@ export type TipoActividad6a = 'pesada' | 'mortandad' | 'compra' | 'venta' | 'par
 // Las que no mueven stock (6b-1). Antiparasitario no se carga como tipo: es una categoría de producto de sanidad.
 export type TipoActividad6b1 = 'sanidad' | 'servicio' | 'diagnostico_gestacion' | 'esquila' | 'personalizada'
 
+// 6b-2: mueve crías al pie de uno o más lotes a lotes nuevos
+export type TipoActividad6b2 = 'destete'
+
 // Lo que se puede cargar hoy desde "Nueva actividad"
-export type TipoCargable = TipoActividad6a | TipoActividad6b1
+export type TipoCargable = TipoActividad6a | TipoActividad6b1 | TipoActividad6b2
 
 export type Modalidad = 'productor' | 'remate' | 'frigorifico' | 'otra'
 export type Moneda = 'USD' | 'UYU'
@@ -80,6 +83,11 @@ export type PrecioCarga = {
   fecha_pago?: string
   rubro_id?: string          // por defecto, el rubro con el nombre de la especie del lote
 }
+
+// Destete: lo que sale de cada origen (solo cría al pie) y lo que entra a cada lote nuevo (ya sexado)
+export type LineaDestete = { categoria_id: string; cabezas: number }
+export type OrigenDestete = { lote_id: string; lineas: LineaDestete[] }
+export type DestinoDestete = { nombre: string; potrero_id?: string; anios_nacimiento: number[]; lineas: LineaDestete[] }
 
 // Lote nuevo que crea una compra o una parición
 export type LoteNuevoCarga = {

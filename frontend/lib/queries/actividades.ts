@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import type {
-  ActividadResumen, CampoPersonalizado, Carencia, LineaActividad, LineaCarga, LoteNuevoCarga, Modalidad,
-  MovimientoEconomico, PrecioCarga, ProductoCarga, ProductoSanidad, TipoActividad,
+  ActividadResumen, CampoPersonalizado, Carencia, DestinoDestete, LineaActividad, LineaCarga, LoteNuevoCarga, Modalidad,
+  MovimientoEconomico, OrigenDestete, PrecioCarga, ProductoCarga, ProductoSanidad, TipoActividad,
 } from '@/types/actividades'
 
 // ── Lectura ──────────────────────────────────────────────────────────────────
@@ -77,6 +77,44 @@ export async function getCarencias(lote_ids: string[], al: string) {
     .order('fin_carencia', { ascending: false })
   if (error) throw error
   return (data ?? []) as Carencia[]
+}
+
+// Lotes de una actividad con su rol (principal, cria, origen, destino)
+export async function getLotesConRol(actividad_id: string) {
+  const { data, error } = await createClient().from('actividad_lotes').select('lote_id, rol').eq('actividad_id', actividad_id)
+  if (error) throw error
+  return (data ?? []) as { lote_id: string; rol: 'principal' | 'cria' | 'origen' | 'destino' }[]
+}
+
+// Historial de cría del establecimiento, para el destete: pariciones vigentes (fecha y lote donde
+// entraron las crías) y destetes vigentes (fecha y lotes de origen y destino)
+export async function getHistorialCria(establecimiento_id: string) {
+  const supabase = createClient()
+  const { data: acts, error } = await supabase
+    .from('actividades')
+    .select('id, tipo, fecha')
+    .eq('establecimiento_id', establecimiento_id)
+    .in('tipo', ['paricion', 'destete'])
+    .is('anulada_en', null)
+  if (error) throw error
+  const fecha = new Map((acts ?? []).map(a => [a.id, a.fecha]))
+  const pariciones = (acts ?? []).filter(a => a.tipo === 'paricion').map(a => a.id)
+  const destetes = (acts ?? []).filter(a => a.tipo === 'destete').map(a => a.id)
+
+  const [crias, lotes] = await Promise.all([
+    pariciones.length > 0
+      ? supabase.from('act_paricion').select('actividad_id, lote_cria_id').in('actividad_id', pariciones)
+      : Promise.resolve({ data: [], error: null }),
+    destetes.length > 0
+      ? supabase.from('actividad_lotes').select('actividad_id, lote_id, rol').in('actividad_id', destetes).in('rol', ['origen', 'destino'])
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (crias.error) throw crias.error
+  if (lotes.error) throw lotes.error
+  return {
+    pariciones: (crias.data ?? []).map(p => ({ lote_id: p.lote_cria_id, fecha: fecha.get(p.actividad_id)! })),
+    destetes: (lotes.data ?? []).map(l => ({ lote_id: l.lote_id, rol: l.rol as 'origen' | 'destino', fecha: fecha.get(l.actividad_id)! })),
+  }
 }
 
 // Nombres ya usados en actividades personalizadas (sugerencias del formulario)
@@ -301,6 +339,32 @@ export async function registrarDiagnostico(p: UnLote & { vacas_diagnosticadas: n
     p_fecha: p.fecha,
     p_vacas_diagnosticadas: p.vacas_diagnosticadas,
     p_vacas_prenadas: p.vacas_prenadas,
+    p_persona_id: p.persona_id ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// ── 6b-2: destete ────────────────────────────────────────────────────────────
+
+// Crías al pie de uno o más lotes a lotes nuevos. La base valida el balance (en cabezas totales; una
+// cría sexada no cambia de sexo; ningún destino con sin sexar) y cierra los orígenes que quedan vacíos.
+export async function registrarDestete(p: {
+  id: string
+  establecimiento_id: string
+  fecha: string
+  origenes: OrigenDestete[]
+  destinos: DestinoDestete[]
+  persona_id?: string | null
+  notas?: string | null
+}) {
+  const { data, error } = await createClient().rpc('registrar_destete', {
+    p_id: p.id,
+    p_establecimiento_id: p.establecimiento_id,
+    p_fecha: p.fecha,
+    p_origenes: p.origenes,
+    p_destinos: p.destinos,
     p_persona_id: p.persona_id ?? undefined,
     p_notas: p.notas ?? undefined,
   })

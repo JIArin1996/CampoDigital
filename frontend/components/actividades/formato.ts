@@ -1,5 +1,5 @@
 import {
-  Baby, HeartCrack, Heart, Scale, ShoppingCart, Stethoscope, Syringe, Tag, Wind, ClipboardPen, type LucideIcon,
+  Baby, HeartCrack, Heart, MilkOff, Scale, ShoppingCart, Stethoscope, Syringe, Tag, Wind, ClipboardPen, type LucideIcon,
 } from "lucide-react"
 
 import type { Modalidad, TipoActividad, TipoActividad6a, TipoActividad6b1, TipoCargable } from "@/types/actividades"
@@ -22,7 +22,7 @@ export const ETIQUETA_ACTIVIDAD: Record<TipoActividad, string> = {
 // Las que mueven stock (6a) y las que no (6b-1), en el orden del selector
 export const TIPOS_6A: TipoActividad6a[] = ["pesada", "venta", "compra", "mortandad", "paricion"]
 export const TIPOS_6B1: TipoActividad6b1[] = ["sanidad", "servicio", "diagnostico_gestacion", "esquila", "personalizada"]
-export const TIPOS_CARGABLES: TipoCargable[] = [...TIPOS_6A, ...TIPOS_6B1]
+export const TIPOS_CARGABLES: TipoCargable[] = [...TIPOS_6A, "destete", ...TIPOS_6B1]
 
 export const ICONO_ACTIVIDAD: Record<TipoCargable, LucideIcon> = {
   pesada: Scale,
@@ -30,6 +30,7 @@ export const ICONO_ACTIVIDAD: Record<TipoCargable, LucideIcon> = {
   compra: ShoppingCart,
   mortandad: HeartCrack,
   paricion: Baby,
+  destete: MilkOff,
   sanidad: Syringe,
   servicio: Heart,
   diagnostico_gestacion: Stethoscope,
@@ -43,6 +44,7 @@ export const DESCRIPCION_ACTIVIDAD: Record<TipoCargable, string> = {
   compra: "Alta de animales en un lote existente o nuevo",
   mortandad: "Baja de animales, con su causa",
   paricion: "Crías vivas al lote de cría",
+  destete: "Separa las crías al pie de las madres, hacia lotes nuevos",
   sanidad: "Vacunas, antiparasitarios y tratamientos, a uno o más lotes",
   servicio: "Entore: vacas entoradas y toros",
   diagnostico_gestacion: "Vacas diagnosticadas y preñadas",

@@ -21,7 +21,7 @@ export type Lote = Omit<Tables<'lotes'>, 'estado'> & { estado: EstadoLote }
 
 export type TipoEventoLote =
   | 'alta_inicial' | 'paricion' | 'compra' | 'venta' | 'mortandad'
-  | 'recategorizacion' | 'division' | 'union' | 'ajuste'
+  | 'recategorizacion' | 'division' | 'union' | 'ajuste' | 'destete'
 
 export type LoteEvento = Omit<Tables<'lote_eventos'>, 'tipo'> & { tipo: TipoEventoLote }
 
