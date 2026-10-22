@@ -52,6 +52,18 @@ export async function cambiarEstadoCategoria(id: string, activo: boolean) {
   return exigirFilas(data) as CategoriaAnimal
 }
 
+// Cría al pie y sexo (solo el administrador, por las políticas). El sexo solo va con cría al pie:
+// la base lo exige (23514). null = sin sexar.
+export async function definirCria(id: string, cria_al_pie: boolean, sexo: 'macho' | 'hembra' | null) {
+  const { data, error } = await createClient()
+    .from('categorias_animales')
+    .update({ cria_al_pie, sexo: cria_al_pie ? sexo : null })
+    .eq('id', id)
+    .select()
+  if (error) throw error
+  return exigirFilas(data) as CategoriaAnimal
+}
+
 // Dónde hay animales de una categoría: lote y cabezas (para explicar por qué no se puede dar de baja)
 export async function getStockCategoria(categoria_id: string) {
   const supabase = createClient()

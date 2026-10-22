@@ -5,9 +5,7 @@ import { Check, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import {
-  actualizarEspecie, cambiarEstadoCategoria, crearCategoria, crearEspecie, getCatalogoEspecies, getStockCategoria,
-} from "@/lib/queries/especies"
+import { actualizarEspecie, cambiarEstadoCategoria, crearCategoria, crearEspecie, definirCria, getCatalogoEspecies, getStockCategoria } from "@/lib/queries/especies"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Badge } from "@/components/ui/badge"
@@ -180,6 +178,17 @@ function SelectorColor({ id, valor, grupo, onCambio }: {
   )
 }
 
+// Cría al pie y sexo en un solo valor (una lista por categoría)
+type ValorCria = "no" | "sin_sexar" | "macho" | "hembra"
+const OPCIONES_CRIA: { valor: ValorCria; etiqueta: string }[] = [
+  { valor: "no", etiqueta: "No es cría" },
+  { valor: "sin_sexar", etiqueta: "Cría sin sexar" },
+  { valor: "macho", etiqueta: "Cría macho" },
+  { valor: "hembra", etiqueta: "Cría hembra" },
+]
+const valorCria = (c: CategoriaAnimal): ValorCria =>
+  !c.cria_al_pie ? "no" : c.sexo === "macho" ? "macho" : c.sexo === "hembra" ? "hembra" : "sin_sexar"
+
 function TarjetaEspecie({ especie, categorias, onCambio }: {
   especie: Especie
   categorias: CategoriaAnimal[]
@@ -284,14 +293,25 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
         )}
 
         <div>
-          <p className="text-sm font-medium mb-2">Categorías</p>
+          <p className="text-sm font-medium">Categorías</p>
+          <p className="text-xs text-muted-foreground mb-2">
+            Las crías al pie son las que se cargan en la parición y se mueven en el destete; sin sexar se separan en machos y hembras al destetar.
+          </p>
           {activas.length === 0 ? (
             <p className="text-sm text-muted-foreground mb-2">Sin categorías: hacen falta para armar lotes de esta especie.</p>
           ) : (
             <ul className="rounded-lg border divide-y mb-2">
               {activas.map(c => (
-                <li key={c.id} className="flex items-center justify-between gap-3 pl-3 pr-1 min-h-11">
-                  <span className="text-sm">{c.nombre}</span>
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pl-3 pr-1 py-1 min-h-11">
+                  <span className="text-sm flex-1 min-w-0">{c.nombre}</span>
+                  <select aria-label={`Cría al pie: ${c.nombre}`} className={cn(SELECT_NATIVO, "w-40 md:w-36")}
+                    value={valorCria(c)} disabled={enviando}
+                    onChange={e => {
+                      const v = e.target.value as ValorCria
+                      void ejecutar(() => definirCria(c.id, v !== "no", v === "macho" || v === "hembra" ? v : null), "Categoría actualizada")
+                    }}>
+                    {OPCIONES_CRIA.map(o => <option key={o.valor} value={o.valor}>{o.etiqueta}</option>)}
+                  </select>
                   <Button type="button" variant="ghost" size="sm" className="h-10 md:h-8 text-muted-foreground"
                     disabled={enviando} onClick={() => void darDeBaja(c)}>
                     Dar de baja
