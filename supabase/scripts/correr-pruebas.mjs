@@ -30,6 +30,7 @@ const PRUEBAS = [
   ["campana_borrada.sql", 12],
   ["kilos_dos_decimales.sql", 14],
   ["cria_al_pie.sql", 22],
+  ["mensaje_saldo.sql", 5],
 ]
 // Auditoría: funciones de public (todas con ok = true) y filas de permisos de columna
 const AUDITORIA = { archivo: "auditoria_permisos.sql", funciones: 69, permisosColumna: 13 }
