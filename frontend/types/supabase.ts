@@ -784,33 +784,39 @@ export type Database = {
           activo: boolean
           created_at: string
           created_by: string | null
+          cria_al_pie: boolean
           especie_id: string
           establecimiento_id: string
           id: string
           nombre: string
           orden: number
+          sexo: string | null
           updated_at: string
         }
         Insert: {
           activo?: boolean
           created_at?: string
           created_by?: string | null
+          cria_al_pie?: boolean
           especie_id: string
           establecimiento_id: string
           id?: string
           nombre: string
           orden?: number
+          sexo?: string | null
           updated_at?: string
         }
         Update: {
           activo?: boolean
           created_at?: string
           created_by?: string | null
+          cria_al_pie?: boolean
           especie_id?: string
           establecimiento_id?: string
           id?: string
           nombre?: string
           orden?: number
+          sexo?: string | null
           updated_at?: string
         }
         Relationships: [

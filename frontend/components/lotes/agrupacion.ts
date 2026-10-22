@@ -90,6 +90,8 @@ export const ETIQUETA_CLASE: Record<ClaseLote, string> = {
 // se toman como engorde (se terminan para vender); los carneros, como toros.
 const CLASE_POR_NOMBRE: Record<string, ClaseLote> = {
   "vacas de cria": "cria",
+  "terneros/as": "recria",
+  "corderos/as": "recria",
   "ovejas de cria": "cria",
   "terneros": "recria",
   "terneras": "recria",
@@ -118,19 +120,36 @@ export function ordenarCategorias<T extends Pick<CategoriaAnimal, "nombre" | "or
   return [...categorias].sort((a, b) => pos(a) - pos(b) || a.orden - b.orden)
 }
 
+type StockCategoria = { categoria_id: string; cabezas: number }
+type CategoriaConCria = Pick<CategoriaAnimal, "id" | "nombre" | "cria_al_pie">
+
+/**
+ * Cabezas de un lote separadas en crías al pie y el resto. Las crías se separan solo si el
+ * lote tiene otras categorías ("100 vacas + 20 crías al pie"); un lote de solo crías (de cría
+ * propio o de destetados) cuenta todo como "resto", como siempre.
+ */
+export function separarCrias(stock: StockCategoria[], categorias: CategoriaConCria[]) {
+  const esCria = (s: StockCategoria) => categorias.find(c => c.id === s.categoria_id)?.cria_al_pie ?? false
+  const conAnimales = stock.filter(s => s.cabezas > 0)
+  const crias = conAnimales.filter(esCria).reduce((n, s) => n + s.cabezas, 0)
+  const total = conAnimales.reduce((n, s) => n + s.cabezas, 0)
+  return crias > 0 && crias < total ? { resto: total - crias, crias } : { resto: total, crias: 0 }
+}
+
 /**
  * Clase de un lote: la clase con más cabezas entre sus categorías (la predominante).
+ * Las crías al pie no cuentan si el lote tiene otras categorías: 100 vacas y 80 terneros al pie
+ * es un lote de cría. Un lote de solo crías toma la clase de ellas (recría).
  * Empate: gana la que va primero en el orden (cría antes que recría, etc.).
  * Sin animales: "otras".
  */
-export function claseDeLote(
-  stock: { categoria_id: string; cabezas: number }[],
-  categorias: Pick<CategoriaAnimal, "id" | "nombre">[],
-): ClaseLote {
+export function claseDeLote(stock: StockCategoria[], categorias: CategoriaConCria[]): ClaseLote {
+  const { crias } = separarCrias(stock, categorias)
   const porClase = new Map<ClaseLote, number>()
   for (const s of stock) {
     const categoria = categorias.find(c => c.id === s.categoria_id)
     if (!categoria || s.cabezas <= 0) continue
+    if (crias > 0 && categoria.cria_al_pie) continue
     const clase = claseDeCategoria(categoria.nombre)
     porClase.set(clase, (porClase.get(clase) ?? 0) + s.cabezas)
   }

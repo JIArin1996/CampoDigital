@@ -12,7 +12,7 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { TarjetaLote } from "@/components/lotes/TarjetaLote"
 import { StockPorEspecie } from "@/components/lotes/StockPorEspecie"
-import { ORDEN_CLASE, claseDeLote, colorDeEspecie, ordenarEspecies } from "@/components/lotes/agrupacion"
+import { ORDEN_CLASE, claseDeLote, colorDeEspecie, ordenarEspecies, separarCrias } from "@/components/lotes/agrupacion"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, EstadoLote, Lote, StockLote } from "@/types/lotes"
 
@@ -150,6 +150,7 @@ function LotesPorEspecie({ datos }: { datos: Datos }) {
     return {
       lote,
       cabezas: stock.reduce((s, x) => s + x.cabezas, 0),
+      separadas: separarCrias(stock, categorias),
       clase: claseDeLote(stock, categorias),
       potrero: lote.potrero_id ? potreros.find(p => p.id === lote.potrero_id)?.nombre ?? null : null,
     }
@@ -185,7 +186,7 @@ function LotesPorEspecie({ datos }: { datos: Datos }) {
             <ul className="space-y-2">
               {delGrupo.map(f => (
                 <li key={f.lote.id}>
-                  <TarjetaLote lote={f.lote} color={colorDeEspecie(especie)} cabezas={f.cabezas} potrero={f.potrero} />
+                  <TarjetaLote lote={f.lote} color={colorDeEspecie(especie)} cabezas={f.separadas.resto} crias={f.separadas.crias} potrero={f.potrero} />
                 </li>
               ))}
             </ul>

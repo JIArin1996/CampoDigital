@@ -9,13 +9,15 @@ import type { Lote } from "@/types/lotes"
 
 /**
  * Tarjeta de un lote en la lista: franja del color de la especie, nombre, potrero y fecha
- * de inicio, año de nacimiento (chip) y cabezas grandes a la derecha. Los cerrados muestran la fecha
- * de cierre en lugar de las cabezas.
+ * de inicio, año de nacimiento (chip) y cabezas grandes a la derecha. Si el lote tiene crías al pie
+ * y otras categorías, las crías van aparte ("100 cabezas + 20 crías al pie"). Los cerrados muestran
+ * la fecha de cierre en lugar de las cabezas.
  */
-export function TarjetaLote({ lote, color, cabezas, potrero }: {
+export function TarjetaLote({ lote, color, cabezas, crias = 0, potrero }: {
   lote: Lote
   color: string          // color de la especie (colorDeEspecie)
-  cabezas: number
+  cabezas: number        // sin las crías al pie, si se separan
+  crias?: number         // crías al pie (separarCrias)
   potrero: string | null
 }) {
   const cerrado = lote.estado === "cerrado"
@@ -44,6 +46,9 @@ export function TarjetaLote({ lote, color, cabezas, potrero }: {
             <>
               <p className="text-2xl font-bold tabular-nums leading-none">{cabezas}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{cabezas === 1 ? "cabeza" : "cabezas"}</p>
+              {crias > 0 && (
+                <p className="text-xs font-medium mt-0.5 tabular-nums">+ {crias} {crias === 1 ? "cría" : "crías"} al pie</p>
+              )}
             </>
           )}
         </div>
