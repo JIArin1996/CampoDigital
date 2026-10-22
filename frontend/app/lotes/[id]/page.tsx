@@ -203,7 +203,7 @@ export default function LotePage() {
             )}
           </CardHeader>
           <CardContent>
-            <StockPorCategoria filas={vigente.stock} categorias={categoriasEspecie} />
+            <StockPorCategoria filas={vigente.stock} categorias={categoriasEspecie} separarCrias />
           </CardContent>
         </Card>
 
