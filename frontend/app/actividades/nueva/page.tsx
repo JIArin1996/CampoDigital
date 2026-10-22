@@ -208,8 +208,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [causa, setCausa] = useState("Desconocida")
   const [observaciones, setObservaciones] = useState("")
 
-  // Parición
-  const [criaNueva, setCriaNueva] = useState(true)
+  // Parición: las crías quedan con las madres (por defecto), van a un lote nuevo o a uno existente
+  const [destinoCria, setDestinoCria] = useState<"madres" | "nuevo" | "existente">("madres")
   const [criaId, setCriaId] = useState("")
   const [criaNombre, setCriaNombre] = useState("")
   const [criaPotrero, setCriaPotrero] = useState("")
@@ -237,11 +237,13 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const stockLote = new Map(stock.filter(s => s.lote_id === loteId).map(s => [s.categoria_id, s.cabezas]))
   const hay = (catId: string) => stockLote.get(catId) ?? 0
 
-  // Categorías que se muestran: las que tienen stock (pesada, venta, mortandad) o todas las de la especie (compra, parición)
+  // Categorías que se muestran: las que tienen stock (pesada, venta, mortandad), las de cría al pie
+  // (parición: la base no acepta otras) o todas las de la especie (compra)
   const conStock = tipo === "pesada" || tipo === "venta" || tipo === "mortandad"
   const categoriasForm = categorias
     .filter(c => c.especie_id === especieId)
     .filter(c => !conStock || hay(c.id) > 0)
+    .filter(c => tipo !== "paricion" || c.cria_al_pie)
   const llevaPeso = tipo === "pesada" || tipo === "compra" || tipo === "venta"
   const total = categoriasForm.reduce((s, c) => s + (Number(cantidades[c.id]) || 0), 0)
   // Peso promedio en vivo: solo con las categorías que tienen cabezas y peso
@@ -314,11 +316,11 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
     if (muertos !== null && (!Number.isInteger(muertos) || muertos < 0)) return setError("Los nacidos muertos tienen que ser un número entero, cero o más")
     let criaNuevo: LoteNuevoCarga | null = null
     if (tipo === "paricion") {
-      if (criaNueva) {
+      if (destinoCria === "nuevo") {
         const nombre = criaNombre.trim() || nombreLoteCria(especie?.grupo, fecha)
         criaNuevo = { nombre }
         if (criaPotrero) criaNuevo.potrero_id = criaPotrero
-      } else if (!criaId) {
+      } else if (destinoCria === "existente" && !criaId) {
         return setError("Elegí el lote de cría")
       }
     }
@@ -348,7 +350,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       } else {
         await registrarParicion({
           ...comunes, lote_madres_id: loteId, nacidos_muertos: muertos,
-          lote_cria_id: criaNueva ? null : criaId, lote_cria_nuevo: criaNuevo,
+          lote_cria_id: destinoCria === "madres" ? loteId : destinoCria === "existente" ? criaId : null,
+          lote_cria_nuevo: criaNuevo,
         })
       }
       toast.success(`${ETIQUETA_ACTIVIDAD[tipo]} registrada`)
@@ -574,13 +577,18 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
             </div>
 
             <fieldset className="space-y-3">
-              <legend className="text-sm font-medium mb-1">Lote de cría</legend>
-              <div className="flex gap-2" role="group" aria-label="Lote de cría">
-                <button type="button" aria-pressed={criaNueva} className={chip(criaNueva)} onClick={() => setCriaNueva(true)}>Lote nuevo</button>
-                <button type="button" aria-pressed={!criaNueva} className={chip(!criaNueva)} onClick={() => setCriaNueva(false)}
-                  disabled={lotesCria.length === 0}>Lote existente</button>
+              <legend className="text-sm font-medium mb-1">Dónde quedan las crías</legend>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Dónde quedan las crías">
+                <button type="button" aria-pressed={destinoCria === "madres"} className={chip(destinoCria === "madres")}
+                  onClick={() => setDestinoCria("madres")}>Con las madres</button>
+                <button type="button" aria-pressed={destinoCria === "nuevo"} className={chip(destinoCria === "nuevo")}
+                  onClick={() => setDestinoCria("nuevo")}>Lote nuevo</button>
+                <button type="button" aria-pressed={destinoCria === "existente"} className={chip(destinoCria === "existente")}
+                  onClick={() => setDestinoCria("existente")} disabled={lotesCria.length === 0}>Lote existente</button>
               </div>
-              {criaNueva ? (
+              {destinoCria === "madres" ? (
+                <p className="text-sm text-muted-foreground">Las crías quedan al pie, en {lote.nombre}, hasta el destete.</p>
+              ) : destinoCria === "nuevo" ? (
                 <div className="space-y-3">
                   <Input aria-label="Nombre del lote de cría" className={CAMPO} placeholder={nombreLoteCria(especie?.grupo, fecha)}
                     value={criaNombre} onChange={e => setCriaNombre(e.target.value)} />
