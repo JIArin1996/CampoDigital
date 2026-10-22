@@ -69,6 +69,7 @@ export function FormularioDestete({ loteInicial, datos }: {
     return crias.length > 0 ? { [loteInicial]: Object.fromEntries(crias.map(s => [s.categoria_id, String(s.cabezas)])) } : {}
   })
   const [machos, setMachos] = useState("")
+  const [hembras, setHembras] = useState("")
   const [destinosEditados, setDestinosEditados] = useState<DestinoForm[] | null>(null)       // null: los sugeridos
   const [personaId, setPersonaId] = useState("")
   const [notas, setNotas] = useState("")
@@ -103,26 +104,48 @@ export function FormularioDestete({ loteInicial, datos }: {
   const catHembra = catsEspecie.find(c => c.sexo === "hembra") ?? null
   const sexadas = catsEspecie.filter(c => c.sexo !== null)
 
-  // Lo que sale, por categoría
-  const sale = new Map<string, number>()
+  // Crías sin sexar disponibles en los lotes elegidos (lo indicado en cada uno; por defecto, todas)
+  const esSinSexar = (catId: string) => catsEspecie.some(c => c.id === catId && c.sexo === null)
+  const sinSexar = Object.values(cantidades)
+    .flatMap(porCat => Object.entries(porCat))
+    .filter(([catId]) => esSinSexar(catId))
+    .reduce((s, [, v]) => s + (entero(v) || 0), 0)
+
+  // De las sin sexar se destetan solo las que se separan en machos y hembras (campos libres, vacío = 0);
+  // las demás quedan sin sexar en su lote
+  const m = entero(machos)
+  const h = entero(hembras)
+  const sexadoValido = sinSexar === 0 || (!Number.isNaN(m) && !Number.isNaN(h) && m + h <= sinSexar)
+  const separadas = sinSexar > 0 && sexadoValido ? m + h : 0
+
+  // Lo que sale de cada lote: las sexadas como se indicaron; las sin sexar, hasta machos + hembras,
+  // tomándolas de los lotes en el orden en que se eligieron
+  const efectivas: Record<string, Record<string, number>> = {}
+  let porRepartir = separadas
   for (const [loteId, porCat] of Object.entries(cantidades)) {
+    efectivas[loteId] = {}
     for (const [catId, v] of Object.entries(porCat)) {
-      const n = entero(v)
+      let n = entero(v)
+      if (!Number.isNaN(n) && esSinSexar(catId)) {
+        n = Math.min(n, porRepartir)
+        porRepartir -= n
+      }
+      efectivas[loteId][catId] = n
+    }
+  }
+  const sale = new Map<string, number>()
+  for (const porCat of Object.values(efectivas)) {
+    for (const [catId, n] of Object.entries(porCat)) {
       if (n > 0) sale.set(catId, (sale.get(catId) ?? 0) + n)
     }
-    void loteId
   }
-  const sinSexar = catsEspecie.filter(c => c.sexo === null).reduce((s, c) => s + (sale.get(c.id) ?? 0), 0)
-  const m = sinSexar > 0 ? entero(machos) : 0
-  const h = sinSexar - (Number.isNaN(m) ? 0 : m)
-  const sexadoValido = sinSexar === 0 || (!Number.isNaN(m) && m >= 0 && m <= sinSexar)
 
   // Lo que tiene que entrar a los destinos, por categoría sexada
   const totales = new Map<string, number>()
   for (const c of sexadas) {
     let t = sale.get(c.id) ?? 0
-    if (sexadoValido && c.id === catMacho?.id) t += m
-    if (sexadoValido && c.id === catHembra?.id) t += h
+    if (separadas > 0 && c.id === catMacho?.id) t += m
+    if (separadas > 0 && c.id === catHembra?.id) t += h
     if (t > 0) totales.set(c.id, t)
   }
   const totalCrias = [...sale.values()].reduce((s, n) => s + n, 0)
@@ -207,18 +230,25 @@ export function FormularioDestete({ loteInicial, datos }: {
       const lote = lotes.find(l => l.id === loteId)
       const lineas = []
       for (const [catId, v] of Object.entries(porCat)) {
-        const n = entero(v)
-        if (Number.isNaN(n)) return setError(`Las cabezas de ${lote?.nombre ?? "un lote"} tienen que ser números enteros`)
-        if (n > stockDe(loteId, catId)) return setError(`En ${lote?.nombre} hay ${stockDe(loteId, catId)} ${nombreCat(catId).toLowerCase()}`)
+        const pedido = entero(v)
+        if (Number.isNaN(pedido)) return setError(`Las cabezas de ${lote?.nombre ?? "un lote"} tienen que ser números enteros`)
+        if (pedido > stockDe(loteId, catId)) return setError(`En ${lote?.nombre} hay ${stockDe(loteId, catId)} ${nombreCat(catId).toLowerCase()}`)
+        const n = efectivas[loteId]?.[catId] ?? 0
         if (n > 0) lineas.push({ categoria_id: catId, cabezas: n })
       }
       if (lineas.length > 0) origenes.push({ lote_id: loteId, lineas })
     }
-    if (origenes.length === 0) return setError("Elegí al menos un lote y cuántas crías se destetan")
+    if (!sexadoValido) {
+      return setError(`Machos y hembras tienen que ser números enteros, sin negativos, y sumar como máximo ${sinSexar}`)
+    }
+    if (origenes.length === 0) {
+      return setError(sinSexar > 0
+        ? "Indicá cuántos machos y cuántas hembras se destetan"
+        : "Elegí al menos un lote y cuántas crías se destetan")
+    }
     if (fechaAntesDeParicion) {
       return setError(`La última parición de los lotes elegidos es del ${fechaCorta(ultimaParicion)}: el destete no puede ser anterior`)
     }
-    if (!sexadoValido) return setError(`De las ${sinSexar} crías sin sexar, indicá cuántas son machos (entre 0 y ${sinSexar})`)
     if (sinSexar > 0 && (!catMacho || !catHembra)) {
       return setError("La especie necesita una categoría de cría macho y una hembra (Especies) para separar las sin sexar")
     }
@@ -358,18 +388,37 @@ export function FormularioDestete({ loteInicial, datos }: {
           ))}
         </fieldset>
 
-        {/* 2. Sexo de las sin sexar */}
+        {/* 2. Sexo de las sin sexar: se destetan solo las que se separan (destete parcial) */}
         {sinSexar > 0 && (
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium mb-1">2. Machos y hembras de las {sinSexar} crías sin sexar</legend>
-            <div className="flex flex-wrap items-center gap-3">
-              <Label htmlFor="destete-machos" className="text-sm">Machos</Label>
-              <Input id="destete-machos" type="number" inputMode="numeric" min="0" max={sinSexar} step="1"
-                className={`${CAMPO} w-24 text-right tabular-nums`} value={machos}
-                onChange={e => { setMachos(e.target.value); setDestinosEditados(null) }} />
-              <span className="text-sm">Hembras: <strong className="tabular-nums">{sexadoValido ? h : "—"}</strong></span>
+            <legend className="text-sm font-medium mb-1">2. ¿Cuántos machos y cuántas hembras se destetan?</legend>
+            <p className="text-xs text-muted-foreground">
+              Hay {sinSexar} crías sin sexar en los lotes elegidos. Se destetan las que separes acá; las demás quedan sin sexar en el lote.
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="flex items-center gap-2">
+                <Label htmlFor="destete-machos" className="text-sm">Machos</Label>
+                <Input id="destete-machos" type="number" inputMode="numeric" min="0" max={sinSexar} step="1" placeholder="0"
+                  className={`${CAMPO} w-24 text-right tabular-nums`} value={machos}
+                  onChange={e => { setMachos(e.target.value); setDestinosEditados(null) }} />
+              </span>
+              <span className="flex items-center gap-2">
+                <Label htmlFor="destete-hembras" className="text-sm">Hembras</Label>
+                <Input id="destete-hembras" type="number" inputMode="numeric" min="0" max={sinSexar} step="1" placeholder="0"
+                  className={`${CAMPO} w-24 text-right tabular-nums`} value={hembras}
+                  onChange={e => { setHembras(e.target.value); setDestinosEditados(null) }} />
+              </span>
             </div>
-            {!sexadoValido && <p className="text-sm text-destructive">Tiene que ser un número entre 0 y {sinSexar}.</p>}
+            {sexadoValido ? (
+              <p className="text-sm">
+                Se destetan <strong className="tabular-nums">{separadas}</strong> de {sinSexar}
+                {sinSexar - separadas > 0 && <>; quedan <strong className="tabular-nums">{sinSexar - separadas}</strong> sin sexar en el lote</>}.
+              </p>
+            ) : (
+              <p role="alert" className="text-sm text-destructive">
+                Tienen que ser números enteros, sin negativos, y entre los dos no pueden pasar de {sinSexar}.
+              </p>
+            )}
           </fieldset>
         )}
 
