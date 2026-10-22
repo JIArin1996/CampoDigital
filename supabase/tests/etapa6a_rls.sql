@@ -523,9 +523,9 @@ select pruebas.espera_error('PA07 Crías de otra especie (corderos de vacas)',
 select pruebas.espera_error('PA08 Nacidos muertos negativos',
   $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LM'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 1)), p_nacidos_muertos => -1, p_lote_cria_id => pruebas.id('LCE')) $q$, '22023');
-select pruebas.espera_error('PA09 El lote de cría es el mismo de las madres',
+select pruebas.espera_error('PA09 Parición con una categoría que no es de cría al pie (vacas): desde 20261022000100 se rechaza (el lote de cría igual al de las madres ya se acepta: ver cria_al_pie.sql)',
   $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LM'), p_fecha => public.fecha_hoy(),
-      p_lineas => jsonb_build_array(pruebas.lin('terneros', 1)), p_lote_cria_id => pruebas.id('LM')) $q$, '22023');
+      p_lineas => jsonb_build_array(pruebas.lin('vacas_cria', 1)), p_lote_cria_id => pruebas.id('LCE')) $q$, '22023');
 select pruebas.espera_error('PA10 Sin lote de cría (ni existente ni nuevo)',
   $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LM'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 1))) $q$, '22023');

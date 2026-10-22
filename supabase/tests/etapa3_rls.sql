@@ -174,8 +174,8 @@ select pruebas.espera_valor('A02 mi_rol del admin',
   $q$ select public.mi_rol(pruebas.id('est_a')) $q$, 'administrador');
 select pruebas.espera_valor('A03 es_admin, es_miembro y puede_operar del admin',
   $q$ select (public.es_admin() and public.es_miembro(pruebas.id('est_x')) and public.puede_operar(pruebas.id('est_x')))::text $q$, 'true');
-select pruebas.espera_valor('A04 Catálogos base: 7 categorías vacunas',
-  $q$ select count(*) from public.categorias_animales where especie_id = pruebas.id('vacunos_a') $q$, '7');
+select pruebas.espera_valor('A04 Catálogos base: 8 categorías vacunas (con Terneros/as desde 20261022000100)',
+  $q$ select count(*) from public.categorias_animales where especie_id = pruebas.id('vacunos_a') $q$, '8');
 select pruebas.espera_valor('A05 asignar_rol creó la ficha en personas del operador',
   $q$ select count(*) from public.personas where establecimiento_id = pruebas.id('est_a') and user_id = pruebas.id('u_operador') and activo $q$, '1');
 select pruebas.espera_valor('A06 Admin ve todas las membresías y perfiles',

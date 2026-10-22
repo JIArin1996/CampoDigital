@@ -68,8 +68,8 @@ order by 1, 2;
 --
 --   nivel   | grantee       | tabla               | permiso | columnas
 --   --------+---------------+---------------------+---------+------------------------------------------------
---   columna | authenticated | categorias_animales | INSERT  | activo, especie_id, establecimiento_id, nombre, orden
---   columna | authenticated | categorias_animales | UPDATE  | activo, nombre, orden
+--   columna | authenticated | categorias_animales | INSERT  | activo, cria_al_pie, especie_id, establecimiento_id, nombre, orden, sexo
+--   columna | authenticated | categorias_animales | UPDATE  | activo, cria_al_pie, nombre, orden, sexo
 --   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre
 --   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
