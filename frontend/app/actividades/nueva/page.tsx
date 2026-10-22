@@ -26,6 +26,7 @@ import {
   errorKg, esTipo6a, esTipoCargable, nuevoId,
 } from "@/components/actividades/formato"
 import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
+import { FormularioDestete } from "@/components/actividades/FormularioDestete"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import { SelectorAnios } from "@/components/lotes/SelectorAnios"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
@@ -34,7 +35,7 @@ import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, Lote, StockLote } from "@/types/lotes"
 import type {
-  Carencia, EstadoPago, LineaCarga, LoteNuevoCarga, Modalidad, Moneda, PrecioCarga, TipoActividad6a,
+  Carencia, EstadoPago, LineaCarga, LoteNuevoCarga, Modalidad, Moneda, PrecioCarga, TipoActividad6a, TipoCargable,
 } from "@/types/actividades"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
@@ -106,7 +107,7 @@ function NuevaActividad() {
 
   // Sin tipo: elegir qué se carga
   if (!esTipoCargable(tipoParam)) {
-    const opcion = (t: (typeof TIPOS_6A)[number] | (typeof TIPOS_6B1)[number]) => {
+    const opcion = (t: TipoCargable) => {
       const Icono = ICONO_ACTIVIDAD[t]
       const href = `/actividades/nueva?tipo=${t}${loteParam ? `&lote=${loteParam}` : ""}`
       return (
@@ -130,13 +131,12 @@ function NuevaActividad() {
         <div className="space-y-5 max-w-xl">
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Cambian el stock o lo miden</h2>
-            <ul className="space-y-2">{TIPOS_6A.map(opcion)}</ul>
+            <ul className="space-y-2">{[...TIPOS_6A, "destete" as const].map(opcion)}</ul>
           </section>
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Manejo y sanidad</h2>
             <ul className="space-y-2">{TIPOS_6B1.map(opcion)}</ul>
           </section>
-          <p className="text-sm text-muted-foreground">El destete llega en la próxima etapa.</p>
         </div>
       </PageContainer>
     )
@@ -153,6 +153,8 @@ function NuevaActividad() {
       {volver}
       {esTipo6a(tipoParam) ? (
         <Formulario key={`${tipoParam}:${loteParam}`} tipo={tipoParam} loteInicial={loteParam} datos={datos} />
+      ) : tipoParam === "destete" ? (
+        <FormularioDestete key={loteParam} loteInicial={loteParam} datos={datos} />
       ) : (
         <FormularioSinStock key={`${tipoParam}:${loteParam}`} tipo={tipoParam} loteInicial={loteParam} datos={datos} />
       )}
