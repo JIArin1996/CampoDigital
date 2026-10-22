@@ -110,7 +110,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de años de nacimiento y archivos): 68 filas, todas con ok = true.
+-- ESPERADO (después del destete, 20261022000200): 69 filas, todas con ok = true.
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -166,6 +166,7 @@ order by 1 desc, 2, 3, 4;
 --   recategorizar_lote          | true             | true          | false | false
 --   registrar_ajuste            | true             | true          | false | false
 --   registrar_compra            | true             | true          | false | false
+--   registrar_destete           | true             | true          | false | false
 --   registrar_diagnostico       | true             | true          | false | false
 --   registrar_esquila           | true             | true          | false | false
 --   registrar_mortandad         | true             | true          | false | false
@@ -221,7 +222,7 @@ select
                                             'registrar_pesada', 'registrar_mortandad', 'registrar_compra',
                                             'registrar_venta', 'registrar_paricion', 'anular_actividad',
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
-                                            'registrar_esquila', 'registrar_personalizada',
+                                            'registrar_esquila', 'registrar_personalizada', 'registrar_destete',
                                             'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion',
                                             'validar_baja_categoria',
                                             'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote'))
