@@ -1773,6 +1773,44 @@ export type Database = {
         }
         Relationships: []
       }
+      v_indicadores_aportes: {
+        Row: {
+          actividad_id: string | null
+          cuenta: boolean | null
+          destetadas: number | null
+          diagnosticadas: number | null
+          entoradas: number | null
+          especie_id: string | null
+          establecimiento_id: string | null
+          fecha: string | null
+          lote_id: string | null
+          mixto: boolean | null
+          nacidas_muertas: number | null
+          nacidas_vivas: number | null
+          prenadas: number | null
+          temporada: number | null
+          tipo: string | null
+        }
+        Relationships: []
+      }
+      v_indicadores_reproductivos: {
+        Row: {
+          destetadas: number | null
+          destete_mixto: boolean | null
+          diagnosticadas: number | null
+          entoradas: number | null
+          especie_id: string | null
+          establecimiento_id: string | null
+          nacidas_muertas: number | null
+          nacidas_vivas: number | null
+          pct_destete: number | null
+          pct_paricion: number | null
+          pct_prenez: number | null
+          prenadas: number | null
+          temporada: number | null
+        }
+        Relationships: []
+      }
       v_stock_establecimiento: {
         Row: {
           cabezas: number | null
