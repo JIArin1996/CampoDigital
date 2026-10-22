@@ -1,8 +1,8 @@
 # Campo Digital — Diseño de la base, Etapa 7: indicadores, economía y panel de inicio
 
-> **EN REVISIÓN — no implementar hasta cerrar las decisiones abiertas (sección 7).**
+> **Decisiones cerradas (B1 a B7, 2026-10-22).** Se implementa en orden: 7a, 7b y 7c.
 
-Estado: **en revisión** (2026-10-22). Sin migraciones.
+Estado: **aprobado** (2026-10-22).
 
 Base:
 - `00-ENFOQUE-V2.md`: sección 8, indicadores, y sección 10, economía.
@@ -69,7 +69,9 @@ Pueden pasar de 100 % con mellizos. Se muestran igual.
 
 - Un diagnóstico, una parición o un destete sin servicio previo se cuenta aparte, como **"sin servicio registrado"**, para que se vea que falta cargar el servicio.
 - Se calcula con una vista (`v_indicadores_reproductivos`), sin columnas nuevas. Por eso cada número se puede rastrear hasta las actividades que lo forman.
-- **[Abierta B1]** Si un origen recibió crías de pariciones de dos temporadas, ¿a qué temporada van sus destetados? Recomendación: **a la temporada de la parición más antigua de ese origen desde su último destete**. Es una regla simple; el caso es raro y queda indicado en la pantalla.
+- **Origen con crías de dos temporadas** [Decidido, B1]: sus destetados van a la temporada de la **parición más antigua** de ese origen desde su último destete. La pantalla marca ese origen como **"caso mixto"**, para que se entienda por qué el % puede pasar de 100 en una temporada y quedar bajo en la otra.
+- **[Supuesto]** Un diagnóstico o una parición se asigna al último servicio anterior **de hasta 450 días antes**; si el último es más viejo, cuenta como "sin servicio registrado". Con varios diagnósticos de un lote en la misma temporada cuenta **el último** (como el repaso: no se suman dos veces las mismas vacas).
+- **% parición** [Decidido, B6]: con las crías vivas; las muertas se muestran al lado como dato.
 
 ### 2.4 Pantalla
 
@@ -108,12 +110,11 @@ Pueden pasar de 100 % con mellizos. Se muestran igual.
 ### 3.4 Resultado por rubro
 
 - Vista `v_resultado_rubro`: ingresos, egresos y resultado en USD, por rubro y mes, sin anulados. La app suma los meses del período elegido.
-- **[Abierta B2] Período:** ¿año calendario, ejercicio de julio a junio (como la temporada), o los dos a elección? Recomendación: **los dos, con el ejercicio julio-junio por defecto**, que es el año productivo.
-- **[Abierta B3] Fecha que cuenta:**
-  - **Por fecha del movimiento** (devengado): una venta de octubre cuenta en octubre, aunque se cobre en diciembre.
-  - **Por fecha de pago** (percibido): solo lo cobrado y pagado.
-
-  Recomendación: **devengado** para el resultado, y una vista aparte de **pendientes** (por cobrar y por pagar).
+- **Período** [Decidido, B2]: ejercicio de julio a junio por defecto, con opción de año calendario.
+- **Fecha que cuenta** [Decidido, B3]: **devengado** (fecha del movimiento): una venta de octubre cuenta en octubre aunque se cobre en diciembre. Aparte, una vista de **pendientes** (por cobrar y por pagar).
+- **Compras y ventas sin precio** [Decidido]: lista visible en Economía y en el inicio, para que el resultado no subestime ingresos o gastos sin que se note.
+- **Un solo movimiento vigente por actividad** [Decidido]: además de la validación en la función, un índice único parcial (`actividad_id` donde no está anulado).
+- Todas las vistas de plata (`v_resultado_rubro`, pendientes, sin precio) con `security_invoker = true`, para que respeten la política de lectura.
 
 ### 3.5 Pantallas
 
@@ -137,13 +138,13 @@ Lo que hoy tiene se mantiene: stock (hoy o a una fecha), ideas abiertas y últim
 4. **Carencias vigentes:** lotes en carencia hoy y hasta cuándo, como aviso para no vender.
 5. **Últimas actividades:** las 5 más recientes.
 
-**[Abierta B4]** ¿Los bloques de economía se muestran a todos los roles, o solo al administrador? Va junto con la B5.
+Los bloques de economía se muestran solo a quien puede ver la economía [Decidido, B4]. La lista de compras y ventas sin precio también va en el inicio.
 
 ---
 
 ## 5. Permisos
 
-**[Abierta B5] ¿Quién ve y quién carga la economía?** Hoy cualquier miembro, incluso Consulta, puede **leer** los movimientos, y nadie los carga a mano. Opciones:
+**Quién ve y quién carga la economía** [Decidido, B5: opción b]. Hoy cualquier miembro, incluso Consulta, puede **leer** los movimientos. Opciones que se evaluaron:
 
 | | Ver | Cargar, marcar pagado y anular |
 |---|---|---|
@@ -151,7 +152,11 @@ Lo que hoy tiene se mantiene: stock (hoy o a una fecha), ideas abiertas y últim
 | **b)** Más reservado | administrador y operador | administrador y operador |
 | **c)** Solo administrador | administrador | administrador |
 
-Recomendación: **b)**. El operador carga gastos del día a día y Consulta no ve plata. Implica cambiar la política de lectura de `movimientos_economicos` y ocultar el monto en las compras y ventas para Consulta.
+Se eligió **b)**: el operador carga gastos del día a día y Consulta no ve plata.
+- La política de lectura de `movimientos_economicos` pasa a `puede_operar`.
+- Verificado en la base: `act_compraventa` no tiene columnas de dinero (solo modalidad, contraparte y kg al gancho). Todo el dinero vive en `movimientos_economicos`, así que no hace falta ocultar columnas.
+- Los movimientos copian la contraparte de la actividad al crearse y no se editan por separado.
+- Consulta sigue viendo que hubo una venta, los kilos y la contraparte, pero no el precio.
 
 Los indicadores reproductivos los ven todos los miembros, como el resto de los datos productivos.
 
@@ -169,19 +174,22 @@ Los indicadores reproductivos los ven todos los miembros, como el resto de los d
   - marcar pagado; anular uno manual; rechazo al anular uno de actividad;
   - rubro por defecto desde la especie;
   - resultado por rubro sin anulados, y pendientes;
-  - permisos según la B5.
+  - venta de 15.000 crea un ingreso vigente de 15.000; compra de 20.000, un egreso vigente de 20.000; en USD y en UYU (`monto_usd` según el tipo de cambio);
+  - precio cargado dos veces: rechazado (función e índice único);
+  - anular la actividad anula su movimiento y deja de contar en el resultado;
+  - Consulta lee `movimientos_economicos` y cada vista de plata: vacío o error.
 - Se vuelven a correr todas, con el script `supabase/scripts/correr-pruebas.mjs`, y la auditoría, que suma las funciones nuevas.
 
 ---
 
-## 7. Decisiones abiertas
+## 7. Decisiones (cerradas el 2026-10-22)
 
-| # | Pregunta | Recomendación |
+| # | Pregunta | Decisión |
 |---|---|---|
-| **B1** | Destetados de un origen con pariciones de dos temporadas | A la temporada de la parición más antigua desde su último destete |
-| **B2** | Período del resultado | Ejercicio de julio a junio por defecto, con opción de año calendario |
-| **B3** | Fecha que cuenta para el resultado | Devengado (fecha del movimiento), con una vista aparte de pendientes |
-| **B4** | Bloques de economía en el inicio | Solo para quien puede ver la economía (B5) |
-| **B5** | Quién ve y quién carga la economía | b) Administrador y operador ven y cargan; Consulta no ve plata |
-| **B6** | % parición: ¿solo crías vivas, o vivas y muertas? | Vivas para el %, con las muertas al lado como dato |
-| **B7** | Orden de las partes | 7a, 7b y 7c |
+| B1 | Destetados de un origen con pariciones de dos temporadas | A la temporada de la parición más antigua desde su último destete; la pantalla lo marca como "caso mixto" |
+| B2 | Período del resultado | Ejercicio de julio a junio por defecto, con opción de año calendario |
+| B3 | Fecha que cuenta para el resultado | Devengado, con una vista aparte de pendientes |
+| B4 | Bloques de economía en el inicio | Solo para quien puede ver la economía |
+| B5 | Quién ve y quién carga la economía | b) Administrador y operador ven y cargan; Consulta no ve plata |
+| B6 | % parición | Crías vivas; las muertas al lado como dato |
+| B7 | Orden | 7a, 7b y 7c |
