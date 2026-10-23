@@ -12,9 +12,9 @@ import { ATAJOS_MAS, BOTON_CONFIGURACIONES, visibleParaRol } from "@/components/
 // "Más" (celular): atajos a lo que no entra en la barra inferior, el botón Configuraciones
 // (solo administrador) y la cuenta.
 export default function MasPage() {
-  const { esAdmin, establecimientoActivo } = useEstablecimiento()
+  const { esAdmin, establecimientoActivo, puedeOperar } = useEstablecimiento()
   const hayActivo = !!establecimientoActivo
-  const atajos = ATAJOS_MAS.filter(visibleParaRol(esAdmin))
+  const atajos = ATAJOS_MAS.filter(visibleParaRol(esAdmin, puedeOperar))
 
   return (
     <PageContainer title="Más">

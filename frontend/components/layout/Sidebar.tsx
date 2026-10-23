@@ -21,13 +21,13 @@ import {
  */
 export function Sidebar() {
   const pathname = usePathname()
-  const { establecimientoActivo, esAdmin, perfil } = useEstablecimiento()
+  const { establecimientoActivo, esAdmin, perfil, puedeOperar } = useEstablecimiento()
 
   // En el login no hay menú
   if (pathname === "/login") return null
 
   const hayActivo = !!establecimientoActivo
-  const visible = visibleParaRol(esAdmin)
+  const visible = visibleParaRol(esAdmin, puedeOperar)
 
   return (
     <>

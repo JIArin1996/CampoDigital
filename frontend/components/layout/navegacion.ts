@@ -1,5 +1,6 @@
 import {
-  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, type LucideIcon,
+  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Tags,
+  type LucideIcon,
 } from "lucide-react"
 
 export interface ItemNav {
@@ -9,6 +10,7 @@ export interface ItemNav {
   necesitaEstablecimiento?: boolean   // deshabilitado si no hay establecimiento activo
   soloAdmin?: boolean
   soloNoAdmin?: boolean               // el administrador lo encuentra en Configuraciones
+  necesitaOperar?: boolean            // solo administrador y operador (Consulta no ve plata)
   rutas?: string[]                    // otras rutas que lo marcan como activo
 }
 
@@ -29,6 +31,7 @@ export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/calendario",  label: "Calendario",  icon: CalendarDays,  necesitaEstablecimiento: true },
   { href: "/actividades", label: "Actividades", icon: ClipboardList, necesitaEstablecimiento: true },
   { href: "/indicadores", label: "Indicadores", icon: TrendingUp,    necesitaEstablecimiento: true },
+  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true, necesitaOperar: true },
   { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true, soloNoAdmin: true },
 ]
 
@@ -36,6 +39,7 @@ export const NAV_PRINCIPAL: ItemNav[] = [
 export const NAV_CONFIGURACION: ItemNav[] = [
   { href: "/potreros",         label: "Potreros",         icon: Grid3X3,  necesitaEstablecimiento: true },
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
+  { href: "/rubros",           label: "Rubros",           icon: Tags,     necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/usuarios",         label: "Usuarios",         icon: Users },
 ]
@@ -60,6 +64,6 @@ export const enRuta = (pathname: string, href: string) => pathname === href || p
 export const itemActivo = (pathname: string, item: ItemNav) =>
   enRuta(pathname, item.href) || (item.rutas ?? []).some(r => enRuta(pathname, r))
 
-// Qué ítems ve cada uno
-export const visibleParaRol = (esAdmin: boolean) => (item: ItemNav) =>
-  !(item.soloAdmin && !esAdmin) && !(item.soloNoAdmin && esAdmin)
+// Qué ítems ve cada uno (puedeOperar: administrador u operador en el establecimiento activo)
+export const visibleParaRol = (esAdmin: boolean, puedeOperar = true) => (item: ItemNav) =>
+  !(item.soloAdmin && !esAdmin) && !(item.soloNoAdmin && esAdmin) && !(item.necesitaOperar && !puedeOperar)
