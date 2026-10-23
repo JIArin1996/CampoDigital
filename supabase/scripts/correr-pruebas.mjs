@@ -34,9 +34,10 @@ const PRUEBAS = [
   ["etapa7a_indicadores.sql", 12],
   ["etapa7b_economia.sql", 43],
   ["etapa8_tareas.sql", 44],
+  ["potreros_estadias.sql", 66],
 ]
 // Auditoría: funciones de public (todas con ok = true) y filas de permisos de columna
-const AUDITORIA = { archivo: "auditoria_permisos.sql", funciones: 78, permisosColumna: 13 }
+const AUDITORIA = { archivo: "auditoria_permisos.sql", funciones: 88, permisosColumna: 13 }
 
 const url = process.env.SUPABASE_DB_URL
 if (!url) {
@@ -52,7 +53,8 @@ const conectar = async () => {
   return cliente
 }
 
-const RESUMEN = /(\d+) OK, (\d+) FALLA, (\d+) OMITIDAS, (\d+) PREPARACIONES FALLIDAS/
+// etapa3_rls.sql es anterior a las omitidas y las preparaciones: informa solo "N OK, N FALLA"
+const RESUMEN = /(\d+) OK, (\d+) FALLA(?:, (\d+) OMITIDAS, (\d+) PREPARACIONES FALLIDAS)?/
 
 async function correrPrueba(archivo, esperado) {
   const sql = readFileSync(join(CARPETA, archivo), "utf8")
@@ -63,7 +65,7 @@ async function correrPrueba(archivo, esperado) {
   } catch (err) {
     const m = RESUMEN.exec(err.message ?? "")
     if (!m) return { archivo, ok: false, texto: `error antes del reporte: ${err.code ?? ""} ${err.message}` }
-    const [, oks, fallas, omitidas, preps] = m.map(Number)
+    const [, oks, fallas, omitidas, preps] = m.map(x => Number(x ?? 0))
     const bien = oks === esperado && fallas === 0 && omitidas === 0 && preps === 0
     // Si algo no da, las líneas que no son OK
     const detalle = bien ? [] : (err.message.split("\n").filter(l => /^(FALLA|OMITIDA|PREP) /.test(l)))

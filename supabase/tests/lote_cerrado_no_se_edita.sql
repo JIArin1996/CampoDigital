@@ -1,7 +1,7 @@
 -- Campo Digital v2 — Pruebas: un lote cerrado no se edita
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261020000400_lote_cerrado_no_se_edita).
+--   1. Con todas las migraciones aplicadas (desde 20261024000100, el potrero ya no se edita con un UPDATE).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS LOTE CERRADO: N OK, ...", que deshace todo.
 --      El resultado esperado es "41 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
@@ -228,12 +228,13 @@ select pruebas.guardar('P1', $q$ insert into public.potreros (establecimiento_id
 select pruebas.guardar('L1', $q$ select public.crear_lote(p_establecimiento_id => pruebas.id('est_a'), p_especie_id => pruebas.id('vacunos'),
       p_nombre => 'L1', p_fecha_apertura => pruebas.d(20), p_composicion => pruebas.comp('terneros', 5)) $q$);
 
-select pruebas.espera_filas('E01 Operador edita nombre, notas, años y potrero de un lote abierto',
-  $q$ update public.lotes set nombre = 'L1 editado', notas = 'abierto', anios_nacimiento = '{2024}', potrero_id = pruebas.id('P1')
+-- Desde 20261024000100 el potrero no se edita con un UPDATE: cambia solo con cambiar_potrero_lote (estadías)
+select pruebas.espera_filas('E01 Operador edita nombre, notas y años de un lote abierto',
+  $q$ update public.lotes set nombre = 'L1 editado', notas = 'abierto', anios_nacimiento = '{2024}'
       where id = pruebas.id('L1') $q$, 1);
-select pruebas.espera_valor('E02 Los cambios quedaron guardados',
-  $q$ select nombre || '|' || notas || '|' || anios_nacimiento::text || '|' || (potrero_id = pruebas.id('P1'))::text
-      from public.lotes where id = pruebas.id('L1') $q$, 'L1 editado|abierto|{2024}|true');
+select pruebas.espera_valor('E02 Los cambios quedaron guardados; el potrero, sin tocar',
+  $q$ select nombre || '|' || notas || '|' || anios_nacimiento::text || '|' || coalesce(potrero_id::text, 'sin potrero')
+      from public.lotes where id = pruebas.id('L1') $q$, 'L1 editado|abierto|{2024}|sin potrero');
 
 -- L2: se vacía con un ajuste y se cierra con cerrar_lote
 select pruebas.guardar('L2', $q$ select public.crear_lote(p_establecimiento_id => pruebas.id('est_a'), p_especie_id => pruebas.id('vacunos'),
@@ -250,8 +251,8 @@ select pruebas.espera_filas('E06 Lote cerrado: no se editan las notas',
   $q$ update public.lotes set notas = 'cerrado' where id = pruebas.id('L2') $q$, 0);
 select pruebas.espera_filas('E07 Lote cerrado: no se editan los años de nacimiento',
   $q$ update public.lotes set anios_nacimiento = '{2022}' where id = pruebas.id('L2') $q$, 0);
-select pruebas.espera_filas('E08 Lote cerrado: no se edita el potrero',
-  $q$ update public.lotes set potrero_id = pruebas.id('P1') where id = pruebas.id('L2') $q$, 0);
+select pruebas.espera_error('E08 El potrero no se edita con un UPDATE (ni abierto ni cerrado: sin permiso de columna)',
+  $q$ update public.lotes set potrero_id = pruebas.id('P1') where id = pruebas.id('L2') $q$, '42501');
 select pruebas.espera_valor('E09 El lote cerrado quedó sin cambios',
   $q$ select nombre || '|' || coalesce(notas, 'sin notas') || '|' || anios_nacimiento::text || '|' || coalesce(potrero_id::text, 'sin potrero')
       from public.lotes where id = pruebas.id('L2') $q$, 'L2|sin notas|{2023}|sin potrero');

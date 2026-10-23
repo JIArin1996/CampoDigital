@@ -62,7 +62,9 @@ order by 1, 2;
 -- ESPERADO (después de años de nacimiento y archivos): exactamente estas 13 filas, todas de authenticated y a nivel columna.
 -- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
 -- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
--- dejó de ser editable y su lugar lo toma anios_nacimiento (la columna se borró en 20261020000500). archivos y lote_archivos: solo lectura.)
+-- dejó de ser editable y su lugar lo toma anios_nacimiento (la columna se borró en 20261020000500). archivos y lote_archivos: solo lectura.
+-- Desde 20261024000100, lotes.potrero_id tampoco: lo mantienen las estadías (lote_estadias, solo lectura), y
+-- potreros.forma se escribe solo con guardar_forma_potrero.)
 -- Cualquier fila "tabla" (por ejemplo un delete o un insert sobre toda la tabla) o
 -- cualquier fila de anon o PUBLIC es un error.
 --
@@ -74,7 +76,7 @@ order by 1, 2;
 --   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre, rubro_id
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
 --           |               |                     |         | observaciones, paraje, propietario, rut, sistema_productivo, superficie_total
---   columna | authenticated | lotes               | UPDATE  | anios_nacimiento, nombre, notas, potrero_id
+--   columna | authenticated | lotes               | UPDATE  | anios_nacimiento, nombre, notas
 --   columna | authenticated | perfiles            | UPDATE  | apellido, celular, foto_path, nombre
 --   columna | authenticated | personas            | INSERT  | activo, establecimiento_id, nombre, rol, user_id
 --   columna | authenticated | personas            | UPDATE  | activo, nombre, rol, user_id
@@ -110,7 +112,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de las tareas, 20261023000100): 78 filas, todas con ok = true.
+-- ESPERADO (después de las estadías de potrero, 20261024000100): 88 filas, todas con ok = true.
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -131,6 +133,7 @@ order by 1 desc, 2, 3, 4;
 --   _insertar_lineas            | false            | false         | false | false
 --   _precio_valido              | false            | false         | false | false
 --   _registrar_movimiento       | false            | false         | false | false
+--   _sincronizar_potrero_lote   | false            | false         | false | false
 --   _rubro_de_especie           | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
 --   _validar_datos_tarea        | false            | false         | false | false
@@ -148,6 +151,7 @@ order by 1 desc, 2, 3, 4;
 --   bloquear_modificacion       | false            | false         | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
 --   cambiar_estado_tarea        | true             | true          | false | false
+--   cambiar_potrero_lote        | true             | true          | false | false
 --   cargar_precio_actividad     | true             | true          | false | false
 --   cerrar_lote                 | true             | true          | false | false
 --   crear_entrada_bitacora      | true             | true          | false | false
@@ -155,17 +159,23 @@ order by 1 desc, 2, 3, 4;
 --   crear_lote                  | true             | true          | false | false
 --   definir_activo              | true             | true          | false | false
 --   definir_admin               | true             | true          | false | false
+--   deshacer_cambio_potrero     | true             | true          | false | false
 --   dividir_lote                | true             | true          | false | false
 --   editar_entrada_bitacora     | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
+--   estadia_alta_lote           | true             | false         | false | false
+--   estadia_cambio_estado_lote  | true             | false         | false | false
 --   fecha_hoy                   | false            | true          | false | false
+--   guardar_forma_potrero       | true             | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
 --   marcar_dosis_dada           | true             | true          | false | false
 --   marcar_pagado               | true             | true          | false | false
 --   mi_rol                      | true             | true          | false | false
+--   potreros_superpuestos       | false            | true          | false | false
 --   proteger_actividad          | false            | false         | false | false
 --   proteger_lote_archivo       | false            | false         | false | false
+--   proteger_potrero_ocupado    | false            | false         | false | false
 --   proteger_ultimo_admin       | false            | false         | false | false
 --   puede_operar                | true             | true          | false | false
 --   quitar_acceso               | true             | true          | false | false
@@ -188,10 +198,12 @@ order by 1 desc, 2, 3, 4;
 --   restaurar_archivo_lote      | true             | true          | false | false
 --   restaurar_entrada_bitacora  | true             | true          | false | false
 --   set_updated_at              | false            | false         | false | false
+--   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
 --   validar_anios_nacimiento    | false            | false         | false | false
 --   validar_baja_categoria      | true             | false         | false | false
+--   validar_estadia             | false            | false         | false | false
 --
 -- Además, todas con search_path_fijo = true.
 
@@ -219,7 +231,9 @@ select
     and f.authenticated = not (f.funcion like '\_%' or f.funcion in ('set_updated_at', 'bloquear_modificacion', 'proteger_ultimo_admin', 'bloquear_borrado',
                                                                            'proteger_actividad', 'actividad_lotes_desde_actividad',
                                                                            'actividad_lotes_desde_paricion', 'validar_baja_categoria',
-                                                                           'validar_anios_nacimiento', 'proteger_lote_archivo'))
+                                                                           'validar_anios_nacimiento', 'proteger_lote_archivo',
+                                                                           'validar_estadia', 'sincronizar_potrero_lote', 'estadia_alta_lote',
+                                                                           'estadia_cambio_estado_lote', 'proteger_potrero_ocupado'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -236,7 +250,9 @@ select
                                             'cambiar_estado_tarea', 'marcar_dosis_dada',
                                             'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion',
                                             'validar_baja_categoria',
-                                            'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote'))
+                                            'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote',
+                                            'cambiar_potrero_lote', 'deshacer_cambio_potrero', 'guardar_forma_potrero',
+                                            'sincronizar_potrero_lote', 'estadia_alta_lote', 'estadia_cambio_estado_lote'))
   ) as ok
 from f
 order by f.funcion;
