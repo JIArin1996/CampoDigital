@@ -13,10 +13,10 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TarjetaEntrada } from "@/components/bitacora/TarjetaEntrada"
-import { ESTADOS_IDEA, ETIQUETA_ESTADO, ETIQUETA_TIPO, TIPOS_ENTRADA } from "@/components/bitacora/formato"
+import { ESTADOS_IDEA, ESTADOS_TAREA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, TIPOS_ENTRADA } from "@/components/bitacora/formato"
 import { CAMPO, SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
-import type { EntradaConLotes, EstadoIdea, TipoEntrada } from "@/types/bitacora"
+import type { EntradaConLotes, EstadoIdea, EstadoTarea, TipoEntrada } from "@/types/bitacora"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 
@@ -38,15 +38,17 @@ export default function BitacoraPage() {
 
 const esTipo = (v: string | null): v is TipoEntrada => !!v && (TIPOS_ENTRADA as string[]).includes(v)
 const esEstado = (v: string | null): v is EstadoIdea => !!v && (ESTADOS_IDEA as string[]).includes(v)
+const esEstadoTarea = (v: string | null): v is EstadoTarea => !!v && (ESTADOS_TAREA as string[]).includes(v)
 
 function Bitacora() {
   const params = useSearchParams()
   const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const estId = establecimientoActivo?.id
 
-  // Filtros (se pueden pasar por la URL: ?tipo=idea&estado=abierta&lote=<id>)
+  // Filtros (se pueden pasar por la URL: ?tipo=idea&estado=abierta&lote=<id>, ?tipo=tarea&estado=pendiente)
   const [tipo, setTipo] = useState<TipoEntrada | null>(esTipo(params.get("tipo")) ? (params.get("tipo") as TipoEntrada) : null)
   const [estado, setEstado] = useState<EstadoIdea | null>(esEstado(params.get("estado")) ? (params.get("estado") as EstadoIdea) : null)
+  const [estadoTarea, setEstadoTarea] = useState<EstadoTarea | null>(esEstadoTarea(params.get("estado")) ? (params.get("estado") as EstadoTarea) : null)
   const [loteId, setLoteId] = useState<string>(params.get("lote") ?? "")
   const [busqueda, setBusqueda] = useState("")
   const [texto, setTexto] = useState("")              // búsqueda aplicada (con una pausa al tipear)
@@ -62,13 +64,13 @@ function Bitacora() {
     return () => clearTimeout(t)
   }, [busqueda])
 
-  const clave = JSON.stringify([estId, tipo, estado, loteId, texto, incluirAnuladas, version])
+  const clave = JSON.stringify([estId, tipo, estado, estadoTarea, loteId, texto, incluirAnuladas, version])
 
   useEffect(() => {
     if (!estId) return
     let vigente = true
     Promise.all([
-      getEntradas(estId, { tipo, estadoIdea: estado, loteId: loteId || null, texto, incluirAnuladas }),
+      getEntradas(estId, { tipo, estadoIdea: estado, estadoTarea, loteId: loteId || null, texto, incluirAnuladas }),
       getPersonas(estId),
       getLotes(estId, "activo"),
       getLotes(estId, "cerrado"),
@@ -76,7 +78,7 @@ function Bitacora() {
       .then(([entradas, personas, activos, cerrados]) => {
         if (!vigente) return
         setDatos({
-          clave: JSON.stringify([estId, tipo, estado, loteId, texto, incluirAnuladas, version]),
+          clave: JSON.stringify([estId, tipo, estado, estadoTarea, loteId, texto, incluirAnuladas, version]),
           entradas,
           personas,
           nombresLote: new Map([...activos, ...cerrados].map(l => [l.id, l.nombre])),
@@ -85,7 +87,7 @@ function Bitacora() {
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar la bitácora")) })
     return () => { vigente = false }
-  }, [estId, tipo, estado, loteId, texto, incluirAnuladas, version])
+  }, [estId, tipo, estado, estadoTarea, loteId, texto, incluirAnuladas, version])
 
   if (cargandoCtx) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
   if (!establecimientoActivo) {
@@ -117,10 +119,10 @@ function Bitacora() {
         </div>
 
         <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Tipo">
-          <button type="button" className={chip(!tipo)} onClick={() => { setTipo(null); setEstado(null) }}>Todas</button>
+          <button type="button" className={chip(!tipo)} onClick={() => { setTipo(null); setEstado(null); setEstadoTarea(null) }}>Todas</button>
           {TIPOS_ENTRADA.map(t => (
             <button key={t} type="button" aria-pressed={tipo === t} className={chip(tipo === t)}
-              onClick={() => { setTipo(t); if (t !== "idea") setEstado(null) }}>
+              onClick={() => { setTipo(t); if (t !== "idea") setEstado(null); if (t !== "tarea") setEstadoTarea(null) }}>
               {ETIQUETA_TIPO[t]}
             </button>
           ))}
@@ -134,11 +136,20 @@ function Bitacora() {
               <option value={loteId}>{datos.nombresLote.get(loteId) ?? "Lote"}</option>
             )}
           </select>
-          <select aria-label="Estado de la idea" className={SELECT_NATIVO} value={estado ?? ""}
-            onChange={e => { const v = e.target.value; setEstado(esEstado(v) ? v : null); if (esEstado(v)) setTipo("idea") }}>
-            <option value="">Ideas: todas</option>
-            {ESTADOS_IDEA.map(e => <option key={e} value={e}>Ideas {ETIQUETA_ESTADO[e].toLowerCase()}s</option>)}
-          </select>
+          {/* Estado: de las tareas si se filtra por tarea; si no, de las ideas */}
+          {tipo === "tarea" ? (
+            <select aria-label="Estado de la tarea" className={SELECT_NATIVO} value={estadoTarea ?? ""}
+              onChange={e => { const v = e.target.value; setEstadoTarea(esEstadoTarea(v) ? v : null) }}>
+              <option value="">Tareas: todas</option>
+              {ESTADOS_TAREA.map(e => <option key={e} value={e}>Tareas {ETIQUETA_ESTADO_TAREA[e].toLowerCase()}s</option>)}
+            </select>
+          ) : (
+            <select aria-label="Estado de la idea" className={SELECT_NATIVO} value={estado ?? ""}
+              onChange={e => { const v = e.target.value; setEstado(esEstado(v) ? v : null); if (esEstado(v)) setTipo("idea") }}>
+              <option value="">Ideas: todas</option>
+              {ESTADOS_IDEA.map(e => <option key={e} value={e}>Ideas {ETIQUETA_ESTADO[e].toLowerCase()}s</option>)}
+            </select>
+          )}
         </div>
 
         <label className="flex items-center gap-2 min-h-11 cursor-pointer select-none w-fit">

@@ -738,61 +738,96 @@ export type Database = {
         Row: {
           anulada_en: string | null
           anulada_por: string | null
+          completada_en: string | null
+          completada_por: string | null
           created_at: string
           created_by: string | null
           editada_en: string | null
           editada_por: string | null
+          entrada_origen_id: string | null
           establecimiento_id: string
           estado_idea: string | null
+          estado_tarea: string | null
           fecha: string
           id: string
           motivo_anulacion: string | null
           persona_id: string | null
+          repetir_cada_dias: number | null
+          tarea_anterior_id: string | null
           texto: string
           tipo: string
           updated_at: string
+          vencimiento: string | null
         }
         Insert: {
           anulada_en?: string | null
           anulada_por?: string | null
+          completada_en?: string | null
+          completada_por?: string | null
           created_at?: string
           created_by?: string | null
           editada_en?: string | null
           editada_por?: string | null
+          entrada_origen_id?: string | null
           establecimiento_id: string
           estado_idea?: string | null
+          estado_tarea?: string | null
           fecha?: string
           id?: string
           motivo_anulacion?: string | null
           persona_id?: string | null
+          repetir_cada_dias?: number | null
+          tarea_anterior_id?: string | null
           texto: string
           tipo: string
           updated_at?: string
+          vencimiento?: string | null
         }
         Update: {
           anulada_en?: string | null
           anulada_por?: string | null
+          completada_en?: string | null
+          completada_por?: string | null
           created_at?: string
           created_by?: string | null
           editada_en?: string | null
           editada_por?: string | null
+          entrada_origen_id?: string | null
           establecimiento_id?: string
           estado_idea?: string | null
+          estado_tarea?: string | null
           fecha?: string
           id?: string
           motivo_anulacion?: string | null
           persona_id?: string | null
+          repetir_cada_dias?: number | null
+          tarea_anterior_id?: string | null
           texto?: string
           tipo?: string
           updated_at?: string
+          vencimiento?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bitacora_entradas_anterior_fkey"
+            columns: ["tarea_anterior_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "bitacora_entradas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
           {
             foreignKeyName: "bitacora_entradas_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
             referencedRelation: "establecimientos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bitacora_entradas_origen_fkey"
+            columns: ["entrada_origen_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "bitacora_entradas"
+            referencedColumns: ["id", "establecimiento_id"]
           },
           {
             foreignKeyName: "bitacora_entradas_persona_id_establecimiento_id_fkey"
@@ -1789,6 +1824,72 @@ export type Database = {
           },
         ]
       }
+      sanidad_dosis_dadas: {
+        Row: {
+          actividad_id: string
+          dada_en: string
+          dada_por: string | null
+          deshecha_en: string | null
+          deshecha_por: string | null
+          establecimiento_id: string
+          orden: number
+        }
+        Insert: {
+          actividad_id: string
+          dada_en?: string
+          dada_por?: string | null
+          deshecha_en?: string | null
+          deshecha_por?: string | null
+          establecimiento_id: string
+          orden: number
+        }
+        Update: {
+          actividad_id?: string
+          dada_en?: string
+          dada_por?: string | null
+          deshecha_en?: string | null
+          deshecha_por?: string | null
+          establecimiento_id?: string
+          orden?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sanidad_dosis_dadas_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "sanidad_dosis_dadas_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "sanidad_dosis_dadas_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "sanidad_dosis_dadas_actividad_id_orden_fkey"
+            columns: ["actividad_id", "orden"]
+            isOneToOne: true
+            referencedRelation: "act_sanidad_productos"
+            referencedColumns: ["actividad_id", "orden"]
+          },
+          {
+            foreignKeyName: "sanidad_dosis_dadas_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_actividades: {
@@ -1861,6 +1962,23 @@ export type Database = {
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
+      }
+      v_calendario: {
+        Row: {
+          actividad_id: string | null
+          entrada_id: string | null
+          establecimiento_id: string | null
+          estado: string | null
+          fecha: string | null
+          hecha_en: string | null
+          lotes: string[] | null
+          orden: number | null
+          origen: string | null
+          persona_id: string | null
+          repetir_cada_dias: number | null
+          texto: string | null
+        }
+        Relationships: []
       }
       v_carencias: {
         Row: {
@@ -2111,19 +2229,26 @@ export type Database = {
         Returns: {
           anulada_en: string | null
           anulada_por: string | null
+          completada_en: string | null
+          completada_por: string | null
           created_at: string
           created_by: string | null
           editada_en: string | null
           editada_por: string | null
+          entrada_origen_id: string | null
           establecimiento_id: string
           estado_idea: string | null
+          estado_tarea: string | null
           fecha: string
           id: string
           motivo_anulacion: string | null
           persona_id: string | null
+          repetir_cada_dias: number | null
+          tarea_anterior_id: string | null
           texto: string
           tipo: string
           updated_at: string
+          vencimiento: string | null
         }
         SetofOptions: {
           from: "*"
@@ -2229,6 +2354,14 @@ export type Database = {
         Args: { p_categoria_id: string; p_fecha: string; p_lote_id: string }
         Returns: number
       }
+      _validar_datos_tarea: {
+        Args: {
+          p_repetir_cada_dias: number
+          p_tipo: string
+          p_vencimiento: string
+        }
+        Returns: undefined
+      }
       _validar_entrada_bitacora: {
         Args: {
           p_establecimiento_id: string
@@ -2276,6 +2409,10 @@ export type Database = {
         Args: { p_entrada_id: string; p_estado: string }
         Returns: undefined
       }
+      cambiar_estado_tarea: {
+        Args: { p_entrada_id: string; p_estado: string }
+        Returns: string
+      }
       cargar_precio_actividad: {
         Args: {
           p_actividad_id: string
@@ -2291,12 +2428,15 @@ export type Database = {
       }
       crear_entrada_bitacora: {
         Args: {
+          p_entrada_origen_id?: string
           p_establecimiento_id: string
           p_fecha: string
           p_lotes?: string[]
           p_persona_id?: string
+          p_repetir_cada_dias?: number
           p_texto: string
           p_tipo: string
+          p_vencimiento?: string
         }
         Returns: string
       }
@@ -2353,8 +2493,10 @@ export type Database = {
           p_fecha: string
           p_lotes?: string[]
           p_persona_id?: string
+          p_repetir_cada_dias?: number
           p_texto: string
           p_tipo: string
+          p_vencimiento?: string
         }
         Returns: undefined
       }
@@ -2373,6 +2515,10 @@ export type Database = {
           relacion: string
           tipo: string
         }[]
+      }
+      marcar_dosis_dada: {
+        Args: { p_actividad_id: string; p_dada?: boolean; p_orden: number }
+        Returns: undefined
       }
       marcar_pagado: {
         Args: { p_fecha_pago: string; p_movimiento_id: string }

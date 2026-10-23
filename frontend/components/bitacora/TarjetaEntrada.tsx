@@ -2,20 +2,22 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Pencil, RotateCcw, Ban, UserRound } from "lucide-react"
+import { Pencil, RotateCcw, Ban, UserRound, Check, X, Repeat, CalendarClock, CalendarPlus, CornerDownRight } from "lucide-react"
 import { toast } from "sonner"
 
-import { anularEntrada, cambiarEstadoIdea, restaurarEntrada } from "@/lib/queries/bitacora"
+import { anularEntrada, cambiarEstadoIdea, cambiarEstadoTarea, restaurarEntrada } from "@/lib/queries/bitacora"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CAMPO } from "@/components/shared/estilos"
-import { fechaCorta } from "@/components/lotes/formato"
-import { COLOR_TIPO, ESTADOS_IDEA, ETIQUETA_ESTADO, ETIQUETA_TIPO, fechaHora } from "@/components/bitacora/formato"
+import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
+import {
+  COLOR_TIPO, ESTADOS_IDEA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, fechaHora, mensajeTareaHecha, textoRepeticion, textoVencimiento,
+} from "@/components/bitacora/formato"
 import { cn } from "@/lib/utils"
-import type { EntradaConLotes, EstadoIdea } from "@/types/bitacora"
+import type { EntradaConLotes, EstadoIdea, EstadoTarea } from "@/types/bitacora"
 
 export interface Persona {
   id: string
@@ -58,6 +60,18 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
   const cambiarEstado = (estado: EstadoIdea) =>
     ejecutar(() => cambiarEstadoIdea(entrada.id, estado), `Idea ${ETIQUETA_ESTADO[estado].toLowerCase()}`)
 
+  // Tareas: al marcar hecha una repetida, la base anota la siguiente
+  const esTarea = entrada.tipo === "tarea"
+  const hoy = hoyLocal()
+  const vencida = esTarea && entrada.estado_tarea === "pendiente" && !!entrada.vencimiento && entrada.vencimiento < hoy
+  const cambiarTarea = (estado: EstadoTarea) =>
+    ejecutar(async () => {
+      const siguiente = await cambiarEstadoTarea(entrada.id, estado)
+      if (siguiente) toast.info(mensajeTareaHecha(entrada.vencimiento!, entrada.repetir_cada_dias!, hoy))
+    }, estado === "hecha" ? "Tarea hecha" : estado === "cancelada" ? "Tarea cancelada" : "Tarea reabierta")
+  // "Crear tarea" desde una nota que no es tarea (de una idea, solo si está decidida) y que todavía no tiene una
+  const puedeCrearTarea = !esTarea && !entrada.tarea && (entrada.tipo !== "idea" || entrada.estado_idea === "decidida")
+
   const confirmarAnulacion = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!motivo.trim()) return toast.error("Escribí el motivo")
@@ -76,6 +90,12 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
         {entrada.estado_idea && (
           <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium">{ETIQUETA_ESTADO[entrada.estado_idea]}</span>
         )}
+        {entrada.estado_tarea && (
+          <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium",
+            vencida && "border-destructive bg-destructive/10 text-destructive font-semibold")}>
+            {vencida ? "Vencida" : ETIQUETA_ESTADO_TAREA[entrada.estado_tarea]}
+          </span>
+        )}
         {anulada && <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive">Anulada</span>}
         <span className="ml-auto text-sm text-muted-foreground">{fechaCorta(entrada.fecha)}</span>
       </div>
@@ -84,6 +104,46 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
       <p className={cn("mt-2 whitespace-pre-line text-base md:text-sm", anulada && "line-through text-muted-foreground")}>
         {entrada.texto}
       </p>
+
+      {/* Tarea: vencimiento, repetición y quién la marcó hecha */}
+      {esTarea && entrada.vencimiento && (
+        <div className="mt-2 space-y-0.5 text-sm">
+          <p className={cn("flex items-center gap-1.5 font-medium", vencida && "text-destructive")}>
+            <CalendarClock className="h-4 w-4 shrink-0" />
+            Vence el {fechaCorta(entrada.vencimiento)}
+            {entrada.estado_tarea === "pendiente" && !anulada && (
+              <span className="font-normal">· {textoVencimiento(entrada.vencimiento, hoy)}</span>
+            )}
+          </p>
+          {entrada.repetir_cada_dias && (
+            <p className="flex items-center gap-1.5 text-muted-foreground">
+              <Repeat className="h-4 w-4 shrink-0" /> {textoRepeticion(entrada.repetir_cada_dias)}
+            </p>
+          )}
+          {entrada.estado_tarea === "hecha" && entrada.completada_en && (
+            <p className="flex items-center gap-1.5 text-muted-foreground">
+              <Check className="h-4 w-4 shrink-0" /> Hecha el {fechaHora(entrada.completada_en)} por {nombreUsuario(entrada.completada_por)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Vínculo nota ↔ tarea */}
+      {entrada.origen && (
+        <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <CornerDownRight className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span className="line-clamp-1">Sale de la {ETIQUETA_TIPO[entrada.origen.tipo].toLowerCase()}: {entrada.origen.texto}</span>
+        </p>
+      )}
+      {entrada.tarea && (
+        <Link href="/calendario?ver=todas" className="mt-2 flex items-start gap-1.5 rounded-md bg-muted/60 px-2.5 py-1.5 text-xs hover:bg-muted">
+          <CalendarClock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Tarea {ETIQUETA_ESTADO_TAREA[entrada.tarea.estado].toLowerCase()}, vence el {fechaCorta(entrada.tarea.vencimiento)}
+            {entrada.tarea.texto !== entrada.texto && <span className="text-muted-foreground"> · {entrada.tarea.texto}</span>}
+          </span>
+        </Link>
+      )}
 
       {/* Lotes y responsable */}
       {(entrada.lotes.length > 0 || responsable) && (
@@ -115,6 +175,26 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
       {/* Acciones */}
       {puedeOperar && (
         <div className="mt-3 flex flex-wrap gap-2">
+          {!anulada && esTarea && entrada.estado_tarea === "pendiente" && (
+            <>
+              <Button type="button" size="sm" disabled={trabajando} onClick={() => cambiarTarea("hecha")}>
+                <Check className="h-4 w-4 mr-1" /> Hecha
+              </Button>
+              <Button type="button" size="sm" variant="outline" disabled={trabajando} onClick={() => cambiarTarea("cancelada")}>
+                <X className="h-4 w-4 mr-1" /> Cancelar tarea
+              </Button>
+            </>
+          )}
+          {!anulada && esTarea && entrada.estado_tarea !== "pendiente" && (
+            <Button type="button" size="sm" variant="outline" disabled={trabajando} onClick={() => cambiarTarea("pendiente")}>
+              <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
+            </Button>
+          )}
+          {!anulada && puedeCrearTarea && (
+            <Link href={`/bitacora/nueva?origen=${entrada.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <CalendarPlus className="h-4 w-4 mr-1" /> Crear tarea
+            </Link>
+          )}
           {!anulada && entrada.tipo === "idea" && (
             <div className="flex gap-1" role="group" aria-label="Estado de la idea">
               {ESTADOS_IDEA.map(estado => (

@@ -21,7 +21,7 @@ const OPCIONES: Opcion[] = [
   { label: "Actividad", descripcion: "Pesada, venta, compra, parición, destete, sanidad...", icon: ClipboardList, href: "/actividades/nueva" },
   { label: "Ingreso o gasto", descripcion: "Sueldos, insumos, arrendamiento, impuestos...", icon: Wallet, href: "/economia/nuevo" },
   { label: "Nuevo lote", descripcion: "Con su composición inicial", icon: Layers, href: "/lotes/nuevo" },
-  { label: "Tarea", descripcion: "Algo para hacer, con vencimiento", icon: CalendarCheck, etapa: "Etapa 8" },
+  { label: "Tarea", descripcion: "Algo para hacer, con vencimiento", icon: CalendarCheck, href: "/bitacora/nueva?tipo=tarea" },
 ]
 
 /**

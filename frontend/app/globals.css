@@ -91,6 +91,8 @@
   --etiqueta-observacion-texto: oklch(0.36 0.07 240);
   --etiqueta-compra: oklch(0.95 0.03 300);
   --etiqueta-compra-texto: oklch(0.36 0.09 300);
+  --etiqueta-tarea: oklch(0.95 0.04 175);
+  --etiqueta-tarea-texto: oklch(0.35 0.07 185);
 }
 
 @layer base {
