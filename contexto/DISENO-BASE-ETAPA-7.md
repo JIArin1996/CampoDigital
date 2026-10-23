@@ -1,6 +1,6 @@
 # Campo Digital — Diseño de la base, Etapa 7: indicadores, economía y panel de inicio
 
-> **Decisiones cerradas (B1 a B7, 2026-10-22).** Se implementa en orden: 7a, 7b y 7c.
+> **Implementada (2026-10-23).** 7a: migración `20261022000400_indicadores_reproductivos` (`etapa7a_indicadores.sql` 12 OK) y pantalla Indicadores. 7b: migración `20261022000500_economia` (`etapa7b_economia.sql` 43 OK, auditoría 75 funciones), pantallas Economía, Cargar ingreso o gasto, Cargar precio y Rubros. 7c: bloques del inicio (economía del ejercicio, carencias, indicadores y últimas actividades), sin cambios en la base.
 
 Estado: **aprobado** (2026-10-22).
 
