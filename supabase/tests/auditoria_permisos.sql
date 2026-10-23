@@ -70,8 +70,8 @@ order by 1, 2;
 --   --------+---------------+---------------------+---------+------------------------------------------------
 --   columna | authenticated | categorias_animales | INSERT  | activo, cria_al_pie, especie_id, establecimiento_id, nombre, orden, sexo
 --   columna | authenticated | categorias_animales | UPDATE  | activo, cria_al_pie, nombre, orden, sexo
---   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre
---   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre
+--   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre, rubro_id
+--   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre, rubro_id
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
 --           |               |                     |         | observaciones, paraje, propietario, rut, sistema_productivo, superficie_total
 --   columna | authenticated | lotes               | UPDATE  | anios_nacimiento, nombre, notas, potrero_id
@@ -110,7 +110,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después del destete, 20261022000200): 69 filas, todas con ok = true.
+-- ESPERADO (después de la economía, 20261022000500): 75 filas, todas con ok = true.
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -129,7 +129,9 @@ order by 1 desc, 2, 3, 4;
 --   _exigir_persona             | false            | false         | false | false
 --   _guardar_lotes_bitacora     | false            | false         | false | false
 --   _insertar_lineas            | false            | false         | false | false
+--   _precio_valido              | false            | false         | false | false
 --   _registrar_movimiento       | false            | false         | false | false
+--   _rubro_de_especie           | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
@@ -139,10 +141,12 @@ order by 1 desc, 2, 3, 4;
 --   adjuntar_archivo_lote       | true             | true          | false | false
 --   anular_actividad            | true             | true          | false | false
 --   anular_entrada_bitacora     | true             | true          | false | false
+--   anular_movimiento           | true             | true          | false | false
 --   asignar_rol                 | true             | true          | false | false
 --   bloquear_borrado            | false            | false         | false | false
 --   bloquear_modificacion       | false            | false         | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
+--   cargar_precio_actividad     | true             | true          | false | false
 --   cerrar_lote                 | true             | true          | false | false
 --   crear_entrada_bitacora      | true             | true          | false | false
 --   crear_establecimiento       | true             | true          | false | false
@@ -155,6 +159,7 @@ order by 1 desc, 2, 3, 4;
 --   es_miembro                  | true             | true          | false | false
 --   fecha_hoy                   | false            | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
+--   marcar_pagado               | true             | true          | false | false
 --   mi_rol                      | true             | true          | false | false
 --   proteger_actividad          | false            | false         | false | false
 --   proteger_lote_archivo       | false            | false         | false | false
@@ -170,6 +175,7 @@ order by 1 desc, 2, 3, 4;
 --   registrar_diagnostico       | true             | true          | false | false
 --   registrar_esquila           | true             | true          | false | false
 --   registrar_mortandad         | true             | true          | false | false
+--   registrar_movimiento        | true             | true          | false | false
 --   registrar_paricion          | true             | true          | false | false
 --   registrar_personalizada     | true             | true          | false | false
 --   registrar_pesada            | true             | true          | false | false
@@ -223,6 +229,7 @@ select
                                             'registrar_venta', 'registrar_paricion', 'anular_actividad',
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
                                             'registrar_esquila', 'registrar_personalizada', 'registrar_destete',
+                                            'registrar_movimiento', 'cargar_precio_actividad', 'marcar_pagado', 'anular_movimiento',
                                             'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion',
                                             'validar_baja_categoria',
                                             'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote'))
