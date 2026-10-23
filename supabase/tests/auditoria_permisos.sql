@@ -110,7 +110,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de la economía, 20261022000500): 75 filas, todas con ok = true.
+-- ESPERADO (después de las tareas, 20261023000100): 78 filas, todas con ok = true.
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -133,6 +133,7 @@ order by 1 desc, 2, 3, 4;
 --   _registrar_movimiento       | false            | false         | false | false
 --   _rubro_de_especie           | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
+--   _validar_datos_tarea        | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
 --   _validar_saldo              | false            | false         | false | false
@@ -146,6 +147,7 @@ order by 1 desc, 2, 3, 4;
 --   bloquear_borrado            | false            | false         | false | false
 --   bloquear_modificacion       | false            | false         | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
+--   cambiar_estado_tarea        | true             | true          | false | false
 --   cargar_precio_actividad     | true             | true          | false | false
 --   cerrar_lote                 | true             | true          | false | false
 --   crear_entrada_bitacora      | true             | true          | false | false
@@ -159,6 +161,7 @@ order by 1 desc, 2, 3, 4;
 --   es_miembro                  | true             | true          | false | false
 --   fecha_hoy                   | false            | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
+--   marcar_dosis_dada           | true             | true          | false | false
 --   marcar_pagado               | true             | true          | false | false
 --   mi_rol                      | true             | true          | false | false
 --   proteger_actividad          | false            | false         | false | false
@@ -230,6 +233,7 @@ select
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
                                             'registrar_esquila', 'registrar_personalizada', 'registrar_destete',
                                             'registrar_movimiento', 'cargar_precio_actividad', 'marcar_pagado', 'anular_movimiento',
+                                            'cambiar_estado_tarea', 'marcar_dosis_dada',
                                             'actividad_lotes_desde_actividad', 'actividad_lotes_desde_paricion',
                                             'validar_baja_categoria',
                                             'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote'))
