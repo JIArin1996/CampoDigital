@@ -20,12 +20,12 @@ Estado: **en construcción** (2026-10-23). Paso 1 (auditoría y diseño) aprobad
 - **D1.** Las estadías que crea el alta de un lote (crear, dividir, unir, compra, parición o destete a un lote nuevo) llevan origen `alta`; las de los datos existentes, `migracion`. El detalle de cómo nació el lote está en el Linaje.
 - **D2.** Reapertura manual (`reabrir_lote`): estadía **nueva** desde la fecha de reapertura, en el mismo potrero si sigue activo; la vieja queda cerrada (el período cerrado no cuenta como ocupación). Reapertura por una anulación (por ejemplo, anular un destete): se reabre **la misma** estadía, porque es deshacer.
 - **D3.** Corrección: "Deshacer el último cambio" (anula la estadía nueva y reabre la anterior). Las estadías viejas no se editan.
-- **D4.** Imagen satelital: Esri World Imagery por defecto si hay clave configurada; si no, ortofotos de la IDE Uruguay. Selector de capa, con la infrarroja de la IDE incluida.
+- **D4.** Dos capas: **satelital de Esri** (World Imagery, por defecto; aparece solo si hay clave configurada) y **Mapa Base de la IDE** (rutas, caminos, vía férrea, arroyos y localidades). Sin clave de Esri, solo está el mapa de rutas. Cambios a pedido de Iñaki (2026-10-23): la infrarroja y la ortofoto 2017-2018 de la IDE se sacaron.
 - **D5.** Diálogo de cambio: una sola fecha (hoy por defecto) y la opción "Hubo días sin potrero" para cargar la salida y el ingreso por separado.
 
 ## Imagen satelital: licencias (CONFIRMAR ANTES DE UN USO COMERCIAL)
 - **Esri World Imagery** (ArcGIS Location Platform): se usa con una clave en `.env.local`. Según Esri, la suscripción permite apps comerciales; exige mostrar la atribución y prohíbe descargar, guardar o redistribuir los mosaicos (choca con un futuro modo sin señal). **Restringir la clave por dominio en el panel de Esri.**
-- **IDE Uruguay** (`mapas.ide.uy`, WMTS de ortofotos, mosaico nacional 2017-2018 e infrarrojo): publicado como datos abiertos y sin restricciones de acceso declaradas en el servicio. Falta confirmar el texto de la licencia para uso comercial.
+- **IDE Uruguay** (`mapas.ide.uy`, WMTS del Mapa Base, capa `capa_base_ideuy_ideuy`): publicado como datos abiertos y sin restricciones de acceso declaradas en el servicio. Falta confirmar el texto de la licencia para uso comercial.
 - **MapTiler**: el plan gratis es solo para uso no comercial. Descartado.
 
 ## Librería de mapas

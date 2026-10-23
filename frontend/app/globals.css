@@ -106,3 +106,19 @@
     @apply font-sans;
   }
 }
+/* Mapa de potreros: nombre y hectáreas sobre la imagen satelital (texto blanco con borde oscuro, legible al sol) */
+.leaflet-tooltip.etiqueta-potrero {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-shadow: 0 0 3px #000, 0 0 2px #000, 0 1px 2px #000;
+}
+.leaflet-tooltip.etiqueta-potrero::before {
+  display: none;
+}

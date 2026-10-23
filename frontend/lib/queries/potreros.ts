@@ -54,6 +54,26 @@ export async function reactivarPotrero(id: string) {
   return updatePotrero(id, { estado: 'activo' })
 }
 
+// Forma de los potreros para el mapa (v_potreros_mapa): GeoJSON, área geodésica y punto para la etiqueta.
+// Solo los dibujados.
+export interface FormaPotrero {
+  id: string
+  forma: GeoJSON.MultiPolygon
+  area_ha: number
+  etiqueta: GeoJSON.Point
+}
+
+export async function getFormasPotreros(establecimiento_id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('v_potreros_mapa')
+    .select('id, forma, area_ha, etiqueta')
+    .eq('establecimiento_id', establecimiento_id)
+    .not('forma', 'is', null)
+  if (error) throw error
+  return (data ?? []).map(f => ({ id: f.id!, forma: f.forma, area_ha: Number(f.area_ha), etiqueta: f.etiqueta }) as unknown as FormaPotrero)
+}
+
 // ── Estadías de los lotes (sin las anuladas) ─────────────────────────────────
 
 // Dónde está cada lote hoy: las estadías abiertas del establecimiento
