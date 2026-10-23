@@ -6,14 +6,15 @@ import { Plus, Layers, Merge } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCategorias, getEspecies, getLotes, getStockLotes } from "@/lib/queries/lotes"
-import { getPotreros } from "@/lib/queries/potreros"
+import { getEstadiasAbiertas, getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { TarjetaLote } from "@/components/lotes/TarjetaLote"
 import { StockPorEspecie } from "@/components/lotes/StockPorEspecie"
+import { CambiarPotreroDialog } from "@/components/potreros/CambiarPotreroDialog"
 import { ORDEN_CLASE, claseDeLote, colorDeEspecie, ordenarEspecies, separarCrias } from "@/components/lotes/agrupacion"
-import type { Potrero } from "@/types/database"
+import type { Estadia, Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, EstadoLote, Lote, StockLote } from "@/types/lotes"
 
 interface Datos {
@@ -23,6 +24,7 @@ interface Datos {
   lotes: Lote[]
   potreros: Potrero[]
   stockLotes: StockLote[]
+  estadias: Map<string, Estadia>   // estadía abierta de cada lote
 }
 
 // Un lote de una especie que ya no está en el catálogo activo va al grupo "Otras"
@@ -33,6 +35,8 @@ export default function LotesPage() {
   const [estado, setEstado] = useState<EstadoLote>("activo")
   const [datos, setDatos] = useState<Datos | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [version, setVersion] = useState(0)
+  const [moviendo, setMoviendo] = useState<Lote | null>(null)   // lote del diálogo de cambio de potrero
 
   const estId = establecimientoActivo?.id
   const clave = `${estId}:${estado}`
@@ -46,15 +50,19 @@ export default function LotesPage() {
       getLotes(estId, estado),
       getPotreros(estId),
       getStockLotes(estId),
+      getEstadiasAbiertas(estId),
     ])
-      .then(([especies, categorias, lotes, potreros, stockLotes]) => {
-        if (vigente) setDatos({ clave: `${estId}:${estado}`, especies, categorias, lotes, potreros, stockLotes })
+      .then(([especies, categorias, lotes, potreros, stockLotes, abiertas]) => {
+        if (vigente) setDatos({
+          clave: `${estId}:${estado}`, especies, categorias, lotes, potreros, stockLotes,
+          estadias: new Map(abiertas.map(e => [e.lote_id, e])),
+        })
       })
       .catch(err => {
         if (vigente) setError(mensajeDeError(err, "No se pudieron cargar los lotes"))
       })
     return () => { vigente = false }
-  }, [estId, estado])
+  }, [estId, estado, version])
 
   if (cargandoCtx) return <PageContainer><Esqueleto /></PageContainer>
 
@@ -116,7 +124,7 @@ export default function LotesPage() {
               </p>
             </div>
           ) : (
-            <LotesPorEspecie datos={listo} />
+            <LotesPorEspecie datos={listo} onCambiarPotrero={puedeOperar ? setMoviendo : undefined} />
           )}
         </section>
 
@@ -133,6 +141,12 @@ export default function LotesPage() {
           </section>
         )}
       </div>
+
+      {listo && moviendo && (
+        <CambiarPotreroDialog key={moviendo.id} abierto onCerrar={() => setMoviendo(null)}
+          onHecho={() => { setMoviendo(null); setVersion(v => v + 1) }}
+          lotes={[moviendo]} potreros={listo.potreros} estadias={listo.estadias} />
+      )}
     </PageContainer>
   )
 }
@@ -142,8 +156,8 @@ export default function LotesPage() {
  * clase del lote (cría, recría, engorde, toros, otras) y de mayor a menor cantidad de cabezas.
  * Cerrados: del cierre más reciente al más viejo.
  */
-function LotesPorEspecie({ datos }: { datos: Datos }) {
-  const { especies, categorias, lotes, potreros, stockLotes } = datos
+function LotesPorEspecie({ datos, onCambiarPotrero }: { datos: Datos; onCambiarPotrero?: (lote: Lote) => void }) {
+  const { especies, categorias, lotes, potreros, stockLotes, estadias } = datos
 
   const filas = lotes.map(lote => {
     const stock = stockLotes.filter(s => s.lote_id === lote.id)
@@ -186,7 +200,9 @@ function LotesPorEspecie({ datos }: { datos: Datos }) {
             <ul className="space-y-2">
               {delGrupo.map(f => (
                 <li key={f.lote.id}>
-                  <TarjetaLote lote={f.lote} color={colorDeEspecie(especie)} cabezas={f.separadas.resto} crias={f.separadas.crias} potrero={f.potrero} />
+                  <TarjetaLote lote={f.lote} color={colorDeEspecie(especie)} cabezas={f.separadas.resto} crias={f.separadas.crias} potrero={f.potrero}
+                    enPotreroDesde={estadias.get(f.lote.id)?.fecha_ingreso}
+                    onCambiarPotrero={onCambiarPotrero ? () => onCambiarPotrero(f.lote) : undefined} />
                 </li>
               ))}
             </ul>

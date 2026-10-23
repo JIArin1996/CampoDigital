@@ -43,6 +43,14 @@ export type PotreroInsert = Pick<
 >
 export type PotreroUpdate = Partial<Omit<PotreroInsert, 'establecimiento_id'>>
 
+// Estadía de un lote en un potrero (fecha_salida null = sigue adentro). Solo lectura: se escribe con
+// cambiar_potrero_lote, deshacer_cambio_potrero y los triggers del alta, cierre y reapertura de lotes.
+export type OrigenEstadia = 'alta' | 'manual' | 'reapertura' | 'migracion'
+export type Estadia = Omit<Tables<'lote_estadias'>, 'origen' | 'cerrada_por'> & {
+  origen: OrigenEstadia
+  cerrada_por: 'cambio' | 'cierre' | null
+}
+
 // ── Perfil de usuario ────────────────────────────────────────────────────────
 
 export type Perfil = Tables<'perfiles'>

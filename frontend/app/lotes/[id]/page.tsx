@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Lock, LockOpen, Merge, MilkOff, Pencil, SlidersHorizontal, Split } from "lucide-react"
+import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Lock, LockOpen, MapPin, Merge, MilkOff, Pencil, SlidersHorizontal, Split, Undo2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
-import { getPotreros } from "@/lib/queries/potreros"
+import { deshacerCambioPotrero, getEstadiasLote, getPotreros } from "@/lib/queries/potreros"
 import { getCarencias } from "@/lib/queries/actividades"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
@@ -20,12 +21,14 @@ import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
 import { ArchivosDelLote } from "@/components/lotes/ArchivosDelLote"
 import { CerrarReabrirLote } from "@/components/lotes/CerrarReabrirLote"
+import { CambiarPotreroDialog } from "@/components/potreros/CambiarPotreroDialog"
+import { diasEntre } from "@/components/bitacora/formato"
 import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
 import { ETIQUETA_EVENTO, fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { formatoAnios } from "@/components/lotes/anios"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import type { Carencia } from "@/types/actividades"
-import type { Potrero } from "@/types/database"
+import type { Estadia, Potrero } from "@/types/database"
 import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
 
 interface Ficha {
@@ -33,7 +36,8 @@ interface Ficha {
   lote: Lote | null
   especies: Especie[]
   categorias: CategoriaAnimal[]
-  potreros: Potrero[]
+  potreros: Potrero[]          // también los inactivos (para nombrar los del historial)
+  estadias: Estadia[]          // por qué potreros pasó, de la más vieja a la más nueva
   stock: StockLote[]
   eventos: LoteEvento[]
   cambios: CambioEstadoLote[]
@@ -48,23 +52,26 @@ export default function LotePage() {
   const [version, setVersion] = useState(0)   // sube para recargar después de un ajuste
   const [ajusteAbierto, setAjusteAbierto] = useState(false)
   const [estadoAbierto, setEstadoAbierto] = useState(false)
+  const [potreroAbierto, setPotreroAbierto] = useState(false)
+  const [deshaciendo, setDeshaciendo] = useState(false)
 
   useEffect(() => {
     let vigente = true
     const clave = `${id}:${version}`
     getLote(id)
       .then(async lote => {
-        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], stock: [], eventos: [], cambios: [], carencias: [] }
-        const [especies, categorias, potreros, stock, eventos, cambios, carencias] = await Promise.all([
+        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], estadias: [], stock: [], eventos: [], cambios: [], carencias: [] }
+        const [especies, categorias, potreros, estadias, stock, eventos, cambios, carencias] = await Promise.all([
           getEspecies(lote.establecimiento_id),
           getCategorias(lote.establecimiento_id, { incluirInactivas: true }),
-          getPotreros(lote.establecimiento_id),
+          getPotreros(lote.establecimiento_id, { incluirInactivos: true }),
+          getEstadiasLote(lote.id),
           getStockLote(lote.id),
           getEventosLote(lote.id),
           getCambiosEstadoLote(lote.id),
           getCarencias([lote.id], hoyLocal()),
         ])
-        return { clave, lote, especies, categorias, potreros, stock, eventos, cambios, carencias }
+        return { clave, lote, especies, categorias, potreros, estadias, stock, eventos, cambios, carencias }
       })
       .then(datos => {
         if (vigente) setFicha(datos)
@@ -103,6 +110,10 @@ export default function LotePage() {
   const categoriasEspecie = vigente.categorias.filter(c => c.especie_id === lote.especie_id)
   const categoriasActivas = categoriasEspecie.filter(c => c.activo)
   const potrero = vigente.potreros.find(p => p.id === lote.potrero_id)
+  const nombrePotrero = (potId: string) => vigente.potreros.find(p => p.id === potId)?.nombre ?? "Potrero"
+  const estadiaAbierta = vigente.estadias.find(e => e.fecha_salida === null)
+  // Deshacer: el último cambio fue una entrada cargada a mano, o una salida a "sin potrero" (la base lo confirma)
+  const puedeDeshacer = estadiaAbierta ? estadiaAbierta.origen === "manual" : vigente.estadias.some(e => e.cerrada_por === "cambio")
   const nombreCategoria = (catId: string) => vigente.categorias.find(c => c.id === catId)?.nombre ?? "—"
   const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
   const ultimoCierre = vigente.cambios.find(c => c.tipo === "cierre")
@@ -112,6 +123,35 @@ export default function LotePage() {
   const tieneCrias = vigente.stock.some(s => s.cabezas > 0 && esCria(s.categoria_id))
     && (vigente.stock.some(s => s.cabezas > 0 && !esCria(s.categoria_id)) || vigente.eventos.some(e => e.tipo === "paricion" && e.cabezas > 0))
   const accion = buttonVariants({ variant: "outline", className: "h-auto flex-col gap-1 py-3 text-sm" })
+
+  // Historial: los eventos de stock y los cambios de potrero, intercalados por fecha (lo más nuevo arriba;
+  // el mismo día, el ingreso arriba de la salida y los dos arriba de los eventos)
+  type FilaHistorial =
+    | { clase: "evento"; fecha: string; orden: number; evento: (typeof vigente.eventos)[number] }
+    | { clase: "potrero"; fecha: string; orden: number; texto: string; nota: string | null; id: string }
+  const historial: FilaHistorial[] = [
+    ...vigente.eventos.map((evento, i) => ({ clase: "evento" as const, fecha: evento.fecha, orden: 2 + i / 1e6, evento })),
+    ...vigente.estadias.flatMap(e => [
+      { clase: "potrero" as const, fecha: e.fecha_ingreso, orden: 0, id: `${e.id}:i`, nota: e.motivo,
+        texto: `Entró a ${nombrePotrero(e.potrero_id)}` },
+      ...(e.fecha_salida ? [{ clase: "potrero" as const, fecha: e.fecha_salida, orden: 1, id: `${e.id}:s`, nota: e.motivo_salida,
+        texto: `Salió de ${nombrePotrero(e.potrero_id)}${e.cerrada_por === "cierre" ? " (cierre del lote)" : ""}` }] : []),
+    ]),
+  ].sort((a, b) => b.fecha.localeCompare(a.fecha) || a.orden - b.orden)
+
+  const deshacer = async () => {
+    if (!window.confirm("¿Deshacer el último cambio de potrero? El lote vuelve a donde estaba antes.")) return
+    setDeshaciendo(true)
+    try {
+      await deshacerCambioPotrero(lote.id)
+      toast.success("Cambio de potrero deshecho")
+      setVersion(v => v + 1)
+    } catch (err) {
+      toast.error(mensajeDeError(err))
+    } finally {
+      setDeshaciendo(false)
+    }
+  }
 
   return (
     <PageContainer>
@@ -142,15 +182,43 @@ export default function LotePage() {
         <p className="text-sm text-muted-foreground mt-1">
           {[
             especie?.nombre,
-            potrero?.nombre,
             lote.anios_nacimiento.length > 0 ? `nacidos en ${formatoAnios(lote.anios_nacimiento)}` : null,
-            `desde ${fechaCorta(lote.fecha_apertura)}`,
+            `abierto el ${fechaCorta(lote.fecha_apertura)}`,
             lote.fecha_cierre ? `cerrado el ${fechaCorta(lote.fecha_cierre)}` : null,
           ].filter(Boolean).join(" · ")}
         </p>
         {lote.notas && <p className="text-sm mt-2">{lote.notas}</p>}
         {lote.estado === "cerrado" && ultimoCierre?.motivo && (
           <p className="text-sm mt-2 text-muted-foreground">Motivo del cierre: {ultimoCierre.motivo}</p>
+        )}
+      </div>
+
+      {/* Potrero actual (o en el que estaba al cerrarse) */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="font-semibold truncate">{potrero?.nombre ?? "Sin potrero"}</p>
+            {estadiaAbierta ? (
+              <p className="text-sm text-muted-foreground">
+                desde el {fechaCorta(estadiaAbierta.fecha_ingreso)} · {diasEntre(estadiaAbierta.fecha_ingreso, hoyLocal())} días
+              </p>
+            ) : lote.estado === "cerrado" && potrero ? (
+              <p className="text-sm text-muted-foreground">al cerrarse el lote</p>
+            ) : null}
+          </div>
+        </div>
+        {operable && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="h-11 md:h-8" onClick={() => setPotreroAbierto(true)}>
+              <MapPin className="h-4 w-4 mr-1" /> Cambiar de potrero
+            </Button>
+            {puedeDeshacer && (
+              <Button variant="ghost" size="sm" className="h-11 md:h-8 text-muted-foreground" disabled={deshaciendo} onClick={deshacer}>
+                <Undo2 className="h-4 w-4 mr-1" /> Deshacer último cambio
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -228,26 +296,39 @@ export default function LotePage() {
               Actividades <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          {vigente.eventos.length === 0 ? (
+          {historial.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sin movimientos.</p>
           ) : (
             <ul className="rounded-lg border divide-y bg-card">
-              {vigente.eventos.map(ev => (
-                <li key={ev.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {ETIQUETA_EVENTO[ev.tipo]} · {nombreCategoria(ev.categoria_id)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{fechaCorta(ev.fecha)}</p>
-                    {ev.nota && <p className="text-sm text-muted-foreground mt-0.5">{ev.nota}</p>}
-                  </div>
-                  <span
-                    className={`text-base font-semibold tabular-nums shrink-0 ${ev.cabezas < 0 ? "text-destructive" : ""}`}
-                  >
-                    {ev.cabezas > 0 ? `+${ev.cabezas}` : ev.cabezas}
-                  </span>
-                </li>
-              ))}
+              {historial.map(fila => {
+                if (fila.clase === "potrero") return (
+                  <li key={fila.id} className="flex items-start gap-3 px-4 py-3">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{fila.texto}</p>
+                      <p className="text-xs text-muted-foreground">{fechaCorta(fila.fecha)}</p>
+                      {fila.nota && <p className="text-sm text-muted-foreground mt-0.5">{fila.nota}</p>}
+                    </div>
+                  </li>
+                )
+                const ev = fila.evento
+                return (
+                  <li key={ev.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {ETIQUETA_EVENTO[ev.tipo]} · {nombreCategoria(ev.categoria_id)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{fechaCorta(ev.fecha)}</p>
+                      {ev.nota && <p className="text-sm text-muted-foreground mt-0.5">{ev.nota}</p>}
+                    </div>
+                    <span
+                      className={`text-base font-semibold tabular-nums shrink-0 ${ev.cabezas < 0 ? "text-destructive" : ""}`}
+                    >
+                      {ev.cabezas > 0 ? `+${ev.cabezas}` : ev.cabezas}
+                    </span>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </section>
@@ -265,6 +346,14 @@ export default function LotePage() {
           setVersion(v => v + 1)
         }}
       />
+
+      {/* Cambio de potrero (key: arranca limpio cada vez) */}
+      {potreroAbierto && (
+        <CambiarPotreroDialog key={`${lote.id}:${version}`} abierto onCerrar={() => setPotreroAbierto(false)}
+          onHecho={() => { setPotreroAbierto(false); setVersion(v => v + 1) }}
+          lotes={[lote]} potreros={vigente.potreros.filter(p => p.estado === "activo")}
+          estadias={new Map(estadiaAbierta ? [[lote.id, estadiaAbierta]] : [])} />
+      )}
 
       {/* Ajuste de stock */}
       <Dialog open={ajusteAbierto} onOpenChange={setAjusteAbierto}>
