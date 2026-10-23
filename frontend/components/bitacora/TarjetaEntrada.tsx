@@ -138,7 +138,7 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
         </p>
       )}
       {entrada.tarea && (
-        <Link href="/calendario?ver=todas" className="mt-2 flex items-start gap-1.5 rounded-md bg-muted/60 px-2.5 py-1.5 text-xs hover:bg-muted">
+        <Link href={`/calendario?fecha=${entrada.tarea.vencimiento}`} className="mt-2 flex items-start gap-1.5 rounded-md bg-muted/60 px-2.5 py-1.5 text-xs hover:bg-muted">
           <CalendarClock className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
             Tarea {ETIQUETA_ESTADO_TAREA[entrada.tarea.estado].toLowerCase()}, vence el {fechaCorta(entrada.tarea.vencimiento)}

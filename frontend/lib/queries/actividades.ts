@@ -10,6 +10,8 @@ export interface FiltrosActividades {
   tipo?: TipoActividad | null
   loteId?: string | null
   incluirAnuladas?: boolean
+  desde?: string | null      // fecha inclusive (YYYY-MM-DD)
+  hasta?: string | null
   limite?: number
 }
 
@@ -36,6 +38,8 @@ export async function getActividades(establecimiento_id: string, filtros: Filtro
     .limit(filtros.limite ?? 100)
 
   if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
+  if (filtros.desde) query = query.gte('fecha', filtros.desde)
+  if (filtros.hasta) query = query.lte('fecha', filtros.hasta)
   if (ids) query = query.in('id', ids)
   if (!filtros.incluirAnuladas) query = query.is('anulada_en', null)
 

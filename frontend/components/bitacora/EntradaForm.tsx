@@ -25,13 +25,14 @@ interface Props {
   inicial?: EntradaConLotes        // si viene, se edita
   loteInicial?: string | null      // al crear desde la ficha de un lote
   tipoInicial?: TipoEntrada | null // al crear desde el "+" (por ejemplo, una tarea)
+  venceInicial?: string | null     // al crear una tarea desde un día del Calendario
   origen?: EntradaConLotes | null  // "Crear tarea" desde otra nota: precarga texto y lotes
 }
 
 // Repeticiones frecuentes; "otra" deja escribir los días
 const REPETICIONES = [7, 15, 30, 60, 90, 180, 365]
 
-export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInicial, origen }: Props) {
+export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInicial, venceInicial, origen }: Props) {
   const router = useRouter()
   const [opciones, setOpciones] = useState<{ lotes: Lote[]; personas: Persona[] } | null>(null)
   const [tipo, setTipo] = useState<TipoEntrada>(inicial?.tipo ?? (origen ? "tarea" : tipoInicial ?? "observacion"))
@@ -39,7 +40,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
   const [texto, setTexto] = useState(inicial?.texto ?? origen?.texto ?? "")
   const [lotes, setLotes] = useState<string[]>(inicial?.lotes ?? origen?.lotes ?? (loteInicial ? [loteInicial] : []))
   const [personaId, setPersonaId] = useState(inicial?.persona_id ?? origen?.persona_id ?? "")
-  const [vencimiento, setVencimiento] = useState(inicial?.vencimiento ?? "")
+  const [vencimiento, setVencimiento] = useState(inicial?.vencimiento ?? venceInicial ?? "")
   const [repetir, setRepetir] = useState(inicial?.repetir_cada_dias ? String(inicial.repetir_cada_dias) : "")
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)

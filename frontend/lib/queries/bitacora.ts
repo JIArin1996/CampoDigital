@@ -10,6 +10,9 @@ export interface FiltrosBitacora {
   loteId?: string | null
   texto?: string | null
   incluirAnuladas?: boolean
+  sinTareas?: boolean        // el calendario muestra las tareas por su vencimiento, aparte
+  desde?: string | null      // fecha de la nota, inclusive (YYYY-MM-DD)
+  hasta?: string | null
   limite?: number
 }
 
@@ -36,6 +39,9 @@ export async function getEntradas(establecimiento_id: string, filtros: FiltrosBi
 
   if (ids) query = query.in('id', ids)
   if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
+  if (filtros.sinTareas) query = query.neq('tipo', 'tarea')
+  if (filtros.desde) query = query.gte('fecha', filtros.desde)
+  if (filtros.hasta) query = query.lte('fecha', filtros.hasta)
   if (filtros.estadoIdea) query = query.eq('tipo', 'idea').eq('estado_idea', filtros.estadoIdea)
   if (filtros.estadoTarea) query = query.eq('tipo', 'tarea').eq('estado_tarea', filtros.estadoTarea)
   if (!filtros.incluirAnuladas) query = query.is('anulada_en', null)

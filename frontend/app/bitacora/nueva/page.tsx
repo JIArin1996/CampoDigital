@@ -20,13 +20,14 @@ export default function NuevaEntradaPage() {
   )
 }
 
-// ?lote=<id>: desde la ficha de un lote; ?tipo=tarea: desde el "+" o el Calendario;
+// ?lote=<id>: desde la ficha de un lote; ?tipo=tarea: desde el "+" o el Calendario (?vence=<fecha>: desde un día);
 // ?origen=<id>: "Crear tarea" desde otra nota
 function NuevaEntrada() {
   const params = useSearchParams()
   const loteInicial = params.get("lote")
   const origenId = params.get("origen")
   const tipoInicial = params.get("tipo") === "tarea" ? "tarea" : null
+  const venceInicial = /^\d{4}-\d{2}-\d{2}$/.test(params.get("vence") ?? "") ? params.get("vence") : null
   const { establecimientoActivo, puedeOperar, cargando } = useEstablecimiento()
   const [origen, setOrigen] = useState<{ id: string; entrada: EntradaConLotes | null; error?: string } | null>(null)
 
@@ -56,7 +57,7 @@ function NuevaEntrada() {
     <PageContainer>
       {volver}
       <h1 className="text-2xl font-bold mb-6">{esTarea ? "Nueva tarea" : "Nueva nota de bitácora"}</h1>
-      <EntradaForm establecimientoId={establecimientoActivo.id} loteInicial={loteInicial} tipoInicial={tipoInicial}
+      <EntradaForm establecimientoId={establecimientoActivo.id} loteInicial={loteInicial} tipoInicial={tipoInicial} venceInicial={venceInicial}
         origen={origen?.entrada ?? null} />
     </PageContainer>
   )

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import type { Tables } from '@/types/supabase'
 import type { EstadoTarea, FilaCalendario } from '@/types/bitacora'
 
 // ── Lectura (v_calendario: tareas no anuladas y próximas dosis de sanidades no anuladas) ──
@@ -12,7 +13,26 @@ export async function getCalendario(establecimiento_id: string, terminadas = fal
     : query.eq('estado', 'pendiente').order('fecha', { ascending: true }).limit(500)
   const { data, error } = await query
   if (error) throw error
-  return (data ?? []).map(f => ({
+  return aFilas(data ?? [])
+}
+
+// Vista mensual: todo lo que cae entre dos fechas (pendiente o terminado), y las tareas repetidas
+// pendientes de cualquier fecha (para proyectar sus próximas ocurrencias dentro del mes)
+export async function getCalendarioMes(establecimiento_id: string, desde: string, hasta: string) {
+  const supabase = createClient()
+  const [enRango, repetidas] = await Promise.all([
+    supabase.from('v_calendario').select('*').eq('establecimiento_id', establecimiento_id)
+      .gte('fecha', desde).lte('fecha', hasta).order('fecha').limit(1000),
+    supabase.from('v_calendario').select('*').eq('establecimiento_id', establecimiento_id)
+      .eq('origen', 'tarea').eq('estado', 'pendiente').not('repetir_cada_dias', 'is', null).lte('fecha', hasta).limit(500),
+  ])
+  if (enRango.error) throw enRango.error
+  if (repetidas.error) throw repetidas.error
+  return { filas: aFilas(enRango.data ?? []), repetidas: aFilas(repetidas.data ?? []) }
+}
+
+function aFilas(data: Tables<'v_calendario'>[]): FilaCalendario[] {
+  return data.map(f => ({
     origen: f.origen as FilaCalendario['origen'],
     entrada_id: f.entrada_id,
     actividad_id: f.actividad_id,
