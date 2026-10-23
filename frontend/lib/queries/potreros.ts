@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
 import type { Estadia, Potrero, PotreroInsert, PotreroUpdate } from '@/types/database'
+import type { Json } from '@/types/supabase'
 
 // ── Potreros ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,27 @@ export async function getFormasPotreros(establecimiento_id: string) {
     .not('forma', 'is', null)
   if (error) throw error
   return (data ?? []).map(f => ({ id: f.id!, forma: f.forma, area_ha: Number(f.area_ha), etiqueta: f.etiqueta }) as unknown as FormaPotrero)
+}
+
+// Guarda la forma de un potrero (GeoJSON en grados) o la borra (null). Devuelve el área geodésica en
+// hectáreas. Con actualizarSuperficie, la superficie del potrero pasa a ser esa área.
+export async function guardarFormaPotrero(potrero_id: string, forma: GeoJSON.MultiPolygon | GeoJSON.Polygon | null, actualizarSuperficie = false) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('guardar_forma_potrero', {
+    p_potrero_id: potrero_id,
+    p_forma: forma as unknown as Json,   // null = borrar la forma
+    p_actualizar_superficie: actualizarSuperficie,
+  })
+  if (error) throw error
+  return data === null ? null : Number(data)
+}
+
+// Pares de potreros activos que se superponen (aviso, no bloqueo)
+export async function getSuperpuestos(establecimiento_id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('potreros_superpuestos', { p_establecimiento_id: establecimiento_id })
+  if (error) throw error
+  return (data ?? []).map(f => ({ a: f.potrero_a, b: f.potrero_b, hectareas: Number(f.hectareas) }))
 }
 
 // ── Estadías de los lotes (sin las anuladas) ─────────────────────────────────

@@ -1,8 +1,10 @@
 // Capas de imagen para el mapa de potreros (mosaicos en la proyección web, EPSG:3857).
 //
 // Licencias (ver contexto/DISENO-POTREROS.md): confirmar antes de un uso comercial.
-//  - Esri World Imagery: necesita una clave de ArcGIS Location Platform en NEXT_PUBLIC_ESRI_API_KEY
-//    (restringida por dominio en el panel de Esri). Exige atribución; no se guardan ni redistribuyen mosaicos.
+//  - Esri World Imagery: con una clave de ArcGIS Location Platform en NEXT_PUBLIC_ESRI_API_KEY (restringida
+//    por dominio en el panel de Esri), por el servicio de la plataforma. Sin clave, por el servicio público
+//    (server.arcgisonline.com): sirve para uso privado; antes de un uso comercial hay que cargar la clave.
+//    Exige atribución; no se guardan ni redistribuyen mosaicos.
 //  - IDE Uruguay: Mapa Base (rutas, caminos, vía férrea, arroyos y localidades), publicado como datos
 //    abiertos, sin clave. (La ortofoto 2017-2018 de la IDE se sacó a pedido de Iñaki.)
 
@@ -26,17 +28,17 @@ const MAPA_BASE_IDE =
 const IDE = '<a href="https://www.gub.uy/infraestructura-datos-espaciales" target="_blank" rel="noopener">IDE Uruguay</a>'
 
 export const CAPAS: Capa[] = [
-  ...(CLAVE_ESRI
-    ? [{
-        id: "esri" as const,
-        nombre: "Satélite (Esri)",
-        url: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(CLAVE_ESRI)}`,
-        atribucion: 'Imagen: <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics y la comunidad de usuarios de SIG',
-        maxNativeZoom: 19,
-      }]
-    : []),
+  {
+    id: "esri",
+    nombre: "Satelital",
+    url: CLAVE_ESRI
+      ? `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(CLAVE_ESRI)}`
+      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    atribucion: 'Imagen: <a href="https://www.esri.com" target="_blank" rel="noopener">Esri</a>, Maxar, Earthstar Geographics y la comunidad de usuarios de SIG',
+    maxNativeZoom: 19,
+  },
   { id: "ide_mapa", nombre: "Mapa con rutas y caminos (IDE)", url: MAPA_BASE_IDE, atribucion: `Mapa Base © ${IDE}`, maxNativeZoom: 20 },
 ]
 
-// Por defecto: el satelital de Esri si hay clave; si no, el mapa de rutas de la IDE
-export const CAPA_POR_DEFECTO: IdCapa = CAPAS[0].id
+// Por defecto, el satelital
+export const CAPA_POR_DEFECTO: IdCapa = "esri"

@@ -176,7 +176,8 @@ export default function PotrerosPage() {
       </div>
 
       {vistaActual === "mapa" ? (
-        <VistaMapa potreros={activos} formas={listos.formas} ocupacion={listos.ocupacion} puedeOperar={puedeOperar} acciones={acciones} />
+        <VistaMapa establecimientoId={establecimientoActivo.id} potreros={activos} formas={listos.formas} ocupacion={listos.ocupacion}
+          puedeOperar={puedeOperar} acciones={acciones} onCambio={recargar} />
       ) : (
         <ListaPotreros potreros={listos.potreros} ocupacion={listos.ocupacion} puedeOperar={puedeOperar} acciones={acciones} />
       )}
