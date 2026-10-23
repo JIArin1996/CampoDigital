@@ -1165,6 +1165,105 @@ export type Database = {
           },
         ]
       }
+      lote_estadias: {
+        Row: {
+          anulada_en: string | null
+          anulada_por: string | null
+          cerrada_por: string | null
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          estadia_anterior_id: string | null
+          fecha_ingreso: string
+          fecha_salida: string | null
+          id: string
+          lote_id: string
+          motivo: string | null
+          motivo_anulacion: string | null
+          motivo_salida: string | null
+          origen: string
+          potrero_id: string
+          salida_registrada_en: string | null
+          salida_registrada_por: string | null
+        }
+        Insert: {
+          anulada_en?: string | null
+          anulada_por?: string | null
+          cerrada_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          estadia_anterior_id?: string | null
+          fecha_ingreso: string
+          fecha_salida?: string | null
+          id?: string
+          lote_id: string
+          motivo?: string | null
+          motivo_anulacion?: string | null
+          motivo_salida?: string | null
+          origen: string
+          potrero_id: string
+          salida_registrada_en?: string | null
+          salida_registrada_por?: string | null
+        }
+        Update: {
+          anulada_en?: string | null
+          anulada_por?: string | null
+          cerrada_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          estadia_anterior_id?: string | null
+          fecha_ingreso?: string
+          fecha_salida?: string | null
+          id?: string
+          lote_id?: string
+          motivo?: string | null
+          motivo_anulacion?: string | null
+          motivo_salida?: string | null
+          origen?: string
+          potrero_id?: string
+          salida_registrada_en?: string | null
+          salida_registrada_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lote_estadias_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lote_estadias_estadia_anterior_id_establecimiento_id_fkey"
+            columns: ["estadia_anterior_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lote_estadias"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lote_estadias_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lote_estadias_potrero_id_establecimiento_id_fkey"
+            columns: ["potrero_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "potreros"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lote_estadias_potrero_id_establecimiento_id_fkey"
+            columns: ["potrero_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_potreros_mapa"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       lote_eventos: {
         Row: {
           actividad_id: string | null
@@ -1336,6 +1435,13 @@ export type Database = {
             columns: ["potrero_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "potreros"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "lotes_potrero_id_establecimiento_id_fkey"
+            columns: ["potrero_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_potreros_mapa"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -1737,6 +1843,7 @@ export type Database = {
           created_by: string | null
           establecimiento_id: string
           estado: string
+          forma: unknown
           id: string
           nombre: string
           observaciones: string | null
@@ -1752,6 +1859,7 @@ export type Database = {
           created_by?: string | null
           establecimiento_id: string
           estado?: string
+          forma?: unknown
           id?: string
           nombre: string
           observaciones?: string | null
@@ -1767,6 +1875,7 @@ export type Database = {
           created_by?: string | null
           establecimiento_id?: string
           estado?: string
+          forma?: unknown
           id?: string
           nombre?: string
           observaciones?: string | null
@@ -2122,6 +2231,62 @@ export type Database = {
           },
         ]
       }
+      v_potreros_mapa: {
+        Row: {
+          aguada: boolean | null
+          area_ha: number | null
+          establecimiento_id: string | null
+          estado: string | null
+          etiqueta: Json | null
+          forma: Json | null
+          id: string | null
+          nombre: string | null
+          observaciones: string | null
+          sombra: boolean | null
+          superficie: number | null
+          tipo_pastura: string | null
+          uso_actual: string | null
+        }
+        Insert: {
+          aguada?: boolean | null
+          area_ha?: never
+          establecimiento_id?: string | null
+          estado?: string | null
+          etiqueta?: never
+          forma?: never
+          id?: string | null
+          nombre?: string | null
+          observaciones?: string | null
+          sombra?: boolean | null
+          superficie?: number | null
+          tipo_pastura?: string | null
+          uso_actual?: string | null
+        }
+        Update: {
+          aguada?: boolean | null
+          area_ha?: never
+          establecimiento_id?: string | null
+          estado?: string | null
+          etiqueta?: never
+          forma?: never
+          id?: string | null
+          nombre?: string | null
+          observaciones?: string | null
+          sombra?: boolean | null
+          superficie?: number | null
+          tipo_pastura?: string | null
+          uso_actual?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "potreros_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_resultado_rubro: {
         Row: {
           egresos_usd: number | null
@@ -2350,6 +2515,10 @@ export type Database = {
         Args: { p_especie_id: string; p_establecimiento_id: string }
         Returns: string
       }
+      _sincronizar_potrero_lote: {
+        Args: { p_lote_id: string }
+        Returns: undefined
+      }
       _stock_categoria_al: {
         Args: { p_categoria_id: string; p_fecha: string; p_lote_id: string }
         Returns: number
@@ -2411,6 +2580,16 @@ export type Database = {
       }
       cambiar_estado_tarea: {
         Args: { p_entrada_id: string; p_estado: string }
+        Returns: string
+      }
+      cambiar_potrero_lote: {
+        Args: {
+          p_fecha_ingreso?: string
+          p_fecha_salida?: string
+          p_lote_id: string
+          p_motivo?: string
+          p_potrero_id: string
+        }
         Returns: string
       }
       cargar_precio_actividad: {
@@ -2478,6 +2657,10 @@ export type Database = {
         Args: { p_es_admin: boolean; p_user_id: string }
         Returns: undefined
       }
+      deshacer_cambio_potrero: {
+        Args: { p_lote_id: string; p_motivo?: string }
+        Returns: undefined
+      }
       dividir_lote: {
         Args: {
           p_destinos: Json
@@ -2503,6 +2686,14 @@ export type Database = {
       es_admin: { Args: never; Returns: boolean }
       es_miembro: { Args: { p_est: string }; Returns: boolean }
       fecha_hoy: { Args: never; Returns: string }
+      guardar_forma_potrero: {
+        Args: {
+          p_actualizar_superficie?: boolean
+          p_forma: Json
+          p_potrero_id: string
+        }
+        Returns: number
+      }
       linaje_lote: {
         Args: { p_lote_id: string }
         Returns: {
@@ -2525,6 +2716,14 @@ export type Database = {
         Returns: undefined
       }
       mi_rol: { Args: { p_est: string }; Returns: string }
+      potreros_superpuestos: {
+        Args: { p_establecimiento_id: string }
+        Returns: {
+          hectareas: number
+          potrero_a: string
+          potrero_b: string
+        }[]
+      }
       puede_operar: { Args: { p_est: string }; Returns: boolean }
       quitar_acceso: {
         Args: { p_establecimiento_id: string; p_user_id: string }
