@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { AlertTriangle, ChevronRight, ShieldAlert } from "lucide-react"
+import { AlertTriangle, CalendarClock, ChevronRight, ShieldAlert } from "lucide-react"
 
 import { getActividades, getCarencias } from "@/lib/queries/actividades"
+import { getCalendario } from "@/lib/queries/calendario"
 import { getPendientes, getResultado, getSinPrecio } from "@/lib/queries/economia"
 import { getIndicadores } from "@/lib/queries/indicadores"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TarjetaActividad } from "@/components/actividades/TarjetaActividad"
+import { ItemCalendario, claveFila } from "@/components/calendario/ItemCalendario"
+import { diasEntre } from "@/components/bitacora/formato"
 import { etiquetaPeriodo, periodoActual, rangoPeriodo, usd } from "@/components/economia/formato"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import type { ActividadResumen, Carencia } from "@/types/actividades"
@@ -121,6 +124,53 @@ export function BloqueIndicadores({ estId, especies }: { estId: string; especies
         ))}
       </CardContent>
     </Card>
+  )
+}
+
+// ── Tareas y vencimientos: las vencidas y las de los próximos 7 días (de todos) ──
+const TAREAS_EN_INICIO = 5
+
+export function BloqueTareas({ estId, nombresLote, personas, puedeOperar }: {
+  estId: string
+  nombresLote: Map<string, string>
+  personas: { id: string; nombre: string }[]
+  puedeOperar: boolean
+}) {
+  const [version, setVersion] = useState(0)
+  const hoy = hoyLocal()
+  const filas = useCarga(`tar:${estId}:${hoy}:${version}`, () => getCalendario(estId))
+  const proximas = (filas ?? []).filter(f => diasEntre(hoy, f.fecha) <= 7)
+  const vencidas = proximas.filter(f => f.fecha < hoy).length
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <CalendarClock className="h-4 w-4" /> Tareas y vencimientos
+        </h2>
+        {enlace("/calendario", "Calendario")}
+      </div>
+      {!filas ? <Esqueleto /> : proximas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nada vencido ni para los próximos 7 días.</p>
+      ) : (
+        <>
+          {vencidas > 0 && (
+            <p className="text-sm font-medium text-destructive">{vencidas} {vencidas === 1 ? "vencida" : "vencidas"}</p>
+          )}
+          <ul className="space-y-2">
+            {proximas.slice(0, TAREAS_EN_INICIO).map(f => (
+              <li key={claveFila(f)}>
+                <ItemCalendario fila={f} nombresLote={nombresLote} nombrePersona={id => personas.find(p => p.id === id)?.nombre}
+                  puedeOperar={puedeOperar} onCambio={() => setVersion(v => v + 1)} />
+              </li>
+            ))}
+          </ul>
+          {proximas.length > TAREAS_EN_INICIO && (
+            <p className="text-sm text-muted-foreground">Y {proximas.length - TAREAS_EN_INICIO} más en el Calendario.</p>
+          )}
+        </>
+      )}
+    </section>
   )
 }
 

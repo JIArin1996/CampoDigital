@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { CerrarSesion } from "@/components/layout/CerrarSesion"
 import { SelectorEstablecimiento } from "@/components/layout/SelectorEstablecimiento"
+import { useVencidas } from "@/components/layout/useVencidas"
 import { Avatar } from "@/components/usuarios/Avatar"
 import { nombreCompleto } from "@/components/usuarios/roles"
 import {
@@ -22,6 +23,7 @@ import {
 export function Sidebar() {
   const pathname = usePathname()
   const { establecimientoActivo, esAdmin, perfil, puedeOperar } = useEstablecimiento()
+  const vencidas = useVencidas()
 
   // En el login no hay menú
   if (pathname === "/login") return null
@@ -46,7 +48,7 @@ export function Sidebar() {
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-4">
-          <ListaEscritorio items={NAV_PRINCIPAL.filter(visible)} pathname={pathname} hayActivo={hayActivo} />
+          <ListaEscritorio items={NAV_PRINCIPAL.filter(visible)} pathname={pathname} hayActivo={hayActivo} vencidas={vencidas} />
           {/* Configuraciones: al fondo del menú, justo arriba de la cuenta */}
           {esAdmin && (
             <div className="mt-auto">
@@ -115,8 +117,9 @@ export function Sidebar() {
                       activo ? "text-primary" : "text-muted-foreground"
                     )}
                   >
-                    <span className={cn("flex items-center justify-center h-7 w-12 rounded-full", activo && "bg-accent")}>
+                    <span className={cn("relative flex items-center justify-center h-7 w-12 rounded-full", activo && "bg-accent")}>
                       <Icono className="h-6 w-6" />
+                      {item.href === "/calendario" && <Contador n={vencidas} className="absolute -top-1 right-0.5" />}
                     </span>
                     {item.label}
                   </Link>
@@ -130,7 +133,18 @@ export function Sidebar() {
   )
 }
 
-function ListaEscritorio({ items, pathname, hayActivo }: { items: ItemNav[]; pathname: string; hayActivo: boolean }) {
+// Vencidas que le tocan a quien usa la app (en Calendario)
+function Contador({ n, className }: { n: number; className?: string }) {
+  if (n === 0) return null
+  return (
+    <span aria-label={`${n} ${n === 1 ? "vencida" : "vencidas"}`}
+      className={cn("min-w-5 h-5 rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-5 text-center text-white tabular-nums", className)}>
+      {n > 99 ? "99+" : n}
+    </span>
+  )
+}
+
+function ListaEscritorio({ items, pathname, hayActivo, vencidas = 0 }: { items: ItemNav[]; pathname: string; hayActivo: boolean; vencidas?: number }) {
   return (
     <ul className="space-y-0.5">
       {items.map(item => {
@@ -158,6 +172,7 @@ function ListaEscritorio({ items, pathname, hayActivo }: { items: ItemNav[]; pat
               >
                 <Icono className="h-4 w-4 shrink-0" />
                 {item.label}
+                {item.href === "/calendario" && <Contador n={vencidas} className="ml-auto" />}
               </Link>
             )}
           </li>

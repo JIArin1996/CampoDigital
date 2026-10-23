@@ -6,6 +6,7 @@ import { Pencil, RotateCcw, Ban, UserRound, Check, X, Repeat, CalendarClock, Cal
 import { toast } from "sonner"
 
 import { anularEntrada, cambiarEstadoIdea, cambiarEstadoTarea, restaurarEntrada } from "@/lib/queries/bitacora"
+import { avisarCambioTareas } from "@/lib/queries/calendario"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -67,6 +68,7 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
   const cambiarTarea = (estado: EstadoTarea) =>
     ejecutar(async () => {
       const siguiente = await cambiarEstadoTarea(entrada.id, estado)
+      avisarCambioTareas()
       if (siguiente) toast.info(mensajeTareaHecha(entrada.vencimiento!, entrada.repetir_cada_dias!, hoy))
     }, estado === "hecha" ? "Tarea hecha" : estado === "cancelada" ? "Tarea cancelada" : "Tarea reabierta")
   // "Crear tarea" desde una nota que no es tarea (de una idea, solo si está decidida) y que todavía no tiene una

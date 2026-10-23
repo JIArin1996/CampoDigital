@@ -2,21 +2,20 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { CalendarClock, ChevronRight, Lightbulb, NotebookPen, Plus } from "lucide-react"
+import { ChevronRight, Lightbulb, NotebookPen, Plus } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { contarIdeasAbiertas, getEntradas, getPersonas } from "@/lib/queries/bitacora"
 import { getCategorias, getEspecies, getLotes, getStockAl, getStockEstablecimiento } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { Proximamente } from "@/components/layout/Proximamente"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { TarjetaEntrada } from "@/components/bitacora/TarjetaEntrada"
-import { BloqueActividades, BloqueCarencias, BloqueEconomia, BloqueIndicadores } from "@/components/inicio/BloquesInicio"
+import { BloqueActividades, BloqueCarencias, BloqueEconomia, BloqueIndicadores, BloqueTareas } from "@/components/inicio/BloquesInicio"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { ETIQUETA_ROL } from "@/components/usuarios/roles"
 import { CAMPO } from "@/components/shared/estilos"
@@ -128,6 +127,11 @@ export default function InicioPage() {
             </div>
           )}
 
+          {/* Tareas vencidas y de los próximos 7 días, y próximas dosis */}
+          {listos && estId && (
+            <BloqueTareas estId={estId} nombresLote={listos.nombresLote} personas={listos.personas} puedeOperar={puedeOperar} />
+          )}
+
           {/* Economía del ejercicio: solo quien puede ver la plata */}
           {puedeOperar && estId && <BloqueEconomia estId={estId} />}
 
@@ -225,14 +229,6 @@ export default function InicioPage() {
               </ul>
             )}
           </section>
-
-          {/* Lo que llega en las próximas etapas */}
-          <Proximamente
-            icon={CalendarClock}
-            titulo="Tareas y vencimientos"
-            descripcion="Tareas vencidas y próximas, próximas dosis de sanidad y avisos."
-            etapa="Etapa 8"
-          />
         </div>
       )}
     </PageContainer>

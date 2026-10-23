@@ -1,8 +1,10 @@
 # Campo Digital — Diseño de la base, Etapa 8: tareas (en la Bitácora), calendario y avisos
 
-> **EN REVISIÓN — no implementar hasta cerrar las decisiones abiertas (sección 8).**
+Estado: **implementado** (2026-10-23). Decisiones C1 a C6 cerradas como se recomendó.
 
-Estado: **en revisión** (2026-10-23). Sin migraciones.
+- Base: `20261023000100_tareas.sql`; pruebas `etapa8_tareas.sql` (44), `etapa5_rls.sql` y auditoría (78 funciones).
+- App: tareas en la Bitácora, pantalla Calendario, contador de vencidas en el menú y bloque "Tareas y vencimientos" en el inicio.
+- Repetición: la siguiente vence N días después de `greatest(hoy, vencimiento)`, para no perder el ritmo si se hace antes.
 
 **Decidido por Iñaki (2026-10-23):** la tarea es **un tipo más de nota de la Bitácora**, no una tabla aparte.
 
@@ -118,7 +120,7 @@ Se vuelven a correr `etapa5` (la Bitácora) y la auditoría, que suma funciones.
 
 ---
 
-## 8. Decisiones abiertas
+## 8. Decisiones (cerradas: todas como se recomendó)
 
 | # | Pregunta | Recomendación |
 |---|---|---|
