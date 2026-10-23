@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
+import { CargarPrecio } from "@/components/economia/CargarPrecio"
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, kg, porcentaje, usd } from "@/components/actividades/formato"
 import { fechaCorta } from "@/components/lotes/formato"
 import { BOTON, TEXTAREA } from "@/components/shared/estilos"
@@ -214,14 +215,15 @@ export default function ActividadPage() {
         </section>
         )}
 
-        {(a.tipo === "compra" || a.tipo === "venta") && (
+        {/* Precio: solo para quien ve la economía (Consulta no ve plata) */}
+        {(a.tipo === "compra" || a.tipo === "venta") && puedeOperarEn(a.establecimiento_id) && (
           <Card>
             <CardHeader className="pb-1"><CardTitle className="text-base">Precio</CardTitle></CardHeader>
-            <CardContent>
-              {movimientos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin precio cargado. Se podrá agregar como movimiento manual en la Etapa 7.</p>
-              ) : (
-                movimientos.map(m => (
+            <CardContent className="space-y-4">
+              {!anulada && !movimientos.some(m => !m.anulado_en) && (
+                <CargarPrecio actividadId={a.id} venta={a.tipo === "venta"} rubros={ficha.rubros} onHecho={() => setVersion(v => v + 1)} />
+              )}
+              {movimientos.map(m => (
                   <dl key={m.id} className={`divide-y ${m.anulado_en ? "opacity-60" : ""}`}>
                     {fila("Monto", `${m.moneda_original} ${m.monto_original.toLocaleString("es-UY", { minimumFractionDigits: 2 })}`)}
                     {m.tipo_cambio != null && fila("Tipo de cambio", m.tipo_cambio.toLocaleString("es-UY"))}
@@ -230,7 +232,9 @@ export default function ActividadPage() {
                     {m.fecha_pago && fila(a.tipo === "venta" ? "Fecha de cobro" : "Fecha de pago", fechaCorta(m.fecha_pago))}
                     {fila("Rubro", rubro(m.rubro_id))}
                   </dl>
-                ))
+              ))}
+              {movimientos.some(m => !m.anulado_en) && (
+                <Link href="/economia" className="text-sm font-medium text-primary">Ver en Economía (cobro, pago o anulación)</Link>
               )}
             </CardContent>
           </Card>
