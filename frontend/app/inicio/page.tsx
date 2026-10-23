@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { BarChart3, ChevronRight, Lightbulb, NotebookPen, Plus } from "lucide-react"
+import { CalendarClock, ChevronRight, Lightbulb, NotebookPen, Plus } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { contarIdeasAbiertas, getEntradas, getPersonas } from "@/lib/queries/bitacora"
@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { TarjetaEntrada } from "@/components/bitacora/TarjetaEntrada"
+import { BloqueActividades, BloqueCarencias, BloqueEconomia, BloqueIndicadores } from "@/components/inicio/BloquesInicio"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { ETIQUETA_ROL } from "@/components/usuarios/roles"
 import { CAMPO } from "@/components/shared/estilos"
@@ -32,6 +33,7 @@ interface Datos {
   entradas: EntradaConLotes[]
   personas: Persona[]
   nombresLote: Map<string, string>
+  activos: { id: string; nombre: string }[]
   ideasAbiertas: number
 }
 
@@ -63,6 +65,7 @@ export default function InicioPage() {
         setDatos({
           estId, especies, categorias, entradas, personas, ideasAbiertas,
           nombresLote: new Map([...activos, ...cerrados].map(l => [l.id, l.nombre])),
+          activos: activos.map(l => ({ id: l.id, nombre: l.nombre })),
         })
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar el inicio")) })
@@ -125,6 +128,9 @@ export default function InicioPage() {
             </div>
           )}
 
+          {/* Economía del ejercicio: solo quien puede ver la plata */}
+          {puedeOperar && estId && <BloqueEconomia estId={estId} />}
+
           {/* Stock del establecimiento */}
           <Card>
             <CardHeader className="pb-2">
@@ -172,6 +178,10 @@ export default function InicioPage() {
             </CardContent>
           </Card>
 
+          {/* Lotes en carencia e indicadores de la última temporada */}
+          {listos && <BloqueCarencias lotes={listos.activos} />}
+          {listos && estId && <BloqueIndicadores estId={estId} especies={listos.especies} />}
+
           {/* Ideas abiertas */}
           {listos && (
             <Link href="/bitacora?tipo=idea&estado=abierta"
@@ -188,6 +198,9 @@ export default function InicioPage() {
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </Link>
           )}
+
+          {/* Últimas actividades */}
+          {listos && estId && <BloqueActividades estId={estId} nombresLote={listos.nombresLote} />}
 
           {/* Últimas notas de la bitácora */}
           <section className="space-y-3">
@@ -215,10 +228,10 @@ export default function InicioPage() {
 
           {/* Lo que llega en las próximas etapas */}
           <Proximamente
-            icon={BarChart3}
-            titulo="Más números del campo"
-            descripcion="Últimas actividades, tareas vencidas y próximas, resultado por rubro e indicadores reproductivos."
-            etapa="Etapas 6 a 8"
+            icon={CalendarClock}
+            titulo="Tareas y vencimientos"
+            descripcion="Tareas vencidas y próximas, próximas dosis de sanidad y avisos."
+            etapa="Etapa 8"
           />
         </div>
       )}
