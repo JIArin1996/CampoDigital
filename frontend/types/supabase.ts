@@ -58,6 +58,13 @@ export type Database = {
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "act_compraventa_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "act_compraventa_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
@@ -107,6 +114,13 @@ export type Database = {
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "act_diagnostico_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "act_diagnostico_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
@@ -151,6 +165,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_esquila_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "act_esquila_establecimiento_id_fkey"
@@ -202,6 +223,13 @@ export type Database = {
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "act_mortandad_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "act_mortandad_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
@@ -249,6 +277,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_paricion_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "act_paricion_establecimiento_id_fkey"
@@ -305,6 +340,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_personalizada_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "act_personalizada_establecimiento_id_fkey"
@@ -371,6 +413,13 @@ export type Database = {
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "act_sanidad_productos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "act_sanidad_productos_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
@@ -418,6 +467,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "act_servicio_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "act_servicio_establecimiento_id_fkey"
@@ -470,6 +526,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_lineas_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "actividad_lineas_categoria_id_establecimiento_id_fkey"
@@ -526,6 +589,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_lotes_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "actividad_lotes_establecimiento_id_fkey"
@@ -846,6 +916,7 @@ export type Database = {
           grupo: string
           id: string
           nombre: string
+          rubro_id: string | null
           updated_at: string
         }
         Insert: {
@@ -857,6 +928,7 @@ export type Database = {
           grupo?: string
           id?: string
           nombre: string
+          rubro_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -868,6 +940,7 @@ export type Database = {
           grupo?: string
           id?: string
           nombre?: string
+          rubro_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -877,6 +950,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "establecimientos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "especies_rubro_fkey"
+            columns: ["rubro_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "rubros"
+            referencedColumns: ["id", "establecimiento_id"]
           },
         ]
       }
@@ -1112,6 +1192,13 @@ export type Database = {
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "lote_eventos_actividad_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "lote_eventos_categoria_id_especie_id_fkey"
             columns: ["categoria_id", "especie_id"]
             isOneToOne: false
@@ -1282,6 +1369,7 @@ export type Database = {
           monto_original: number
           monto_usd: number | null
           motivo_anulacion: string | null
+          origen: string
           rubro_id: string
           sentido: string
           tipo_cambio: number | null
@@ -1305,6 +1393,7 @@ export type Database = {
           monto_original: number
           monto_usd?: number | null
           motivo_anulacion?: string | null
+          origen?: string
           rubro_id: string
           sentido: string
           tipo_cambio?: number | null
@@ -1328,6 +1417,7 @@ export type Database = {
           monto_original?: number
           monto_usd?: number | null
           motivo_anulacion?: string | null
+          origen?: string
           rubro_id?: string
           sentido?: string
           tipo_cambio?: number | null
@@ -1347,6 +1437,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
@@ -1465,6 +1562,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_actividades"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "operaciones_lote_actividad_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
             foreignKeyName: "operaciones_lote_establecimiento_id_fkey"
@@ -1773,6 +1877,33 @@ export type Database = {
         }
         Relationships: []
       }
+      v_compraventas_sin_precio: {
+        Row: {
+          actividad_id: string | null
+          cabezas: number | null
+          contraparte: string | null
+          establecimiento_id: string | null
+          fecha: string | null
+          lote_id: string | null
+          tipo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividades_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividades_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       v_indicadores_aportes: {
         Row: {
           actividad_id: string | null
@@ -1810,6 +1941,95 @@ export type Database = {
           temporada: number | null
         }
         Relationships: []
+      }
+      v_movimientos_pendientes: {
+        Row: {
+          actividad_id: string | null
+          concepto: string | null
+          contraparte: string | null
+          dias: number | null
+          establecimiento_id: string | null
+          fecha: string | null
+          id: string | null
+          lote_id: string | null
+          moneda_original: string | null
+          monto_original: number | null
+          monto_usd: number | null
+          rubro: string | null
+          rubro_id: string | null
+          sentido: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_lote_id_establecimiento_id_fkey"
+            columns: ["lote_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_rubro_id_establecimiento_id_fkey"
+            columns: ["rubro_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "rubros"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
+      v_resultado_rubro: {
+        Row: {
+          egresos_usd: number | null
+          establecimiento_id: string | null
+          ingresos_usd: number | null
+          mes: string | null
+          resultado_usd: number | null
+          rubro: string | null
+          rubro_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_rubro_id_establecimiento_id_fkey"
+            columns: ["rubro_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "rubros"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       v_stock_establecimiento: {
         Row: {
@@ -1983,6 +2203,10 @@ export type Database = {
         }
         Returns: string[]
       }
+      _precio_valido: {
+        Args: { p_precio: Json }
+        Returns: Record<string, unknown>
+      }
       _registrar_movimiento: {
         Args: {
           p_actividad_id: string
@@ -1995,6 +2219,10 @@ export type Database = {
           p_precio: Json
           p_sentido: string
         }
+        Returns: string
+      }
+      _rubro_de_especie: {
+        Args: { p_especie_id: string; p_establecimiento_id: string }
         Returns: string
       }
       _stock_categoria_al: {
@@ -2036,6 +2264,10 @@ export type Database = {
         Args: { p_entrada_id: string; p_motivo: string }
         Returns: undefined
       }
+      anular_movimiento: {
+        Args: { p_motivo: string; p_movimiento_id: string }
+        Returns: undefined
+      }
       asignar_rol: {
         Args: { p_establecimiento_id: string; p_rol: string; p_user_id: string }
         Returns: undefined
@@ -2043,6 +2275,15 @@ export type Database = {
       cambiar_estado_idea: {
         Args: { p_entrada_id: string; p_estado: string }
         Returns: undefined
+      }
+      cargar_precio_actividad: {
+        Args: {
+          p_actividad_id: string
+          p_id: string
+          p_precio: Json
+          p_rubro_id?: string
+        }
+        Returns: string
       }
       cerrar_lote: {
         Args: { p_fecha: string; p_lote_id: string; p_motivo?: string }
@@ -2132,6 +2373,10 @@ export type Database = {
           relacion: string
           tipo: string
         }[]
+      }
+      marcar_pagado: {
+        Args: { p_fecha_pago: string; p_movimiento_id: string }
+        Returns: undefined
       }
       mi_rol: { Args: { p_est: string }; Returns: string }
       puede_operar: { Args: { p_est: string }; Returns: boolean }
@@ -2229,6 +2474,20 @@ export type Database = {
           p_notas?: string
           p_observaciones?: string
           p_persona_id?: string
+        }
+        Returns: string
+      }
+      registrar_movimiento: {
+        Args: {
+          p_concepto: string
+          p_contraparte?: string
+          p_establecimiento_id: string
+          p_fecha: string
+          p_id: string
+          p_lote_id?: string
+          p_precio: Json
+          p_rubro_id: string
+          p_sentido: string
         }
         Returns: string
       }
