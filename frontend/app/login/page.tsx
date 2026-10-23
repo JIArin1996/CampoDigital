@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { Eye, EyeOff } from "lucide-react"
 
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [verPassword, setVerPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -19,15 +21,22 @@ export default function LoginPage() {
     setError(null)
     setEnviando(true)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-
-    if (error) {
-      setError(
-        error.message === "Invalid login credentials"
-          ? "Email o contraseña incorrectos"
-          : "No se pudo iniciar sesión. Probá de nuevo."
-      )
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (error) {
+        setError(
+          error.message === "Invalid login credentials"
+            ? "Email o contraseña incorrectos"
+            : error.message === "Email not confirmed"
+              ? "La cuenta todavía no está confirmada. Pedile al administrador que la revise."
+              : "No se pudo iniciar sesión. Probá de nuevo."
+        )
+        setEnviando(false)
+        return
+      }
+    } catch {
+      setError("No hay conexión con el servidor. Revisá la señal o la wifi y probá de nuevo.")
       setEnviando(false)
       return
     }
@@ -67,15 +76,26 @@ export default function LoginPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="h-11 text-base"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={verPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                className="h-11 text-base pr-12"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                aria-label={verPassword ? "Ocultar la contraseña" : "Mostrar la contraseña"}
+                aria-pressed={verPassword}
+                onClick={() => setVerPassword(v => !v)}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                {verPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
 
           {error && (
