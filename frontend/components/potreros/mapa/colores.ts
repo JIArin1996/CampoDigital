@@ -13,11 +13,12 @@
 
 export type ModoColor = "potrero" | "uso" | "pastura" | "ocupacion"
 
+// En este orden en la pantalla; el primero es el de entrada
 export const MODOS: { id: ModoColor; nombre: string }[] = [
-  { id: "potrero", nombre: "Potrero" },
-  { id: "uso", nombre: "Uso" },
-  { id: "pastura", nombre: "Pastura" },
   { id: "ocupacion", nombre: "Ocupación" },
+  { id: "potrero", nombre: "Potrero" },
+  { id: "pastura", nombre: "Pastura" },
+  { id: "uso", nombre: "Uso" },
 ]
 
 const NARANJA = "#d95926"

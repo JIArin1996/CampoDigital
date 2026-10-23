@@ -93,7 +93,7 @@ Son **datos de catálogo, no código**.
 - Compra / venta, con modalidad elegible (productor, remate, frigorífico), porque varía según el año
 - Actividad personalizada con campos libres
 
-**Fuera de esta etapa**: cambios de potrero.
+**Cambios de potrero**: se registran con fecha de salida y de ingreso (estadías), con historial en el lote y en el potrero (ver `DISENO-POTREROS.md`, 2026-10-23). No son una actividad.
 
 ---
 
@@ -170,3 +170,4 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 | 2026-10-15 | Responsable de actividades: pendiente (usuario o persona). Responsable de bitácora y tareas: usuario | **persona_id en bitácora, tareas y actividades**. `created_by` queda solo como auditoría de quién cargó |
 | 2026-10-16 | Dos roles por establecimiento: editor y lector | **Tres roles**: Administrador (del sistema), Operador y Consulta (por establecimiento) |
 | 2026-10-16 | Gestión de usuarios en la Etapa 9 | **Etapa 3c**, desde la app: perfiles, contraseña provisoria, reseteo por el administrador, desactivar en vez de borrar |
+| 2026-10-23 | Cambios de potrero fuera de esta etapa; potrero del lote como dato simple, sin historial; Potreros dentro de Configuraciones para el administrador | **Estadías de lotes en potreros** con historial, mapa con dibujo e importación de formas, y Potreros en el menú para todos los roles (`DISENO-POTREROS.md`) |

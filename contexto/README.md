@@ -17,6 +17,9 @@ Web app mobile-first de gestión, bitácora y calendario para establecimientos g
 | MODELO-DE-DATOS-V2.md | Modelo de datos v2 (borrador): tablas, RLS, funciones y etapas de construcción |
 | DISENO-BASE-ETAPA-3.md | Diseño de la base de la Etapa 3: tablas, RLS, helpers, inmutabilidad y stock |
 | DISENO-USUARIOS.md | Roles (Administrador, Operador, Consulta), perfiles y gestión de usuarios |
+| DISENO-BASE-ETAPA-5.md a DISENO-BASE-ETAPA-8.md | Diseño de cada etapa: lotes y bitácora (5), actividades (6a, 6b, destete), indicadores y economía (7), tareas y calendario (8) |
+| DISENO-LOTES-ANIOS-Y-ARCHIVOS.md | Años de nacimiento de los lotes y archivos adjuntos |
+| DISENO-POTREROS.md | Módulo Potreros: estadías de lotes, mapa, dibujo e importación de formas, imagen satelital y sus licencias |
 | 06-SISTEMA-DE-DISENO.md | Colores, tamaños táctiles, navegación y patrones de pantalla |
 | _archivo/ | Documentación obsoleta conservada como referencia (v1 con trazabilidad, borrador de Sheets) |
 

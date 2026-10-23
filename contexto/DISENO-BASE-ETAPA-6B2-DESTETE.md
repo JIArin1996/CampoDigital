@@ -1,6 +1,6 @@
 # Campo Digital — Diseño de la base, Etapa 6b-2: destete
 
-> **Implementado (2026-10-22).** Migraciones `20261022000100_cria_al_pie_y_paricion` (verificada: `cria_al_pie.sql` 22 OK) y `20261022000200_destete` (aplicada; `etapa6b2_rls.sql` dio 32 de 34 por dos errores de la prueba, ya corregidos, pendiente de volver a correr). App: parición "Con las madres", cría al pie en Especies, tarjeta con crías aparte, formulario de destete y botón en la ficha del lote.
+> **Implementado (2026-10-22).** Migraciones `20261022000100_cria_al_pie_y_paricion` (verificada: `cria_al_pie.sql` 22 OK) y `20261022000200_destete` (verificada: `etapa6b2_rls.sql` 34 OK). App: parición "Con las madres", cría al pie en Especies, tarjeta con crías aparte, formulario de destete y botón en la ficha del lote.
 
 Estado: **aprobado** (2026-10-22; A10 y A11 aceptadas como se recomendaron). Sin migraciones. Reemplaza la sección 4 de `DISENO-BASE-ETAPA-6B.md` (destete "cada lote pasa entero a un lote nuevo") y la sección 1 bis de `DISENO-LOTES-ANIOS-Y-ARCHIVOS.md` (destete como división).
 

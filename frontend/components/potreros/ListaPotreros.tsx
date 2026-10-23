@@ -98,7 +98,7 @@ export function ListaPotreros({ potreros, ocupacion, puedeOperar, acciones }: Li
                       <div className="flex flex-wrap gap-1.5">
                         {enPotrero.map(({ lote, cabezas: c }) => (
                           <Link key={lote.id} href={`/lotes/${lote.id}`}
-                            className="inline-flex min-h-9 items-center rounded-full bg-muted px-3 text-sm font-medium hover:bg-accent">
+                            className="inline-flex min-h-11 items-center rounded-full bg-muted px-3 text-sm font-medium hover:bg-accent md:min-h-9">
                             {lote.nombre} <span className="ml-1 text-muted-foreground tabular-nums">· {c}</span>
                           </Link>
                         ))}

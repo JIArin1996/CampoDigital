@@ -106,3 +106,11 @@
     @apply font-sans;
   }
 }
+
+/* Mapa de potreros: botones de zoom de Leaflet cómodos de tocar en el celular (44 px) */
+.leaflet-touch .leaflet-bar a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 22px;
+}

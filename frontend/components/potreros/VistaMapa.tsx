@@ -73,7 +73,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
   onCambio: () => void                      // recargar después de guardar
 }) {
   const [capa, setCapa] = useState<IdCapa>(() => leer(CLAVE_CAPA, CAPAS.map(c => c.id), CAPA_POR_DEFECTO))
-  const [modo, setModo] = useState<ModoColor>(() => leer(CLAVE_MODO, MODOS.map(m => m.id), "potrero"))
+  const [modo, setModo] = useState<ModoColor>(() => leer(CLAVE_MODO, MODOS.map(m => m.id), MODOS[0].id))
   const [seleccionado, setSeleccionadoEstado] = useState<string | null>(null)
   const [detalle, setDetalle] = useState(false)   // celular: panel resumido o desplegado
   const setSeleccionado = (id: string | null) => { setSeleccionadoEstado(id); setDetalle(false) }
@@ -192,7 +192,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
   )
   const asa = (
     <button type="button" aria-label={detalle ? "Achicar" : "Ver detalle"} onClick={() => setDetalle(d => !d)}
-      className="mx-auto mb-1 flex h-6 w-16 items-center justify-center">
+      className="mx-auto -mt-1 flex h-11 w-24 items-center justify-center">
       <span className="h-1.5 w-10 rounded-full bg-muted-foreground/30" />
     </button>
   )
