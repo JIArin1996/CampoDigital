@@ -64,12 +64,12 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 ```
 
 - **Barra inferior** [Decidido]: Inicio, Lotes, Bitácora, Calendario y Más. Son las cuatro prioridades del enfoque a un toque.
-- **Más**: atajos a lo que no entra en la barra (Actividades; Potreros para quien no es administrador), el botón **⚙ Configuraciones** (solo administrador), Mi perfil y Salir.
-- **Configuraciones** (solo administrador): pantalla aparte con Potreros, Especies, Establecimientos y Usuarios.
+- **Más**: atajos a lo que no entra en la barra (Economía, Actividades, Indicadores y Potreros, según el rol), el botón **⚙ Configuraciones** (solo administrador), Mi perfil y Salir.
+- **Configuraciones** (solo administrador): pantalla aparte con Especies, Rubros, Establecimientos y Usuarios. Potreros salió de acá (2026-10-23): está en el menú para todos los roles.
 - **Botón "+"** [Decidido]: carga rápida desde cualquier pantalla (nota de bitácora, actividad, nuevo lote, tarea). Solo para administrador u operador; no aparece dentro de formularios. Las opciones de etapas futuras se muestran como "Próximamente".
 - Respeta la barra de gestos del teléfono (`env(safe-area-inset-bottom)`).
 
-**Escritorio:** menú lateral fijo (`w-56`) con selector de establecimiento, secciones diarias (Inicio, Lotes, Bitácora, Calendario, Actividades; Potreros para quien no es administrador), el botón **⚙ Configuraciones** al fondo del menú (solo administrador) y, abajo, Mi perfil y Salir.
+**Escritorio:** menú lateral fijo (`w-56`) con selector de establecimiento, secciones diarias (Inicio, Lotes, Economía, Actividades, Bitácora, Calendario, Indicadores y Potreros), el botón **⚙ Configuraciones** al fondo del menú (solo administrador) y, abajo, Mi perfil y Salir.
 
 `PageContainer` deja el espacio de la navegación fija; toda página lo usa.
 

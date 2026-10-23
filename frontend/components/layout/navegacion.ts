@@ -9,7 +9,7 @@ export interface ItemNav {
   icon: LucideIcon
   necesitaEstablecimiento?: boolean   // deshabilitado si no hay establecimiento activo
   soloAdmin?: boolean
-  soloNoAdmin?: boolean               // el administrador lo encuentra en Configuraciones
+  soloNoAdmin?: boolean               // lo que el administrador encuentra en Configuraciones
   necesitaOperar?: boolean            // solo administrador y operador (Consulta no ve plata)
   rutas?: string[]                    // otras rutas que lo marcan como activo
 }
@@ -23,7 +23,7 @@ export const NAV_MOVIL: ItemNav[] = [
   { href: "/mas",        label: "Más",        icon: Menu },
 ]
 
-// Menú lateral de escritorio, en este orden. Potreros es un atajo para quien no es administrador.
+// Menú lateral de escritorio, en este orden (en el celular, lo que no entra en la barra va en "Más")
 export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/inicio",      label: "Inicio",      icon: Home },
   { href: "/lotes",       label: "Lotes",       icon: Layers,        necesitaEstablecimiento: true },
@@ -32,12 +32,11 @@ export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
   { href: "/calendario",  label: "Calendario",  icon: CalendarDays,  necesitaEstablecimiento: true },
   { href: "/indicadores", label: "Indicadores", icon: TrendingUp,    necesitaEstablecimiento: true },
-  { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true, soloNoAdmin: true },
+  { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true },
 ]
 
 // Lo que hay dentro de la pantalla Configuraciones (solo administrador)
 export const NAV_CONFIGURACION: ItemNav[] = [
-  { href: "/potreros",         label: "Potreros",         icon: Grid3X3,  necesitaEstablecimiento: true },
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
   { href: "/rubros",           label: "Rubros",           icon: Tags,     necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },

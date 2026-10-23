@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback } from "react"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getPotreros } from "@/lib/queries/potreros"
-import { EstablecimientoDetalle } from "@/components/establecimientos/EstablecimientoDetalle"
+import { ListaPotreros } from "@/components/potreros/ListaPotreros"
 import { PageContainer } from "@/components/layout/PageContainer"
 import type { Potrero } from "@/types/database"
 
 export default function PotrerosPage() {
-  const { establecimientoActivo, puedeOperar, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
+  const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const [potreros, setPotreros] = useState<Potrero[]>([])
   const [cargando, setCargando] = useState(false)
 
@@ -55,11 +55,10 @@ export default function PotrerosPage() {
 
   return (
     <PageContainer>
-      <EstablecimientoDetalle
+      <ListaPotreros
         establecimiento={establecimientoActivo}
         potreros={potreros}
         puedeOperar={puedeOperar}
-        puedeEditarEstablecimiento={esAdmin}
         onRefresh={recargar}
       />
     </PageContainer>

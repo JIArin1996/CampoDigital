@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { Suspense, useEffect, useState } from "react"
+import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
@@ -13,7 +13,18 @@ import type { Establecimiento } from "@/types/database"
 
 // Se carga en el navegador: la consulta tiene que ir con la sesión del usuario para pasar el RLS
 export default function EditarEstablecimientoPage() {
+  // useSearchParams necesita un Suspense alrededor
+  return (
+    <Suspense fallback={<PageContainer><div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+      <EditarEstablecimiento />
+    </Suspense>
+  )
+}
+
+// ?desde=inicio: se entró desde el Inicio, y se vuelve ahí
+function EditarEstablecimiento() {
   const { id } = useParams<{ id: string }>()
+  const desdeInicio = useSearchParams().get("desde") === "inicio"
   const { esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [establecimiento, setEstablecimiento] = useState<Establecimiento | null>(null)
   const [estado, setEstado] = useState<"cargando" | "listo" | "no-encontrado">("cargando")
@@ -31,8 +42,8 @@ export default function EditarEstablecimientoPage() {
   }, [id])
 
   const volver = (
-    <Link href="/establecimientos" className="inline-flex items-center gap-1.5 h-10 text-sm text-muted-foreground hover:text-foreground mb-3">
-      <ArrowLeft className="h-4 w-4" /> Volver a establecimientos
+    <Link href={desdeInicio ? "/inicio" : "/establecimientos"} className="inline-flex items-center gap-1.5 h-10 text-sm text-muted-foreground hover:text-foreground mb-3">
+      <ArrowLeft className="h-4 w-4" /> {desdeInicio ? "Volver al inicio" : "Volver a establecimientos"}
     </Link>
   )
 
@@ -52,7 +63,7 @@ export default function EditarEstablecimientoPage() {
     <PageContainer>
       {volver}
       <h1 className="text-2xl font-bold tracking-tight mb-6">Editar {establecimiento.nombre}</h1>
-      <EstablecimientoForm initialData={establecimiento} />
+      <EstablecimientoForm initialData={establecimiento} volverA={desdeInicio ? "/inicio" : undefined} />
     </PageContainer>
   )
 }

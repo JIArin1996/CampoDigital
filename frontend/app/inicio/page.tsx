@@ -9,15 +9,14 @@ import { contarIdeasAbiertas, getEntradas, getPersonas } from "@/lib/queries/bit
 import { getCategorias, getEspecies, getLotes, getStockAl, getStockEstablecimiento } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { TarjetaEntrada } from "@/components/bitacora/TarjetaEntrada"
 import { BloqueActividades, BloqueCarencias, BloqueEconomia, BloqueIndicadores, BloqueTareas } from "@/components/inicio/BloquesInicio"
+import { DatosEstablecimiento } from "@/components/inicio/DatosEstablecimiento"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
-import { ETIQUETA_ROL } from "@/components/usuarios/roles"
 import { CAMPO } from "@/components/shared/estilos"
 import type { EntradaConLotes } from "@/types/bitacora"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
@@ -98,10 +97,7 @@ export default function InicioPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Hola{perfil ? `, ${perfil.nombre}` : ""}</h1>
         {establecimientoActivo ? (
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <p className="text-muted-foreground">{establecimientoActivo.nombre}</p>
-            {rolActivo && <Badge variant={rolActivo === "consulta" ? "secondary" : "default"}>{ETIQUETA_ROL[rolActivo]}</Badge>}
-          </div>
+          <DatosEstablecimiento establecimiento={establecimientoActivo} rol={rolActivo} puedeEditar={esAdmin} />
         ) : (
           <p className="text-muted-foreground mt-1">
             {esAdmin

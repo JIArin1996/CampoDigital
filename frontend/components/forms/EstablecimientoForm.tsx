@@ -51,9 +51,10 @@ const CAMPO = "h-11 text-base md:h-9 md:text-sm"
 
 interface EstablecimientoFormProps {
   initialData?: Establecimiento
+  volverA?: string            // a dónde va al guardar (por defecto, la lista de establecimientos)
 }
 
-export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = {}) {
+export function EstablecimientoForm({ initialData, volverA = "/establecimientos" }: EstablecimientoFormProps = {}) {
   const router = useRouter()
   const { recargarEstablecimientos, esAdmin, cargando } = useEstablecimiento()
   const [enviando, setEnviando] = useState(false)
@@ -114,7 +115,7 @@ export function EstablecimientoForm({ initialData }: EstablecimientoFormProps = 
         await recargarEstablecimientos(id)
         toast.success("Establecimiento creado")
       }
-      router.push("/establecimientos")
+      router.push(volverA)
     } catch (err: unknown) {
       toast.error(mensajeDeError(err))
     } finally {
