@@ -14,6 +14,9 @@ import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { sumarDias } from "@/components/calendario/fechas"
 import type { Estadia, Potrero } from "@/types/database"
 
+// Valor de "Sin potrero" en el selector ("" = todavía no se eligió a dónde va)
+const SIN_POTRERO = "sin"
+
 export interface LoteParaMover {
   id: string
   nombre: string
@@ -52,8 +55,8 @@ export function CambiarPotreroDialog({ abierto, onCerrar, onHecho, lotes, potrer
   const actual = lote ? estadias.get(lote.id) : undefined
   const nombrePotrero = (id: string) => potreros.find(p => p.id === id)?.nombre ?? "otro potrero"
   const opciones = potreros.filter(p => p.id !== actual?.potrero_id)
-  const sinPotrero = destino === ""
-  const conSalidaEIngreso = !!actual && !sinPotrero
+  const sinPotrero = destino === SIN_POTRERO
+  const conSalidaEIngreso = !!actual && !!destino && !sinPotrero
 
   // Límites: la salida, después del ingreso al potrero actual; el ingreso, desde la apertura del lote
   const minSalida = actual ? sumarDias(actual.fecha_ingreso, 1) : undefined
@@ -63,7 +66,7 @@ export function CambiarPotreroDialog({ abierto, onCerrar, onHecho, lotes, potrer
     e.preventDefault()
     setError(null)
     if (!lote) return setError("Elegí el lote")
-    if (!actual && sinPotrero) return setError("Elegí a qué potrero entra")
+    if (!destino || (!actual && sinPotrero)) return setError(actual ? "Elegí a dónde pasa" : "Elegí a qué potrero entra")
 
     const fSalida = actual ? (conSalidaEIngreso && separado ? salida : fecha) : null
     const fIngreso = sinPotrero ? null : (conSalidaEIngreso && separado ? ingreso : fecha)
@@ -97,7 +100,8 @@ export function CambiarPotreroDialog({ abierto, onCerrar, onHecho, lotes, potrer
           {lotes.length > 1 && (
             <div className="space-y-1.5">
               <Label htmlFor="cp-lote">Lote</Label>
-              <select id="cp-lote" className={SELECT_NATIVO} value={loteId} onChange={e => setLoteId(e.target.value)}>
+              <select id="cp-lote" className={SELECT_NATIVO} value={loteId}
+                onChange={e => { setLoteId(e.target.value); if (!potreroDestino) setDestino("") }}>
                 <option value="">Elegí un lote</option>
                 {lotes.map(l => {
                   const est = estadias.get(l.id)
@@ -111,8 +115,9 @@ export function CambiarPotreroDialog({ abierto, onCerrar, onHecho, lotes, potrer
             <div className="space-y-1.5">
               <Label htmlFor="cp-destino">Pasa a</Label>
               <select id="cp-destino" className={SELECT_NATIVO} value={destino} onChange={e => setDestino(e.target.value)}>
-                {actual ? <option value="">Sin potrero (corral, camión, venta...)</option> : <option value="">Elegí un potrero</option>}
+                <option value="" disabled>{actual ? "Elegí a dónde pasa" : "Elegí un potrero"}</option>
                 {opciones.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                {actual && <option value={SIN_POTRERO}>Sin potrero (corral, camión, venta...)</option>}
               </select>
             </div>
           )}

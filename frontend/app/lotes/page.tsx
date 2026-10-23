@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
-import { Plus, Layers, Merge } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Plus, Layers, MapPin } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCategorias, getEspecies, getLotes, getStockLotes } from "@/lib/queries/lotes"
@@ -31,12 +32,26 @@ interface Datos {
 const ESPECIE_DESCONOCIDA = { id: "", nombre: "Otra especie", grupo: "otro" as const, color: null }
 
 export default function LotesPage() {
+  // useSearchParams necesita un Suspense alrededor
+  return (
+    <Suspense fallback={<PageContainer><Esqueleto /></PageContainer>}>
+      <Lotes />
+    </Suspense>
+  )
+}
+
+// ?cambiar=potrero (desde el "+") abre el cambio de potrero
+function Lotes() {
+  const router = useRouter()
+  const params = useSearchParams()
   const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const [estado, setEstado] = useState<EstadoLote>("activo")
   const [datos, setDatos] = useState<Datos | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const [moviendo, setMoviendo] = useState<Lote | null>(null)   // lote del diálogo de cambio de potrero
+  const [cambiando, setCambiando] = useState(false)              // cambio de potrero eligiendo el lote
+  const pedidoDesdeMas = params.get("cambiar") === "potrero"
 
   const estId = establecimientoActivo?.id
   const clave = `${estId}:${estado}`
@@ -77,18 +92,23 @@ export default function LotesPage() {
   }
 
   const listo = datos && datos.clave === clave ? datos : null
+  const cambioAbierto = cambiando || (pedidoDesdeMas && puedeOperar && estado === "activo")
+  const cerrarCambio = () => {
+    setCambiando(false)
+    if (pedidoDesdeMas) router.replace("/lotes")
+  }
 
   return (
     <PageContainer>
       {/* Encabezado */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold">Lotes</h1>
         {puedeOperar && (
-          <div className="flex gap-2">
-            <Link href="/lotes/unir" className={buttonVariants({ variant: "outline", className: "h-11 md:h-8" })}>
-              <Merge className="h-4 w-4 mr-1" />
-              Unir
-            </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="h-11 md:h-8" disabled={estado !== "activo"} onClick={() => setCambiando(true)}>
+              <MapPin className="h-4 w-4 mr-1" />
+              Cambio de potrero
+            </Button>
             <Link href="/lotes/nuevo" className={buttonVariants({ className: "h-11 md:h-8" })}>
               <Plus className="h-4 w-4 mr-1" />
               Nuevo lote
@@ -141,6 +161,14 @@ export default function LotesPage() {
           </section>
         )}
       </div>
+
+      {/* Cambio de potrero eligiendo el lote (botón de arriba o el "+") */}
+      {listo && cambioAbierto && (
+        <CambiarPotreroDialog key="elegir" abierto onCerrar={cerrarCambio}
+          onHecho={() => { cerrarCambio(); setVersion(v => v + 1) }}
+          lotes={[...listo.lotes].sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { numeric: true }))}
+          potreros={listo.potreros} estadias={listo.estadias} />
+      )}
 
       {listo && moviendo && (
         <CambiarPotreroDialog key={moviendo.id} abierto onCerrar={() => setMoviendo(null)}
