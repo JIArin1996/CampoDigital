@@ -23,15 +23,15 @@ export const NAV_MOVIL: ItemNav[] = [
   { href: "/mas",        label: "Más",        icon: Menu },
 ]
 
-// Menú lateral de escritorio: lo diario. Potreros es un atajo para quien no es administrador.
+// Menú lateral de escritorio, en este orden. Potreros es un atajo para quien no es administrador.
 export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/inicio",      label: "Inicio",      icon: Home },
   { href: "/lotes",       label: "Lotes",       icon: Layers,        necesitaEstablecimiento: true },
+  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true, necesitaOperar: true },
+  { href: "/actividades", label: "Actividades", icon: ClipboardList, necesitaEstablecimiento: true },
   { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
   { href: "/calendario",  label: "Calendario",  icon: CalendarDays,  necesitaEstablecimiento: true },
-  { href: "/actividades", label: "Actividades", icon: ClipboardList, necesitaEstablecimiento: true },
   { href: "/indicadores", label: "Indicadores", icon: TrendingUp,    necesitaEstablecimiento: true },
-  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true, necesitaOperar: true },
   { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true, soloNoAdmin: true },
 ]
 

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Plus, Layers, NotebookPen, ClipboardList, CalendarCheck, type LucideIcon } from "lucide-react"
+import { Plus, Layers, NotebookPen, ClipboardList, CalendarCheck, Wallet, type LucideIcon } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -18,7 +18,8 @@ interface Opcion {
 
 const OPCIONES: Opcion[] = [
   { label: "Nota de bitácora", descripcion: "Decisión, idea u observación", icon: NotebookPen, href: "/bitacora/nueva" },
-  { label: "Actividad", descripcion: "Pesada, venta, compra, mortandad, parición", icon: ClipboardList, href: "/actividades/nueva" },
+  { label: "Actividad", descripcion: "Pesada, venta, compra, parición, destete, sanidad...", icon: ClipboardList, href: "/actividades/nueva" },
+  { label: "Ingreso o gasto", descripcion: "Sueldos, insumos, arrendamiento, impuestos...", icon: Wallet, href: "/economia/nuevo" },
   { label: "Nuevo lote", descripcion: "Con su composición inicial", icon: Layers, href: "/lotes/nuevo" },
   { label: "Tarea", descripcion: "Algo para hacer, con vencimiento", icon: CalendarCheck, etapa: "Etapa 8" },
 ]
