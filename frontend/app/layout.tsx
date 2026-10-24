@@ -4,6 +4,7 @@ import "./globals.css"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Toaster } from "@/components/ui/sonner"
 import { EstablecimientoProvider } from "@/lib/context/EstablecimientoContext"
+import { BotonCargaRapida } from "@/components/layout/BotonCargaRapida"
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -15,12 +16,14 @@ export const metadata: Metadata = {
     default: "Campo Digital",
     template: "%s | Campo Digital",
   },
-  description: "Sistema de gestión para establecimientos rurales",
-  manifest: "/manifest.json",
+  description: "Gestión, bitácora y calendario de establecimientos ganaderos",
+  appleWebApp: { capable: true, title: "Campo Digital", statusBarStyle: "default" },
 }
 
 export const viewport: Viewport = {
-  themeColor: "#166534",
+  themeColor: "#196632",
+  // Que el contenido respete la barra de gestos del teléfono (barra inferior y botón +)
+  viewportFit: "cover",
 }
 
 export default function RootLayout({
@@ -34,6 +37,7 @@ export default function RootLayout({
         <EstablecimientoProvider>
           <Sidebar />
           {children}
+          <BotonCargaRapida />
           {/* Toaster global para notificaciones */}
           <Toaster position="top-right" richColors />
         </EstablecimientoProvider>

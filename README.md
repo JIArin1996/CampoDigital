@@ -1,50 +1,99 @@
-# Campo Digital 🌿
+# Campo Digital
 
-Sistema web mobile-first para gestión integral de establecimientos rurales (ganadería, agricultura, finanzas, insumos, maquinaria, personal).
+Web app mobile-first para la gestión y coordinación de **Santa Remigia**, un establecimiento familiar de ganadería de carne, ovinos y forestación tercerizada, administrado a distancia por dos hermanos.
 
-Stack: **Next.js + Tailwind CSS + shadcn/ui → Supabase (PostgreSQL)**. Hosting en Vercel. Costo de infraestructura: **$0** (planes gratuitos).
+El foco es saber qué pasa en el campo: stock por lote y categoría, actividades realizadas, bitácora de decisiones y tareas con avisos dentro de la app. La trazabilidad SNIG/DICOSE por caravana individual se eliminó; su código queda en el tag git `pre-v2-trazabilidad`.
 
-Ver [contexto/](contexto/) para la documentación completa: visión del sistema, modelo de datos, hoja de ruta y especificaciones técnicas.
+> El cambio de enfoque se documenta en `contexto/00-ENFOQUE-V2.md`.
 
 ---
 
-## Estructura del proyecto
+## Stack
+
+| Capa | Tecnología |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| UI | React 19, Tailwind CSS 4, shadcn/ui (Base UI), lucide-react |
+| Formularios y validación | react-hook-form 7 + Zod 4 |
+| Base de datos y auth | Supabase (PostgreSQL, `@supabase/ssr` + `@supabase/supabase-js` 2) |
+| Hosting | Vercel |
+| Lenguaje | TypeScript (strict) |
+
+> Next.js 16 tiene cambios incompatibles con versiones anteriores. Antes de escribir código, consultá la guía en `frontend/node_modules/next/dist/docs/` (ver `frontend/AGENTS.md`).
+
+---
+
+## Estructura
 
 ```
 CampoDigital/
-├── contexto/           # Documentación del sistema (visión, modelo de datos, hoja de ruta)
-└── frontend/            # App Next.js (App Router)
-    ├── app/             # Rutas y páginas
-    ├── components/      # Componentes (formularios, modales, UI compartida)
-    ├── lib/queries/     # Acceso a datos (Supabase)
-    └── types/           # Tipos generados/definidos para la base de datos
+├── contexto/              # Documentación funcional y técnica
+│   └── _archivo/          # Borradores obsoletos conservados como referencia
+├── supabase/
+│   └── migrations/        # Esquema de la base versionado (migraciones por etapa)
+└── frontend/              # App Next.js
+    ├── app/               # Rutas (App Router)
+    ├── components/        # Componentes por módulo + ui/ (shadcn)
+    ├── lib/
+    │   ├── queries/       # Acceso a Supabase por tabla
+    │   ├── supabase/      # Clientes browser y server
+    │   ├── context/       # Contexto del establecimiento activo
+    │   └── utils.ts       # Utilidades generales (cn)
+    └── types/             # Tipos TypeScript de las tablas
 ```
-
-No hay backend propio: el frontend habla directo con Supabase (PostgreSQL) usando el SDK JS, con validaciones e integridad reforzadas por triggers y constraints en la base de datos.
 
 ---
 
-## Setup local
+## Desarrollo local
 
-```bash
+Requisitos: Node.js 20 o superior y npm.
+
+```powershell
 cd frontend
 npm install
+# Crear frontend\.env.local con:
+#   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+#   SUPABASE_SERVICE_ROLE_KEY=<service_role key>   (solo servidor: crear usuarios, resetear contraseñas)
 npm run dev
 ```
 
-Crear `frontend/.env.local` con las credenciales del proyecto Supabase:
+La app queda en http://localhost:3000 (o el puerto libre que indique `npm run dev`).
 
-| Variable | Descripción |
+Otros scripts (desde `frontend/`):
+
+| Comando | Qué hace |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima del proyecto Supabase |
+| `npm run build` | Build de producción |
+| `npm run start` | Sirve el build |
+| `npm run lint` | ESLint |
+
+Los archivos `.env*` están ignorados por git y nunca se commitean.
 
 ---
 
-## Estado del proyecto
+## Base de datos
 
-Ver el detalle de fases y checklist en [contexto/03-HOJA-DE-RUTA.md](contexto/03-HOJA-DE-RUTA.md).
+- El esquema vive en Supabase y se versiona en `supabase/migrations/`. La primera migración borra el esquema `public` entero; el esquema nuevo se agrega por etapas.
+- No se ejecuta `supabase db push` ni `migration repair` contra producción sin una decisión explícita.
 
-Módulos con UI y persistencia funcionando: **Establecimientos**, **Potreros/Parcelas**, **Animales**, **Movimientos ganaderos** (compra, venta, nacimiento, traslado, cambio de potrero, afectación).
+---
 
-Módulos pendientes (placeholders "en construcción"): Sanidad, Reproducción, Finanzas, Agricultura, Insumos, Maquinaria, Personal.
+## Estado actual
+
+| Módulo | Estado |
+|---|---|
+| Login, roles (Administrador / Operador / Consulta), RLS y gestión de usuarios | Funcional (Etapa 3) |
+| Establecimientos, potreros y lotes con stock por categoría | Funcional (Etapa 3) |
+| Navegación móvil, botón de carga rápida, diseño de alto contraste, app instalable | Funcional (Etapa 4) |
+| Bitácora, actividades, economía por rubro, tareas y calendario | Por construir (Etapas 5 a 8) |
+
+---
+
+## Convenciones
+
+- TypeScript siempre; comentarios en español.
+- Mobile-first.
+- Baja lógica (`estado`) en lugar de borrar registros.
+- Las listas simples de los selects salen de la tabla `parametros`; lo que tiene relaciones (especies, categorías, rubros, personas) va en catálogos por establecimiento.
+- Componentes de UI con shadcn/ui.

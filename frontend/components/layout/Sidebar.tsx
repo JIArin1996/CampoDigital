@@ -1,191 +1,127 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
-import {
-  MapPin,
-  ArrowLeftRight,
-  Syringe,
-  Heart,
-  Wheat,
-  Package,
-  Wrench,
-  DollarSign,
-  Users,
-  Grid3X3,
-  ChevronDown,
-} from "lucide-react"
+
 import { cn } from "@/lib/utils"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import { CerrarSesion } from "@/components/layout/CerrarSesion"
+import { SelectorEstablecimiento } from "@/components/layout/SelectorEstablecimiento"
+import { useVencidas } from "@/components/layout/useVencidas"
+import { Avatar } from "@/components/usuarios/Avatar"
+import { nombreCompleto } from "@/components/usuarios/roles"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  BOTON_CONFIGURACIONES, NAV_MOVIL, NAV_PRINCIPAL, RUTAS_DE_MAS, enRuta, itemActivo, visibleParaRol, type ItemNav,
+} from "@/components/layout/navegacion"
 
-// Ícono de vaca personalizado (Lucide no tiene uno)
-const CowIcon = (props: React.ComponentProps<"svg">) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    className={props.className}>
-    <path d="M4 11a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v5a5 5 0 0 1-10 0v-2" />
-    <path d="M4 11v5a5 5 0 0 0 10 0" />
-    <path d="M6 7V4c0-.6.4-1 1-1h2l1 2h4l1-2h2c.6 0 1 .4 1 1v3" />
-    <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" />
-    <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" />
-  </svg>
-)
-
-const NAV_ITEMS = [
-  { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
-  { href: "/potreros",         label: "Potreros",         icon: Grid3X3 },
-  { href: "/animales",         label: "Animales",         icon: CowIcon },
-  { href: "/movimientos",      label: "Movimientos",      icon: ArrowLeftRight },
-  { href: "/sanidad",          label: "Sanidad",          icon: Syringe },
-  { href: "/reproduccion",     label: "Reproducción",     icon: Heart },
-  { href: "/agricultura",      label: "Agricultura",      icon: Wheat },
-  { href: "/insumos",          label: "Insumos",          icon: Package },
-  { href: "/maquinaria",       label: "Maquinaria",       icon: Wrench },
-  { href: "/finanzas",         label: "Finanzas",         icon: DollarSign },
-  { href: "/personal",         label: "Personal",         icon: Users },
-]
-
-// Los módulos de campo requieren establecimiento activo (todos excepto Establecimientos)
-const MODULOS_DE_CAMPO = NAV_ITEMS.slice(1).map(i => i.href)
-
-function NavList({ pathname, hasActivo }: { pathname: string; hasActivo: boolean }) {
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/")
-
-  return (
-    <ul className="space-y-0.5">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const needsActivo = MODULOS_DE_CAMPO.includes(href)
-        const disabled = needsActivo && !hasActivo
-        const active = isActive(href)
-
-        return (
-          <li key={href}>
-            {disabled ? (
-              <span
-                title="Seleccioná un establecimiento primero"
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium cursor-not-allowed opacity-40 text-sidebar-foreground"
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </span>
-            ) : (
-              <Link
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </Link>
-            )}
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
+/**
+ * Navegación de la app:
+ *  - celular: encabezado fijo arriba (establecimiento y perfil) y barra inferior de 5 lugares;
+ *  - escritorio: menú lateral fijo.
+ */
 export function Sidebar() {
   const pathname = usePathname()
-  const { establecimientos, establecimientoActivo, setEstablecimientoActivo, cargando } =
-    useEstablecimiento()
+  const { establecimientoActivo, esAdmin, perfil, puedeOperar } = useEstablecimiento()
+  const vencidas = useVencidas()
 
-  const handleSelectEst = (val: string | null) => {
-    if (!val) return
-    const found = establecimientos.find(e => e.id.toString() === val)
-    if (found) setEstablecimientoActivo(found)
-  }
+  // En el login no hay menú
+  if (pathname === "/login") return null
 
-  const selectorValue = establecimientoActivo?.id?.toString() ?? ""
+  const hayActivo = !!establecimientoActivo
+  const visible = visibleParaRol(esAdmin, puedeOperar)
 
   return (
     <>
-      {/* ── Desktop sidebar ───────────────────────────────────────────────── */}
-      <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-border bg-sidebar z-30">
+      {/* ── Escritorio: menú lateral ──────────────────────────────────────── */}
+      <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-sidebar-border bg-sidebar z-30">
+        <Link href="/inicio" className="flex items-center gap-2 px-4 h-14 border-b border-sidebar-border shrink-0">
+          <Image src="/isotipo.png" alt="" width={32} height={32} className="h-8 w-8" />
+          <span className="text-lg font-bold text-primary tracking-tight">Campo Digital</span>
+        </Link>
 
-        {/* Logo */}
-        <div className="flex items-center gap-2 px-4 h-14 border-b border-border shrink-0">
-          <span className="text-lg font-bold text-sidebar-foreground tracking-tight">
-            Campo Digital
-          </span>
-        </div>
-
-        {/* Selector de establecimiento */}
-        <div className="px-3 py-3 border-b border-border shrink-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 mb-1.5 px-0.5">
-            Establecimiento activo
+        <div className="px-3 py-3 border-b border-sidebar-border shrink-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 px-0.5">
+            Establecimiento
           </p>
-          {cargando ? (
-            <div className="h-8 rounded-lg bg-sidebar-accent/30 animate-pulse" />
-          ) : establecimientos.length === 0 ? (
-            <p className="text-xs text-sidebar-foreground/50 px-1">Sin establecimientos</p>
-          ) : (
-            <Select
-              value={selectorValue}
-              onValueChange={handleSelectEst}
-            >
-              <SelectTrigger className="w-full bg-sidebar-accent/20 border-sidebar-border text-sidebar-foreground text-xs">
-                <SelectValue>
-                  {(val: string | null) =>
-                    val
-                      ? (establecimientos.find(e => e.id.toString() === val)?.nombre ?? val)
-                      : <span className="text-sidebar-foreground/40">Seleccionar...</span>
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {establecimientos.map(est => (
-                  <SelectItem key={est.id} value={est.id.toString()}>
-                    {est.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <SelectorEstablecimiento />
         </div>
 
-        {/* Navegación */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
-          <NavList pathname={pathname} hasActivo={!!establecimientoActivo} />
+        <nav className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-4">
+          <ListaEscritorio items={NAV_PRINCIPAL.filter(visible)} pathname={pathname} hayActivo={hayActivo} vencidas={vencidas} />
+          {/* Configuraciones: al fondo del menú, justo arriba de la cuenta */}
+          {esAdmin && (
+            <div className="mt-auto">
+              <ListaEscritorio items={[BOTON_CONFIGURACIONES]} pathname={pathname} hayActivo={hayActivo} />
+            </div>
+          )}
         </nav>
+
+        <div className="px-2 py-3 border-t border-sidebar-border shrink-0 space-y-0.5">
+          {perfil && (
+            <Link
+              href="/perfil"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                enRuta(pathname, "/perfil") ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60"
+              )}
+            >
+              <Avatar nombre={perfil.nombre} apellido={perfil.apellido} fotoPath={perfil.foto_path} className="h-8 w-8 text-xs" />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium truncate">{nombreCompleto(perfil)}</span>
+                <span className="block text-xs text-muted-foreground">Mi perfil</span>
+              </span>
+            </Link>
+          )}
+          <CerrarSesion />
+        </div>
       </aside>
 
-      {/* ── Mobile bottom nav (primeros 5 ítems) ────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-border">
-        <ul className="flex items-center justify-around h-16">
-          {NAV_ITEMS.slice(0, 5).map(({ href, label, icon: Icon }) => {
-            const needsActivo = MODULOS_DE_CAMPO.includes(href)
-            const disabled = needsActivo && !establecimientoActivo
-            const active = pathname === href || pathname.startsWith(href + "/")
+      {/* ── Celular: encabezado ───────────────────────────────────────────── */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center gap-2 px-3 bg-background border-b border-border">
+        <Link href="/inicio" aria-label="Inicio" className="shrink-0">
+          <Image src="/isotipo.png" alt="" width={32} height={32} className="h-8 w-8" />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <SelectorEstablecimiento compacto />
+        </div>
+        {perfil && (
+          <Link href="/perfil" aria-label="Mi perfil" className="shrink-0 p-1">
+            <Avatar nombre={perfil.nombre} apellido={perfil.apellido} fotoPath={perfil.foto_path} className="h-9 w-9 text-xs" />
+          </Link>
+        )}
+      </header>
 
+      {/* ── Celular: barra inferior ───────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]">
+        <ul className="flex items-stretch h-16">
+          {NAV_MOVIL.map(item => {
+            const Icono = item.icon
+            const deshabilitado = item.necesitaEstablecimiento && !hayActivo
+            const activo = item.href === "/mas"
+              ? RUTAS_DE_MAS.some(r => enRuta(pathname, r))
+              : enRuta(pathname, item.href)
             return (
-              <li key={href} className="flex-1">
-                {disabled ? (
-                  <span className="flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-medium opacity-40 text-sidebar-foreground/60">
-                    <Icon className="h-5 w-5" />
-                    {label}
+              <li key={item.href} className="flex-1">
+                {deshabilitado ? (
+                  <span className="flex flex-col items-center justify-center gap-1 h-full text-[11px] font-medium text-muted-foreground opacity-50">
+                    <Icono className="h-6 w-6" />
+                    {item.label}
                   </span>
                 ) : (
                   <Link
-                    href={href}
+                    href={item.href}
+                    aria-current={activo ? "page" : undefined}
                     className={cn(
-                      "flex flex-col items-center justify-center gap-1 h-16 text-[10px] font-medium transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/60"
+                      "flex flex-col items-center justify-center gap-1 h-full text-[11px] font-semibold transition-colors",
+                      activo ? "text-primary" : "text-muted-foreground"
                     )}
                   >
-                    <Icon className="h-5 w-5" />
-                    {label}
+                    <span className={cn("relative flex items-center justify-center h-7 w-12 rounded-full", activo && "bg-accent")}>
+                      <Icono className="h-6 w-6" />
+                      {item.href === "/calendario" && <Contador n={vencidas} className="absolute -top-1 right-0.5" />}
+                    </span>
+                    {item.label}
                   </Link>
                 )}
               </li>
@@ -194,5 +130,54 @@ export function Sidebar() {
         </ul>
       </nav>
     </>
+  )
+}
+
+// Vencidas que le tocan a quien usa la app (en Calendario)
+function Contador({ n, className }: { n: number; className?: string }) {
+  if (n === 0) return null
+  return (
+    <span aria-label={`${n} ${n === 1 ? "vencida" : "vencidas"}`}
+      className={cn("min-w-5 h-5 rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-5 text-center text-white tabular-nums", className)}>
+      {n > 99 ? "99+" : n}
+    </span>
+  )
+}
+
+function ListaEscritorio({ items, pathname, hayActivo, vencidas = 0 }: { items: ItemNav[]; pathname: string; hayActivo: boolean; vencidas?: number }) {
+  return (
+    <ul className="space-y-0.5">
+      {items.map(item => {
+        const Icono = item.icon
+        const deshabilitado = item.necesitaEstablecimiento && !hayActivo
+        const activo = itemActivo(pathname, item)
+        return (
+          <li key={item.href}>
+            {deshabilitado ? (
+              <span
+                title="Elegí un establecimiento primero"
+                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground opacity-50 cursor-not-allowed"
+              >
+                <Icono className="h-4 w-4 shrink-0" />
+                {item.label}
+              </span>
+            ) : (
+              <Link
+                href={item.href}
+                aria-current={activo ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  activo ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/60"
+                )}
+              >
+                <Icono className="h-4 w-4 shrink-0" />
+                {item.label}
+                {item.href === "/calendario" && <Contador n={vencidas} className="ml-auto" />}
+              </Link>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }

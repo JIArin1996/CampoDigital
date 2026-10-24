@@ -1,164 +1,59 @@
-// Tipos TypeScript para las tablas de Campo Digital
+// Tipos de las tablas de Campo Digital, derivados de types/supabase.ts.
+//
+// types/supabase.ts se genera desde la base (no se edita a mano):
+//   npx supabase gen types typescript --project-id glmguyabfjiloexqgvic --schema public | Out-File -Encoding utf8 types\supabase.ts
+//
+// Acá solo se angostan las columnas que la base restringe con un check (estado, rol),
+// que el generador devuelve como string.
+
+import type { Tables } from './supabase'
 
 export type EstadoBase = 'activo' | 'inactivo'
+// Rol del usuario en un establecimiento. 'administrador' es del sistema entero (perfiles.es_admin);
+// 'operador' y 'consulta' se asignan por establecimiento (membresias.rol).
+export type Rol = 'administrador' | 'operador' | 'consulta'
+export type RolMembresia = Exclude<Rol, 'administrador'>
 
 // ── Establecimiento ──────────────────────────────────────────────────────────
 
-export interface Establecimiento {
-  id: number
-  user_id: string | null
-  nombre: string
-  departamento: string
-  localidad: string | null
-  superficie_total: number
-  tipo: 'Ganadero' | 'Agrícola' | 'Mixto'
-  propietario: string | null
-  rut: string | null
-  dicose_fisico: string | null
-  fecha_alta: string
-  estado: EstadoBase
-  observaciones: string | null
-  created_at: string
-  updated_at: string
-}
+export type Establecimiento = Omit<Tables<'establecimientos'>, 'estado'> & { estado: EstadoBase }
 
-export type EstablecimientoInsert = Omit<Establecimiento, 'id' | 'created_at' | 'updated_at'>
-export type EstablecimientoUpdate = Partial<EstablecimientoInsert>
+// Datos que se cargan en el alta (crear_establecimiento) y que se pueden editar
+export type EstablecimientoDatos = Pick<
+  Establecimiento,
+  | 'nombre' | 'departamento' | 'localidad' | 'paraje' | 'superficie_total' | 'sistema_productivo'
+  | 'propietario' | 'rut' | 'dicose' | 'fecha_alta' | 'observaciones'
+>
+
+// Columnas que authenticated puede actualizar (GRANT por columna)
+export type EstablecimientoUpdate = Partial<EstablecimientoDatos & Pick<Establecimiento, 'estado'>>
+
+// ── Membresía ────────────────────────────────────────────────────────────────
+
+export type Membresia = Omit<Tables<'membresias'>, 'rol'> & { rol: RolMembresia }
 
 // ── Potrero ──────────────────────────────────────────────────────────────────
 
-export type UsoActual = 'Ganadería' | 'Agricultura' | 'Mixto' | 'Reserva' | 'Sin uso'
+export type Potrero = Omit<Tables<'potreros'>, 'estado'> & { estado: EstadoBase }
 
-export interface Potrero {
-  id: number
-  user_id: string | null
-  establecimiento_id: number
-  nombre: string
-  superficie: number
-  uso_actual: UsoActual
-  tipo_pastura: string | null
-  aguada: boolean | null
-  sombra: boolean | null
-  estado: EstadoBase
-  observaciones: string | null
-  created_at: string
-  updated_at: string
+// Columnas que authenticated puede insertar y actualizar (GRANT por columna)
+export type PotreroInsert = Pick<
+  Potrero,
+  'establecimiento_id' | 'nombre' | 'superficie' | 'uso_actual' | 'tipo_pastura' | 'aguada' | 'sombra' | 'estado' | 'observaciones'
+>
+export type PotreroUpdate = Partial<Omit<PotreroInsert, 'establecimiento_id'>>
+
+// Estadía de un lote en un potrero (fecha_salida null = sigue adentro). Solo lectura: se escribe con
+// cambiar_potrero_lote, deshacer_cambio_potrero y los triggers del alta, cierre y reapertura de lotes.
+export type OrigenEstadia = 'alta' | 'manual' | 'reapertura' | 'migracion'
+export type Estadia = Omit<Tables<'lote_estadias'>, 'origen' | 'cerrada_por'> & {
+  origen: OrigenEstadia
+  cerrada_por: 'cambio' | 'cierre' | null
 }
 
-export type PotreroInsert = Omit<Potrero, 'id' | 'created_at' | 'updated_at'>
-export type PotreroUpdate = Partial<PotreroInsert>
+// ── Perfil de usuario ────────────────────────────────────────────────────────
 
-// ── Parcela ──────────────────────────────────────────────────────────────────
+export type Perfil = Tables<'perfiles'>
 
-export interface Parcela {
-  id: number
-  user_id: string | null
-  establecimiento_id: number
-  potrero_id: number
-  nombre: string
-  superficie: number
-  uso_actual: UsoActual
-  tipo_pastura: string | null
-  estado: EstadoBase
-  observaciones: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type ParcelaInsert = Omit<Parcela, 'id' | 'created_at' | 'updated_at'>
-export type ParcelaUpdate = Partial<ParcelaInsert>
-
-// ── Animal ───────────────────────────────────────────────────────────────────
-
-export type EstadoAnimal = 'activo' | 'vendido' | 'muerto' | 'transferido'
-export type SexoAnimal = 'Macho' | 'Hembra'
-export type OrigenAnimal = 'Propio' | 'Comprado' | 'Nacido en campo'
-
-export interface Animal {
-  id: number
-  user_id: string | null
-  establecimiento_id: number
-  caravana_snig: string
-  caravana_propia: string | null
-  categoria: string
-  sexo: SexoAnimal
-  raza: string | null
-  fecha_nacimiento: string | null
-  madre_id: number | null
-  potrero_actual: number | null
-  parcela_actual: number | null
-  lote_actual: number | null
-  peso_entrada: number | null
-  fecha_peso_entrada: string | null
-  origen: OrigenAnimal | null
-  movimiento_origen_id: number | null
-  estado: EstadoAnimal
-  fecha_baja: string | null
-  observaciones: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type AnimalInsert = Omit<Animal, 'id' | 'created_at' | 'updated_at'>
-export type AnimalUpdate = Partial<AnimalInsert>
-
-// ── Movimiento Ganadero ──────────────────────────────────────────────────────
-
-// Tipos internos de la DB (compatibles con el trigger existente)
-export type TipoMovimiento = 'Compra' | 'Venta' | 'Nacimiento' | 'Muerte' | 'Traslado' | 'Ajuste'
-
-// Subtipos funcionales según los requerimientos del negocio
-export type SubtipoMovimiento =
-  | 'Nacimiento'
-  | 'Compra'
-  | 'Venta a Productor'
-  | 'Venta a Frigorífico'
-  | 'Venta en Consignación'
-  | 'Traslado entre Establecimientos'
-  | 'Cambio de Potrero'
-  | 'Afectación a Fideicomiso'
-  | 'Afectación a Capitalización'
-  | 'Afectación a Consignación sin Movimiento'
-
-export const SUBTIPO_A_TIPO: Record<SubtipoMovimiento, TipoMovimiento> = {
-  'Nacimiento': 'Nacimiento',
-  'Compra': 'Compra',
-  'Venta a Productor': 'Venta',
-  'Venta a Frigorífico': 'Venta',
-  'Venta en Consignación': 'Venta',
-  'Traslado entre Establecimientos': 'Traslado',
-  'Cambio de Potrero': 'Traslado',
-  'Afectación a Fideicomiso': 'Ajuste',
-  'Afectación a Capitalización': 'Ajuste',
-  'Afectación a Consignación sin Movimiento': 'Ajuste',
-}
-
-export type TipoUbicacion = 'potrero' | 'parcela'
-
-export interface MovimientoGanado {
-  id: number
-  user_id: string | null
-  establecimiento_id: number
-  fecha: string
-  tipo_movimiento: TipoMovimiento
-  categoria: string
-  cantidad: number
-  peso_promedio: number | null
-  peso_total: number | null
-  origen_tipo: TipoUbicacion | null
-  origen_id: number | null
-  destino_tipo: TipoUbicacion | null
-  destino_id: number | null
-  precio_unitario: number | null
-  precio_base: string | null
-  precio_total: number | null
-  contraparte: string | null
-  remito: string | null
-  guia_dgt: string | null
-  finanza_id: number | null
-  observaciones: string | null
-  created_at: string
-  updated_at: string
-}
-
-export type MovimientoGanadoInsert = Omit<MovimientoGanado, 'id' | 'created_at' | 'updated_at'>
+// Columnas que authenticated puede actualizar (su propio perfil; el administrador, cualquiera)
+export type PerfilUpdate = Partial<Pick<Perfil, 'nombre' | 'apellido' | 'celular' | 'foto_path'>>

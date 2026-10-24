@@ -5,24 +5,25 @@ interface PageContainerProps {
   className?: string
   // Título opcional que se muestra en la parte superior de la página
   title?: string
+  // Más ancho en la computadora (pantallas con mapa)
+  ancho?: boolean
 }
 
 /**
  * Contenedor estándar para todas las páginas.
- * Agrega el padding necesario para no quedar tapado por el sidebar (desktop)
- * ni por la barra inferior (mobile).
+ * Deja lugar para la navegación fija:
+ *  - celular: encabezado arriba (h-14), barra inferior (h-16) y el botón "+" encima de ella;
+ *  - escritorio: menú lateral (w-56).
  */
-export function PageContainer({ children, className, title }: PageContainerProps) {
+export function PageContainer({ children, className, title, ancho = false }: PageContainerProps) {
   return (
     <main
       className={cn(
-        // En mobile: padding bottom para la barra de navegación inferior
-        // En desktop: margin left para el sidebar fijo
-        "min-h-screen pb-20 md:pb-0 md:ml-56",
+        "min-h-screen pt-14 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pt-0 md:pb-12 md:ml-56",
         className
       )}
     >
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className={cn("mx-auto px-4 py-6", ancho ? "max-w-7xl" : "max-w-4xl")}>
         {title && (
           <h1 className="text-2xl font-bold text-foreground mb-6">{title}</h1>
         )}

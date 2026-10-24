@@ -1,0 +1,12 @@
+{
+  "name": "campodigital-pruebas-sql",
+  "private": true,
+  "type": "module",
+  "description": "Corre las pruebas SQL de supabase/tests contra la base (ver correr-pruebas.mjs)",
+  "scripts": {
+    "pruebas": "node correr-pruebas.mjs"
+  },
+  "dependencies": {
+    "pg": "8.13.1"
+  }
+}

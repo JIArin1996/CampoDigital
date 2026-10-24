@@ -1,0 +1,334 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { ArrowLeft, ArrowRightLeft, ChevronRight, ClipboardList, Lock, LockOpen, MapPin, Merge, MilkOff, Pencil, SlidersHorizontal, Split, Undo2 } from "lucide-react"
+import { toast } from "sonner"
+
+import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
+import { deshacerCambioPotrero, getEstadiasLote, getPotreros } from "@/lib/queries/potreros"
+import { getCarencias } from "@/lib/queries/actividades"
+import { mensajeDeError } from "@/lib/supabase/errores"
+import { PageContainer } from "@/components/layout/PageContainer"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
+import { AjusteForm } from "@/components/lotes/AjusteForm"
+import { LinajeLote } from "@/components/lotes/LinajeLote"
+import { HistorialLote } from "@/components/lotes/HistorialLote"
+import { ArchivosDelLote } from "@/components/lotes/ArchivosDelLote"
+import { CerrarReabrirLote } from "@/components/lotes/CerrarReabrirLote"
+import { CambiarPotreroDialog } from "@/components/potreros/CambiarPotreroDialog"
+import { diasEntre } from "@/components/bitacora/formato"
+import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
+import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
+import { formatoAnios } from "@/components/lotes/anios"
+import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
+import type { Carencia } from "@/types/actividades"
+import type { Estadia, Potrero } from "@/types/database"
+import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
+
+interface Ficha {
+  clave: string
+  lote: Lote | null
+  especies: Especie[]
+  categorias: CategoriaAnimal[]
+  potreros: Potrero[]          // también los inactivos (para nombrar los del historial)
+  estadias: Estadia[]          // por qué potreros pasó, de la más vieja a la más nueva
+  stock: StockLote[]
+  eventos: LoteEvento[]
+  cambios: CambioEstadoLote[]
+  carencias: Carencia[]
+}
+
+export default function LotePage() {
+  const { id } = useParams<{ id: string }>()
+  const { puedeOperarEn, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
+  const [ficha, setFicha] = useState<Ficha | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [version, setVersion] = useState(0)   // sube para recargar después de un ajuste
+  const [ajusteAbierto, setAjusteAbierto] = useState(false)
+  const [estadoAbierto, setEstadoAbierto] = useState(false)
+  const [potreroAbierto, setPotreroAbierto] = useState(false)
+  const [deshaciendo, setDeshaciendo] = useState(false)
+
+  useEffect(() => {
+    let vigente = true
+    const clave = `${id}:${version}`
+    getLote(id)
+      .then(async lote => {
+        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], estadias: [], stock: [], eventos: [], cambios: [], carencias: [] }
+        const [especies, categorias, potreros, estadias, stock, eventos, cambios, carencias] = await Promise.all([
+          getEspecies(lote.establecimiento_id),
+          getCategorias(lote.establecimiento_id, { incluirInactivas: true }),
+          getPotreros(lote.establecimiento_id, { incluirInactivos: true }),
+          getEstadiasLote(lote.id),
+          getStockLote(lote.id),
+          getEventosLote(lote.id),
+          getCambiosEstadoLote(lote.id),
+          getCarencias([lote.id], hoyLocal()),
+        ])
+        return { clave, lote, especies, categorias, potreros, estadias, stock, eventos, cambios, carencias }
+      })
+      .then(datos => {
+        if (vigente) setFicha(datos)
+      })
+      .catch(err => {
+        if (vigente) setError(mensajeDeError(err, "No se pudo cargar el lote"))
+      })
+    return () => { vigente = false }
+  }, [id, version])
+
+  const volver = (
+    <Link href="/lotes" className="inline-flex items-center gap-1.5 h-10 text-sm text-muted-foreground hover:text-foreground mb-3">
+      <ArrowLeft className="h-4 w-4" /> Volver a lotes
+    </Link>
+  )
+
+  // Mientras recarga después de un ajuste se sigue mostrando la ficha anterior
+  const vigente = ficha && ficha.clave.startsWith(`${id}:`) ? ficha : null
+
+  if (error && !vigente) {
+    return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
+  }
+
+  if (!vigente || cargandoCtx) {
+    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  }
+
+  const { lote } = vigente
+  if (!lote) {
+    return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró el lote.</p></PageContainer>
+  }
+
+  const puedeOperar = puedeOperarEn(lote.establecimiento_id)
+  const especie = vigente.especies.find(e => e.id === lote.especie_id)
+  // Con las dadas de baja: el historial y el stock siguen mostrando su nombre. Para cargar, solo las activas.
+  const categoriasEspecie = vigente.categorias.filter(c => c.especie_id === lote.especie_id)
+  const categoriasActivas = categoriasEspecie.filter(c => c.activo)
+  const potrero = vigente.potreros.find(p => p.id === lote.potrero_id)
+  const nombrePotrero = (potId: string) => vigente.potreros.find(p => p.id === potId)?.nombre ?? "Potrero"
+  const estadiaAbierta = vigente.estadias.find(e => e.fecha_salida === null)
+  // Deshacer: el último cambio fue una entrada cargada a mano, o una salida a "sin potrero" (la base lo confirma)
+  const puedeDeshacer = estadiaAbierta ? estadiaAbierta.origen === "manual" : vigente.estadias.some(e => e.cerrada_por === "cambio")
+  const nombreCategoria = (catId: string) => vigente.categorias.find(c => c.id === catId)?.nombre ?? "—"
+  const stockActual = new Map(vigente.stock.map(s => [s.categoria_id, s.cabezas]))
+  const ultimoCierre = vigente.cambios.find(c => c.tipo === "cierre")
+  const operable = puedeOperar && lote.estado === "activo"
+  // Destete: solo si hay crías al pie de verdad (con sus madres, o que vengan de una parición); no en lotes de destetados o de recría
+  const esCria = (catId: string) => categoriasEspecie.some(c => c.id === catId && c.cria_al_pie)
+  const tieneCrias = vigente.stock.some(s => s.cabezas > 0 && esCria(s.categoria_id))
+    && (vigente.stock.some(s => s.cabezas > 0 && !esCria(s.categoria_id)) || vigente.eventos.some(e => e.tipo === "paricion" && e.cabezas > 0))
+  const accion = buttonVariants({ variant: "outline", className: "h-auto flex-col gap-1 py-3 text-sm" })
+
+  const deshacer = async () => {
+    if (!window.confirm("¿Deshacer el último cambio de potrero? El lote vuelve a donde estaba antes.")) return
+    setDeshaciendo(true)
+    try {
+      await deshacerCambioPotrero(lote.id)
+      toast.success("Cambio de potrero deshecho")
+      setVersion(v => v + 1)
+    } catch (err) {
+      toast.error(mensajeDeError(err))
+    } finally {
+      setDeshaciendo(false)
+    }
+  }
+
+  return (
+    <PageContainer>
+      {volver}
+
+      {/* Encabezado */}
+      <div className="mb-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold">{lote.nombre}</h1>
+            {lote.estado === "cerrado" && <Badge variant="secondary">cerrado</Badge>}
+          </div>
+          {puedeOperar && (
+            <div className="flex flex-wrap justify-end gap-2 shrink-0">
+              {operable && (
+                <Link href={`/lotes/${lote.id}/editar`} className={buttonVariants({ variant: "outline", size: "sm", className: "h-10 md:h-8" })}>
+                  <Pencil className="h-4 w-4 mr-1" /> Editar
+                </Link>
+              )}
+              <Button variant="outline" size="sm" className="h-10 md:h-8" onClick={() => setEstadoAbierto(true)}>
+                {lote.estado === "activo"
+                  ? <><Lock className="h-4 w-4 mr-1" /> Cerrar</>
+                  : <><LockOpen className="h-4 w-4 mr-1" /> Reabrir</>}
+              </Button>
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          {[
+            especie?.nombre,
+            lote.anios_nacimiento.length > 0 ? `nacidos en ${formatoAnios(lote.anios_nacimiento)}` : null,
+            `abierto el ${fechaCorta(lote.fecha_apertura)}`,
+            lote.fecha_cierre ? `cerrado el ${fechaCorta(lote.fecha_cierre)}` : null,
+          ].filter(Boolean).join(" · ")}
+        </p>
+        {lote.notas && <p className="text-sm mt-2">{lote.notas}</p>}
+        {lote.estado === "cerrado" && ultimoCierre?.motivo && (
+          <p className="text-sm mt-2 text-muted-foreground">Motivo del cierre: {ultimoCierre.motivo}</p>
+        )}
+      </div>
+
+      {/* Potrero actual (o en el que estaba al cerrarse) */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <MapPin className="h-5 w-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="font-semibold truncate">{potrero?.nombre ?? "Sin potrero"}</p>
+            {estadiaAbierta ? (
+              <p className="text-sm text-muted-foreground">
+                desde el {fechaCorta(estadiaAbierta.fecha_ingreso)} · {diasEntre(estadiaAbierta.fecha_ingreso, hoyLocal())} días
+              </p>
+            ) : lote.estado === "cerrado" && potrero ? (
+              <p className="text-sm text-muted-foreground">al cerrarse el lote</p>
+            ) : null}
+          </div>
+        </div>
+        {operable && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="h-11 md:h-8" onClick={() => setPotreroAbierto(true)}>
+              <MapPin className="h-4 w-4 mr-1" /> Cambiar de potrero
+            </Button>
+            {puedeDeshacer && (
+              <Button variant="ghost" size="sm" className="h-11 md:h-8 text-muted-foreground" disabled={deshaciendo} onClick={deshacer}>
+                <Undo2 className="h-4 w-4 mr-1" /> Deshacer último cambio
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Carencia vigente (aviso; la venta también lo muestra) */}
+      {lote.estado === "activo" && vigente.carencias.length > 0 && (
+        <div className="mb-6">
+          <AvisoCarencia carencias={vigente.carencias}
+            texto={`En carencia hasta el ${fechaCorta(vigente.carencias.reduce((m, c) => (c.fin_carencia > m ? c.fin_carencia : m), ""))}`} />
+        </div>
+      )}
+
+      {/* Operaciones de lote */}
+      {operable && (
+        <nav aria-label="Operaciones del lote" className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+          <Link href={`/actividades/nueva?lote=${lote.id}`} className={accion}>
+            <ClipboardList className="h-5 w-5" />
+            Actividad
+          </Link>
+          <Link href={`/lotes/${lote.id}/dividir`} className={accion}>
+            <Split className="h-5 w-5" />
+            Dividir
+          </Link>
+          <Link href={`/lotes/${lote.id}/recategorizar`} className={accion}>
+            <ArrowRightLeft className="h-5 w-5" />
+            Recategorizar
+          </Link>
+          <Link href={`/lotes/unir?lote=${lote.id}`} className={accion}>
+            <Merge className="h-5 w-5" />
+            Unir
+          </Link>
+          {tieneCrias && (
+            <Link href={`/actividades/nueva?tipo=destete&lote=${lote.id}`} className={accion}>
+              <MilkOff className="h-5 w-5" />
+              Destete
+            </Link>
+          )}
+        </nav>
+      )}
+
+      <div className="space-y-6">
+        {/* Stock actual */}
+        <Card>
+          <CardHeader className="pb-1 flex-row items-center justify-between gap-3">
+            <CardTitle className="text-base">Stock actual</CardTitle>
+            {puedeOperar && lote.estado === "activo" && (
+              <Button variant="outline" size="sm" className="h-10 md:h-8" onClick={() => setAjusteAbierto(true)}>
+                <SlidersHorizontal className="h-4 w-4 mr-1" />
+                Ajustar
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <StockPorCategoria filas={vigente.stock} categorias={categoriasEspecie} separarCrias />
+          </CardContent>
+        </Card>
+
+        {/* Archivos (trazabilidad y otros); se descargan, nunca se muestran adentro de la app */}
+        <ArchivosDelLote key={`${lote.id}:${lote.estado}`} lote={lote} puedeOperar={puedeOperar} esAdmin={esAdmin} />
+
+        {/* Linaje: de qué lotes viene y en cuáles terminó */}
+        <LinajeLote loteId={lote.id} version={version} />
+
+        {/* Bitácora del lote */}
+        <BitacoraDelLote
+          establecimientoId={lote.establecimiento_id}
+          loteId={lote.id}
+          puedeOperar={puedeOperar}
+        />
+
+        {/* Historial */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Historial</h2>
+            <Link href={`/actividades?lote=${lote.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-primary min-h-11">
+              Actividades <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <HistorialLote eventos={vigente.eventos} estadias={vigente.estadias}
+            nombrePotrero={nombrePotrero} nombreCategoria={nombreCategoria} />
+        </section>
+      </div>
+
+      {/* Cerrar o reabrir (key: el formulario arranca limpio en cada estado) */}
+      <CerrarReabrirLote
+        key={lote.estado}
+        lote={lote}
+        cabezas={vigente.stock.reduce((s, f) => s + f.cabezas, 0)}
+        abierto={estadoAbierto}
+        onCerrar={() => setEstadoAbierto(false)}
+        onHecho={() => {
+          setEstadoAbierto(false)
+          setVersion(v => v + 1)
+        }}
+      />
+
+      {/* Cambio de potrero (key: arranca limpio cada vez) */}
+      {potreroAbierto && (
+        <CambiarPotreroDialog key={`${lote.id}:${version}`} abierto onCerrar={() => setPotreroAbierto(false)}
+          onHecho={() => { setPotreroAbierto(false); setVersion(v => v + 1) }}
+          lotes={[lote]} potreros={vigente.potreros.filter(p => p.estado === "activo")}
+          estadias={new Map(estadiaAbierta ? [[lote.id, estadiaAbierta]] : [])} />
+      )}
+
+      {/* Ajuste de stock */}
+      <Dialog open={ajusteAbierto} onOpenChange={setAjusteAbierto}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ajustar stock</DialogTitle>
+            <DialogDescription>
+              Los movimientos no se editan: un error se corrige sumando o restando cabezas, con su motivo.
+            </DialogDescription>
+          </DialogHeader>
+          <AjusteForm
+            loteId={lote.id}
+            categorias={categoriasActivas}
+            stockActual={stockActual}
+            onSuccess={() => {
+              setAjusteAbierto(false)
+              setVersion(v => v + 1)
+            }}
+            onCancel={() => setAjusteAbierto(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
+  )
+}
