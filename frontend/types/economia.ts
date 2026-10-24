@@ -9,11 +9,12 @@ type SinNulos<T> = { [K in keyof T]: NonNullable<T[K]> }
 export type Sentido = 'ingreso' | 'egreso'
 export type OrigenMovimiento = 'actividad' | 'manual'
 
-export type Movimiento = Omit<Tables<'movimientos_economicos'>, 'sentido' | 'moneda_original' | 'estado' | 'origen'> & {
+export type Movimiento = Omit<Tables<'movimientos_economicos'>, 'sentido' | 'moneda_original' | 'estado' | 'origen' | 'tipo_cambio_fuente'> & {
   sentido: Sentido
   moneda_original: Moneda
   estado: EstadoPago
   origen: OrigenMovimiento
+  tipo_cambio_fuente: 'BCU' | 'manual' | null   // con pesos: de dónde salió el tipo de cambio; con dólares, null
 }
 
 export type ResultadoRubroMes = Omit<SinNulos<Tables<'v_resultado_rubro'>>, never>

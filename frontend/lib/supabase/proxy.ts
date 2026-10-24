@@ -39,6 +39,12 @@ export async function actualizarSesion(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (!user && !esRutaPublica(pathname)) {
+    // La API responde 401 en JSON (quien la llama es la app, no una persona navegando)
+    if (pathname === "/api" || pathname.startsWith("/api/")) {
+      const noAutorizado = NextResponse.json({ error: "sin_sesion", mensaje: "Tenés que iniciar sesión" }, { status: 401 })
+      response.cookies.getAll().forEach(cookie => noAutorizado.cookies.set(cookie))
+      return noAutorizado
+    }
     return redirigirConCookies(request, response, "/login")
   }
 

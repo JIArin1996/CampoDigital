@@ -10,6 +10,9 @@ import type { Database } from "@/types/supabase"
  * SUPABASE_SERVICE_ROLE_KEY, sin NEXT_PUBLIC_: nunca llega al navegador.
  *
  * Usarlo únicamente después de verificar que quien llama es administrador.
+ *
+ * Única excepción: la route /api/tipo-cambio lo usa, con cualquier usuario con sesión, solo para
+ * leer y hacer upsert en la tabla tipos_cambio (cotizaciones del BCU). Nada más.
  */
 export function createAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY

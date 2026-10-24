@@ -1653,6 +1653,8 @@ export type Database = {
           rubro_id: string
           sentido: string
           tipo_cambio: number | null
+          tipo_cambio_fecha: string | null
+          tipo_cambio_fuente: string | null
           updated_at: string
         }
         Insert: {
@@ -1681,6 +1683,8 @@ export type Database = {
           rubro_id: string
           sentido: string
           tipo_cambio?: number | null
+          tipo_cambio_fecha?: string | null
+          tipo_cambio_fuente?: string | null
           updated_at?: string
         }
         Update: {
@@ -1709,6 +1713,8 @@ export type Database = {
           rubro_id?: string
           sentido?: string
           tipo_cambio?: number | null
+          tipo_cambio_fecha?: string | null
+          tipo_cambio_fuente?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2145,6 +2151,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tipos_cambio: {
+        Row: {
+          compra: number
+          consultado_en: string
+          fecha: string
+          fuente: string
+          moneda: string
+          venta: number
+        }
+        Insert: {
+          compra: number
+          consultado_en?: string
+          fecha: string
+          fuente: string
+          moneda: string
+          venta: number
+        }
+        Update: {
+          compra?: number
+          consultado_en?: string
+          fecha?: string
+          fuente?: string
+          moneda?: string
+          venta?: number
+        }
+        Relationships: []
       }
       titulares: {
         Row: {
