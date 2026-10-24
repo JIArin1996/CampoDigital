@@ -50,10 +50,10 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <h1 className="sr-only">Campo Digital</h1>
         <Image
-          src="/logo-campo-digital.webp"
+          src="/logo-campo-digital.png"
           alt="Campo Digital"
-          width={454}
-          height={456}
+          width={1024}
+          height={1024}
           priority
           className="mx-auto mb-6 h-auto w-48"
         />

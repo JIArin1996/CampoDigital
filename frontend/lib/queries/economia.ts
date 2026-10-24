@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
 import type { PrecioCarga } from '@/types/actividades'
-import type { Movimiento, Pendiente, ResultadoRubroMes, Rubro, Sentido, SinPrecio } from '@/types/economia'
+import type {
+  Concepto, GrupoConcepto, Movimiento, MovimientoTitular, Pendiente, ResultadoDetalle, ResultadoRubroMes, Rubro, Sentido, SinPrecio, Titular,
+} from '@/types/economia'
 
 // Lo leen solo quienes pueden cargar (administrador y operador); a Consulta la base le devuelve vacío.
 
@@ -31,6 +33,38 @@ export async function getResultado(establecimiento_id: string, desde: string, ha
     .lte('mes', hasta)
   if (error) throw error
   return (data ?? []) as ResultadoRubroMes[]
+}
+
+// Un movimiento (para editarlo), con su reparto entre titulares
+export async function getMovimiento(id: string) {
+  const supabase = createClient()
+  const [{ data, error }, { data: titulares, error: errorTitulares }] = await Promise.all([
+    supabase.from('movimientos_economicos').select('*').eq('id', id).maybeSingle(),
+    supabase.from('movimiento_titulares').select('*').eq('movimiento_id', id),
+  ])
+  if (error) throw error
+  if (errorTitulares) throw errorTitulares
+  return data ? { movimiento: data as Movimiento, titulares: (titulares ?? []) as MovimientoTitular[] } : null
+}
+
+// Reparto entre titulares de varios movimientos
+export async function getTitularesDeMovimientos(movimiento_ids: string[]) {
+  if (movimiento_ids.length === 0) return []
+  const { data, error } = await createClient().from('movimiento_titulares').select('*').in('movimiento_id', movimiento_ids)
+  if (error) throw error
+  return (data ?? []) as MovimientoTitular[]
+}
+
+// Resultado por mes, sentido, rubro, concepto, grupo y titular (devengado, sin anulados)
+export async function getResultadoDetalle(establecimiento_id: string, desde: string, hasta: string) {
+  const { data, error } = await createClient()
+    .from('v_resultado_detalle')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .gte('mes', desde)
+    .lte('mes', hasta)
+  if (error) throw error
+  return (data ?? []) as ResultadoDetalle[]
 }
 
 // Por cobrar y por pagar, del más viejo al más nuevo
@@ -63,10 +97,11 @@ export async function registrarMovimiento(p: {
   fecha: string
   sentido: Sentido
   rubro_id: string
-  concepto: string
+  concepto_id: string
   precio: PrecioCarga
   contraparte?: string | null
   lote_id?: string | null
+  titulares?: { titular_id: string; monto: number }[]
 }) {
   const { data, error } = await createClient().rpc('registrar_movimiento', {
     p_id: p.id,
@@ -74,13 +109,40 @@ export async function registrarMovimiento(p: {
     p_fecha: p.fecha,
     p_sentido: p.sentido,
     p_rubro_id: p.rubro_id,
-    p_concepto: p.concepto,
+    p_concepto_id: p.concepto_id,
     p_precio: p.precio,
     p_contraparte: p.contraparte ?? undefined,
     p_lote_id: p.lote_id ?? undefined,
+    p_titulares: p.titulares ?? [],
   })
   if (error) throw error
   return data as string
+}
+
+// Editar un movimiento no anulado. Si viene de una compra o venta, la base deja la fecha, el sentido y el lote.
+export async function editarMovimiento(p: {
+  id: string
+  fecha: string
+  sentido: Sentido
+  rubro_id: string
+  concepto_id: string
+  precio: PrecioCarga
+  contraparte: string | null
+  lote_id: string | null
+  titulares: { titular_id: string; monto: number }[]
+}) {
+  const { error } = await createClient().rpc('editar_movimiento', {
+    p_movimiento_id: p.id,
+    p_fecha: p.fecha,
+    p_sentido: p.sentido,
+    p_rubro_id: p.rubro_id,
+    p_concepto_id: p.concepto_id,
+    p_precio: p.precio,
+    p_contraparte: p.contraparte ?? undefined,
+    p_lote_id: p.lote_id ?? undefined,
+    p_titulares: p.titulares,
+  })
+  if (error) throw error
 }
 
 // El precio que faltó en una compra o venta (sentido, fecha y contraparte salen de la actividad)
@@ -135,4 +197,84 @@ export async function definirRubroEspecie(especie_id: string, rubro_id: string |
   const { data, error } = await createClient().from('especies').update({ rubro_id }).eq('id', especie_id).select()
   if (error) throw error
   return exigirFilas(data)
+}
+
+// ── Conceptos, grupos y titulares (los edita el administrador, por las políticas) ──
+// Se borran solo si nadie los usa; si no, la base lo impide (23503) y se dan de baja.
+
+export async function getConceptos(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('conceptos')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('nombre')
+  if (error) throw error
+  return (data ?? []) as Concepto[]
+}
+
+export async function crearConcepto(c: { establecimiento_id: string; nombre: string; tipo: Sentido; grupo_id: string | null }) {
+  const { data, error } = await createClient().from('conceptos').insert(c).select()
+  if (error) throw error
+  return exigirFilas(data) as Concepto
+}
+
+export async function actualizarConcepto(id: string, cambios: { nombre?: string; grupo_id?: string | null; activo?: boolean }) {
+  const { data, error } = await createClient().from('conceptos').update(cambios).eq('id', id).select()
+  if (error) throw error
+  return exigirFilas(data) as Concepto
+}
+
+export async function getGruposConcepto(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('concepto_grupos')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('orden')
+    .order('nombre')
+  if (error) throw error
+  return (data ?? []) as GrupoConcepto[]
+}
+
+export async function crearGrupoConcepto(establecimiento_id: string, nombre: string, orden: number) {
+  const { data, error } = await createClient().from('concepto_grupos').insert({ establecimiento_id, nombre, orden }).select()
+  if (error) throw error
+  return exigirFilas(data) as GrupoConcepto
+}
+
+export async function actualizarGrupoConcepto(id: string, cambios: { nombre?: string; activo?: boolean }) {
+  const { data, error } = await createClient().from('concepto_grupos').update(cambios).eq('id', id).select()
+  if (error) throw error
+  return exigirFilas(data) as GrupoConcepto
+}
+
+export async function getTitulares(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('titulares')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('nombre')
+  if (error) throw error
+  return (data ?? []) as Titular[]
+}
+
+export async function crearTitular(establecimiento_id: string, nombre: string) {
+  const { data, error } = await createClient().from('titulares').insert({ establecimiento_id, nombre }).select()
+  if (error) throw error
+  return exigirFilas(data) as Titular
+}
+
+export async function actualizarTitular(id: string, cambios: { nombre?: string; activo?: boolean }) {
+  const { data, error } = await createClient().from('titulares').update(cambios).eq('id', id).select()
+  if (error) throw error
+  return exigirFilas(data) as Titular
+}
+
+// Borrar un concepto, grupo o titular sin uso. Con uso, la base lo impide: el mensaje sugiere darlo de baja.
+export async function borrarDeCatalogo(tabla: 'conceptos' | 'concepto_grupos' | 'titulares', id: string, enUso: string) {
+  const { data, error } = await createClient().from(tabla).delete().eq('id', id).select('id')
+  if (error) {
+    if (error.code === '23503') throw new Error(enUso)
+    throw error
+  }
+  exigirFilas(data)
 }

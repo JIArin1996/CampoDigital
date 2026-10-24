@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/client'
 import { mimeDe } from '@/components/lotes/archivos'
 import type { ArchivoDeLote, ArchivoPorSubir } from '@/types/archivos'
+import type { ArchivoDeMovimiento } from '@/types/economia'
 
 // Bucket privado: ruta {establecimiento_id}/{id del archivo}. Sin URLs públicas: se descarga con
 // una URL firmada de corta duración.
 const BUCKET = 'lote-archivos'
+const BUCKET_MOVIMIENTOS = 'movimiento-archivos'   // solo lo ven quienes pueden cargar
 
 // ── Lectura ──────────────────────────────────────────────────────────────────
 
@@ -23,8 +25,8 @@ export async function getArchivosLote(lote_id: string, opciones: { incluirQuitad
 
 // Descarga: URL firmada por 60 segundos, con el nombre original y como adjunto (el navegador la
 // guarda o la abre con su visor; la app nunca muestra el archivo adentro).
-export async function descargarArchivo(ruta: string, nombre: string) {
-  const { data, error } = await createClient().storage.from(BUCKET).createSignedUrl(ruta, 60, { download: nombre })
+export async function descargarArchivo(ruta: string, nombre: string, bucket = BUCKET) {
+  const { data, error } = await createClient().storage.from(bucket).createSignedUrl(ruta, 60, { download: nombre })
   if (error) throw error
   const enlace = document.createElement('a')
   enlace.href = data.signedUrl
@@ -85,5 +87,55 @@ export async function quitarArchivo(lote_id: string, archivo_id: string) {
 
 export async function restaurarArchivo(lote_id: string, archivo_id: string) {
   const { error } = await createClient().rpc('restaurar_archivo_lote', { p_lote_id: lote_id, p_archivo_id: archivo_id })
+  if (error) throw error
+}
+
+// ── Archivos de los movimientos económicos ───────────────────────────────────
+
+// Archivos visibles de varios movimientos, del más viejo al más nuevo
+export async function getArchivosMovimientos(movimiento_ids: string[]) {
+  if (movimiento_ids.length === 0) return []
+  const { data, error } = await createClient()
+    .from('movimiento_archivos')
+    .select('*')
+    .in('movimiento_id', movimiento_ids)
+    .eq('oculto', false)
+    .order('created_at')
+  if (error) throw error
+  return (data ?? []) as ArchivoDeMovimiento[]
+}
+
+// Para verlo dentro de la app (visor): URL firmada por 5 minutos, sin forzar la descarga
+export async function urlParaVerArchivoMovimiento(a: ArchivoDeMovimiento) {
+  const { data, error } = await createClient().storage.from(BUCKET_MOVIMIENTOS).createSignedUrl(a.ruta, 300)
+  if (error) throw error
+  return data.signedUrl
+}
+
+export const descargarArchivoMovimiento = (a: ArchivoDeMovimiento) => descargarArchivo(a.ruta, a.nombre, BUCKET_MOVIMIENTOS)
+
+// Sube y adjunta. Reintentable con el mismo id (como en los lotes).
+export async function subirArchivoAMovimiento(establecimiento_id: string, movimiento_id: string, a: { id: string; file: File }) {
+  const supabase = createClient()
+  const nombre = a.file.name.trim()
+  const contentType = mimeDe(nombre)
+  if (!contentType) throw new Error(`"${nombre}": formato no permitido`)
+
+  const { error: errorSubida } = await supabase.storage
+    .from(BUCKET_MOVIMIENTOS)
+    .upload(`${establecimiento_id}/${a.id}`, a.file, { contentType, upsert: false })
+  if (errorSubida && !yaSubido(errorSubida)) throw new Error(mensajeDeStorage(errorSubida))
+
+  const { error } = await supabase.rpc('adjuntar_archivo_movimiento', {
+    p_archivo_id: a.id,
+    p_movimiento_id: movimiento_id,
+    p_nombre: nombre,
+  })
+  if (error) throw error
+}
+
+// Lo oculta; el archivo queda en Storage
+export async function quitarArchivoMovimiento(archivo_id: string) {
+  const { error } = await createClient().rpc('quitar_archivo_movimiento', { p_archivo_id: archivo_id })
   if (error) throw error
 }

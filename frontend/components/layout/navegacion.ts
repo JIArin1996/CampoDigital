@@ -1,5 +1,5 @@
 import {
-  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Tags,
+  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Tags, ListTree, Contact,
   type LucideIcon,
 } from "lucide-react"
 
@@ -39,6 +39,8 @@ export const NAV_PRINCIPAL: ItemNav[] = [
 export const NAV_CONFIGURACION: ItemNav[] = [
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
   { href: "/rubros",           label: "Rubros",           icon: Tags,     necesitaEstablecimiento: true },
+  { href: "/conceptos",        label: "Conceptos",        icon: ListTree, necesitaEstablecimiento: true },
+  { href: "/titulares",        label: "Titulares",        icon: Contact,  necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/usuarios",         label: "Usuarios",         icon: Users },
 ]

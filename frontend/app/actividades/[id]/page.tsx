@@ -221,7 +221,7 @@ export default function ActividadPage() {
             <CardHeader className="pb-1"><CardTitle className="text-base">Precio</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {!anulada && !movimientos.some(m => !m.anulado_en) && (
-                <CargarPrecio actividadId={a.id} venta={a.tipo === "venta"} rubros={ficha.rubros} onHecho={() => setVersion(v => v + 1)} />
+                <CargarPrecio actividadId={a.id} establecimientoId={a.establecimiento_id} fecha={a.fecha} venta={a.tipo === "venta"} rubros={ficha.rubros} onHecho={() => setVersion(v => v + 1)} />
               )}
               {movimientos.map(m => (
                   <dl key={m.id} className={`divide-y ${m.anulado_en ? "opacity-60" : ""}`}>

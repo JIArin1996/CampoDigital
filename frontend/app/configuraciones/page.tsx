@@ -5,7 +5,7 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { ListaAccesos } from "@/components/layout/ListaAccesos"
 import { NAV_CONFIGURACION } from "@/components/layout/navegacion"
 
-// Configuraciones (solo administrador): especies, rubros, establecimientos y usuarios
+// Configuraciones (solo administrador): especies, rubros, conceptos, titulares, establecimientos y usuarios
 export default function ConfiguracionesPage() {
   const { esAdmin, establecimientoActivo, cargando } = useEstablecimiento()
 

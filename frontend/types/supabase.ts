@@ -941,6 +941,75 @@ export type Database = {
           },
         ]
       }
+      concepto_grupos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      conceptos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          grupo_id: string | null
+          id: string
+          nombre: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          grupo_id?: string | null
+          id?: string
+          nombre: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          grupo_id?: string | null
+          id?: string
+          nombre?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       especies: {
         Row: {
           activo: boolean
@@ -1491,19 +1560,89 @@ export type Database = {
           },
         ]
       }
+      movimiento_archivos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          movimiento_id: string
+          nombre: string
+          ocultado_en: string | null
+          ocultado_por: string | null
+          oculto: boolean
+          ruta: string
+          tamano_bytes: number
+          tipo_mime: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id: string
+          movimiento_id: string
+          nombre: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+          ruta: string
+          tamano_bytes: number
+          tipo_mime: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          movimiento_id?: string
+          nombre?: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+          ruta?: string
+          tamano_bytes?: number
+          tipo_mime?: string
+        }
+        Relationships: []
+      }
+      movimiento_titulares: {
+        Row: {
+          establecimiento_id: string
+          monto: number
+          movimiento_id: string
+          titular_id: string
+        }
+        Insert: {
+          establecimiento_id: string
+          monto: number
+          movimiento_id: string
+          titular_id: string
+        }
+        Update: {
+          establecimiento_id?: string
+          monto?: number
+          movimiento_id?: string
+          titular_id?: string
+        }
+        Relationships: []
+      }
       movimientos_economicos: {
         Row: {
           actividad_id: string | null
           anulado_en: string | null
           anulado_por: string | null
           concepto: string
+          concepto_id: string | null
           contraparte: string | null
           created_at: string
           created_by: string | null
+          editado_en: string | null
+          editado_por: string | null
           establecimiento_id: string
           estado: string
           fecha: string
           fecha_pago: string | null
+          fecha_vencimiento: string | null
           id: string
           lote_id: string | null
           moneda_original: string
@@ -1521,13 +1660,17 @@ export type Database = {
           anulado_en?: string | null
           anulado_por?: string | null
           concepto: string
+          concepto_id?: string | null
           contraparte?: string | null
           created_at?: string
           created_by?: string | null
+          editado_en?: string | null
+          editado_por?: string | null
           establecimiento_id: string
           estado: string
           fecha: string
           fecha_pago?: string | null
+          fecha_vencimiento?: string | null
           id?: string
           lote_id?: string | null
           moneda_original: string
@@ -1545,13 +1688,17 @@ export type Database = {
           anulado_en?: string | null
           anulado_por?: string | null
           concepto?: string
+          concepto_id?: string | null
           contraparte?: string | null
           created_at?: string
           created_by?: string | null
+          editado_en?: string | null
+          editado_por?: string | null
           establecimiento_id?: string
           estado?: string
           fecha?: string
           fecha_pago?: string | null
+          fecha_vencimiento?: string | null
           id?: string
           lote_id?: string | null
           moneda_original?: string
@@ -1999,6 +2146,36 @@ export type Database = {
           },
         ]
       }
+      titulares: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_actividades: {
@@ -2177,6 +2354,7 @@ export type Database = {
           dias: number | null
           establecimiento_id: string | null
           fecha: string | null
+          fecha_vencimiento: string | null
           id: string | null
           lote_id: string | null
           moneda_original: string | null
@@ -2286,6 +2464,23 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_resultado_detalle: {
+        Row: {
+          concepto: string | null
+          concepto_id: string | null
+          establecimiento_id: string | null
+          grupo: string | null
+          grupo_id: string | null
+          mes: string | null
+          monto_usd: number | null
+          rubro: string | null
+          rubro_id: string | null
+          sentido: string | null
+          titular: string | null
+          titular_id: string | null
+        }
+        Relationships: []
       }
       v_resultado_rubro: {
         Row: {
@@ -2549,6 +2744,10 @@ export type Database = {
         Args: { p_categoria_id: string; p_lote_id: string }
         Returns: undefined
       }
+      adjuntar_archivo_movimiento: {
+        Args: { p_archivo_id: string; p_movimiento_id: string; p_nombre: string }
+        Returns: string
+      }
       adjuntar_archivo_lote: {
         Args: {
           p_archivo_id: string
@@ -2686,6 +2885,20 @@ export type Database = {
       es_admin: { Args: never; Returns: boolean }
       es_miembro: { Args: { p_est: string }; Returns: boolean }
       fecha_hoy: { Args: never; Returns: string }
+      editar_movimiento: {
+        Args: {
+          p_concepto_id: string
+          p_contraparte?: string
+          p_fecha: string
+          p_lote_id?: string
+          p_movimiento_id: string
+          p_precio: Json
+          p_rubro_id: string
+          p_sentido: string
+          p_titulares?: Json
+        }
+        Returns: undefined
+      }
       guardar_forma_potrero: {
         Args: {
           p_actualizar_superficie?: boolean
@@ -2731,6 +2944,10 @@ export type Database = {
       }
       quitar_archivo_lote: {
         Args: { p_archivo_id: string; p_lote_id: string }
+        Returns: undefined
+      }
+      quitar_archivo_movimiento: {
+        Args: { p_archivo_id: string }
         Returns: undefined
       }
       reabrir_lote: {
@@ -2824,7 +3041,7 @@ export type Database = {
       }
       registrar_movimiento: {
         Args: {
-          p_concepto: string
+          p_concepto_id: string
           p_contraparte?: string
           p_establecimiento_id: string
           p_fecha: string
@@ -2833,6 +3050,7 @@ export type Database = {
           p_precio: Json
           p_rubro_id: string
           p_sentido: string
+          p_titulares?: Json
         }
         Returns: string
       }

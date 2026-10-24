@@ -81,7 +81,10 @@ export type PrecioCarga = {
   tipo_cambio?: number       // obligatorio con UYU, vacío con USD
   estado: EstadoPago
   fecha_pago?: string
+  vencimiento?: string       // solo pendiente: cuándo se espera cobrar o pagar (carga manual y precio posterior)
   rubro_id?: string          // por defecto, el rubro con el nombre de la especie del lote
+  concepto_id?: string       // por defecto, "Compra de ganado" o "Venta de ganado vacuno/ovino"
+  titulares?: { titular_id: string; monto: number }[]   // reparto del monto entre titulares (suma = monto)
 }
 
 // Destete: lo que sale de cada origen (solo cría al pie) y lo que entra a cada lote nuevo (ya sexado)
