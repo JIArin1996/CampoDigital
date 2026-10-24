@@ -19,12 +19,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { StockPorCategoria } from "@/components/lotes/StockPorCategoria"
 import { AjusteForm } from "@/components/lotes/AjusteForm"
 import { LinajeLote } from "@/components/lotes/LinajeLote"
+import { HistorialLote } from "@/components/lotes/HistorialLote"
 import { ArchivosDelLote } from "@/components/lotes/ArchivosDelLote"
 import { CerrarReabrirLote } from "@/components/lotes/CerrarReabrirLote"
 import { CambiarPotreroDialog } from "@/components/potreros/CambiarPotreroDialog"
 import { diasEntre } from "@/components/bitacora/formato"
 import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
-import { ETIQUETA_EVENTO, fechaCorta, hoyLocal } from "@/components/lotes/formato"
+import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { formatoAnios } from "@/components/lotes/anios"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import type { Carencia } from "@/types/actividades"
@@ -123,21 +124,6 @@ export default function LotePage() {
   const tieneCrias = vigente.stock.some(s => s.cabezas > 0 && esCria(s.categoria_id))
     && (vigente.stock.some(s => s.cabezas > 0 && !esCria(s.categoria_id)) || vigente.eventos.some(e => e.tipo === "paricion" && e.cabezas > 0))
   const accion = buttonVariants({ variant: "outline", className: "h-auto flex-col gap-1 py-3 text-sm" })
-
-  // Historial: los eventos de stock y los cambios de potrero, intercalados por fecha (lo más nuevo arriba;
-  // el mismo día, el ingreso arriba de la salida y los dos arriba de los eventos)
-  type FilaHistorial =
-    | { clase: "evento"; fecha: string; orden: number; evento: (typeof vigente.eventos)[number] }
-    | { clase: "potrero"; fecha: string; orden: number; texto: string; nota: string | null; id: string }
-  const historial: FilaHistorial[] = [
-    ...vigente.eventos.map((evento, i) => ({ clase: "evento" as const, fecha: evento.fecha, orden: 2 + i / 1e6, evento })),
-    ...vigente.estadias.flatMap(e => [
-      { clase: "potrero" as const, fecha: e.fecha_ingreso, orden: 0, id: `${e.id}:i`, nota: e.motivo,
-        texto: `Entró a ${nombrePotrero(e.potrero_id)}` },
-      ...(e.fecha_salida ? [{ clase: "potrero" as const, fecha: e.fecha_salida, orden: 1, id: `${e.id}:s`, nota: e.motivo_salida,
-        texto: `Salió de ${nombrePotrero(e.potrero_id)}${e.cerrada_por === "cierre" ? " (cierre del lote)" : ""}` }] : []),
-    ]),
-  ].sort((a, b) => b.fecha.localeCompare(a.fecha) || a.orden - b.orden)
 
   const deshacer = async () => {
     if (!window.confirm("¿Deshacer el último cambio de potrero? El lote vuelve a donde estaba antes.")) return
@@ -296,41 +282,8 @@ export default function LotePage() {
               Actividades <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          {historial.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin movimientos.</p>
-          ) : (
-            <ul className="rounded-lg border divide-y bg-card">
-              {historial.map(fila => {
-                if (fila.clase === "potrero") return (
-                  <li key={fila.id} className="flex items-start gap-3 px-4 py-3">
-                    <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{fila.texto}</p>
-                      <p className="text-xs text-muted-foreground">{fechaCorta(fila.fecha)}</p>
-                      {fila.nota && <p className="text-sm text-muted-foreground mt-0.5">{fila.nota}</p>}
-                    </div>
-                  </li>
-                )
-                const ev = fila.evento
-                return (
-                  <li key={ev.id} className="flex items-start justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {ETIQUETA_EVENTO[ev.tipo]} · {nombreCategoria(ev.categoria_id)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{fechaCorta(ev.fecha)}</p>
-                      {ev.nota && <p className="text-sm text-muted-foreground mt-0.5">{ev.nota}</p>}
-                    </div>
-                    <span
-                      className={`text-base font-semibold tabular-nums shrink-0 ${ev.cabezas < 0 ? "text-destructive" : ""}`}
-                    >
-                      {ev.cabezas > 0 ? `+${ev.cabezas}` : ev.cabezas}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+          <HistorialLote eventos={vigente.eventos} estadias={vigente.estadias}
+            nombrePotrero={nombrePotrero} nombreCategoria={nombreCategoria} />
         </section>
       </div>
 
