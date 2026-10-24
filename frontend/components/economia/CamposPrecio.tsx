@@ -4,20 +4,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CAMPO, SELECT_NATIVO } from "@/components/shared/estilos"
 import { CampoMonto } from "@/components/economia/CampoMonto"
+import { CampoTipoCambio } from "@/components/economia/CampoTipoCambio"
 import type { PrecioForm } from "@/components/economia/formato"
 
 /**
  * Monto, moneda (con tipo de cambio si son pesos) y estado. Ingreso: "cobrado"; egreso: "pagado".
  * Pagado o cobrado: en la fecha del movimiento. Pendiente: la fecha en que se espera cobrar o pagar.
+ * Con pesos, el tipo de cambio se completa con el del BCU para la fecha (ver CampoTipoCambio).
  */
-export function CamposPrecio({ id, valor, onCambio, ingreso, fecha }: {
+export function CamposPrecio({ id, valor, onCambio, ingreso, fecha, consultarTipoCambioAlInicio = true }: {
   id: string
   valor: PrecioForm
-  onCambio: (v: PrecioForm) => void
+  onCambio: React.Dispatch<React.SetStateAction<PrecioForm>>
   ingreso: boolean
-  fecha: string           // la del movimiento: mínimo de la fecha prevista
+  fecha: string           // la del movimiento: mínimo de la fecha prevista y fecha de la cotización
+  consultarTipoCambioAlInicio?: boolean   // false al editar uno en pesos: muestra lo guardado hasta que cambie la fecha
 }) {
-  const cambiar = (c: Partial<PrecioForm>) => onCambio({ ...valor, ...c })
+  // Con actualizador: no pisa un tipo de cambio que llegue del BCU mientras se escribe en otro campo
+  const cambiar = (c: Partial<PrecioForm>) => onCambio(p => ({ ...p, ...c }))
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -37,8 +41,8 @@ export function CamposPrecio({ id, valor, onCambio, ingreso, fecha }: {
       {valor.moneda === "UYU" && (
         <div className="space-y-1.5">
           <Label htmlFor={`${id}-tc`}>Tipo de cambio (pesos por dólar)</Label>
-          <Input id={`${id}-tc`} type="text" inputMode="decimal" placeholder="Ej: 40,5" className={CAMPO}
-            value={valor.tipoCambio} onChange={e => cambiar({ tipoCambio: e.target.value })} />
+          <CampoTipoCambio id={`${id}-tc`} fecha={fecha} valor={valor.tipoCambio} consultarAlInicio={consultarTipoCambioAlInicio}
+            onCambio={u => onCambio(p => ({ ...p, tipoCambio: typeof u === "function" ? u(p.tipoCambio) : u }))} />
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">

@@ -37,6 +37,8 @@ import type { CategoriaAnimal, Especie, Lote, StockLote } from "@/types/lotes"
 import type {
   Carencia, EstadoPago, LineaCarga, LoteNuevoCarga, Modalidad, Moneda, PrecioCarga, TipoActividad6a, TipoCargable,
 } from "@/types/actividades"
+import { CampoTipoCambio } from "@/components/economia/CampoTipoCambio"
+import { tipoCambioVacio, type TipoCambioForm } from "@/components/economia/formato"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 type Rubro = Awaited<ReturnType<typeof getRubros>>[number]
@@ -201,7 +203,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [conPrecio, setConPrecio] = useState(false)
   const [monto, setMonto] = useState("")
   const [moneda, setMoneda] = useState<Moneda>("USD")
-  const [tipoCambio, setTipoCambio] = useState("")
+  const [tipoCambio, setTipoCambio] = useState<TipoCambioForm>(tipoCambioVacio)
   const [estadoPago, setEstadoPago] = useState<EstadoPago>("pendiente")
   const [fechaPago, setFechaPago] = useState("")
   const [rubroId, setRubroId] = useState("")
@@ -305,9 +307,10 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       if (m === null || Number.isNaN(m) || m <= 0) return setError("El monto tiene que ser un número mayor a cero")
       precio = { monto: m, moneda, estado: estadoPago }
       if (moneda === "UYU") {
-        const tc = leer(tipoCambio)
+        const tc = leer(tipoCambio.texto)
         if (tc === null || Number.isNaN(tc) || tc <= 0) return setError("Con pesos hay que cargar el tipo de cambio")
         precio.tipo_cambio = tc
+        if (tipoCambio.fechaBcu) precio.tipo_cambio_fecha = tipoCambio.fechaBcu
       }
       if (fechaPago) precio.fecha_pago = fechaPago
       if (rubroId) precio.rubro_id = rubroId
@@ -522,8 +525,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                   {moneda === "UYU" && (
                     <div className="space-y-1.5">
                       <Label htmlFor="act-tc">Tipo de cambio (pesos por dólar)</Label>
-                      <Input id="act-tc" type="text" inputMode="decimal" placeholder="Ej: 40,5" className={CAMPO}
-                        value={tipoCambio} onChange={e => setTipoCambio(e.target.value)} />
+                      <CampoTipoCambio id="act-tc" fecha={fecha} valor={tipoCambio} onCambio={setTipoCambio} />
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-3">

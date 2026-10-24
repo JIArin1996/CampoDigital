@@ -79,6 +79,7 @@ export type PrecioCarga = {
   monto: number
   moneda: Moneda
   tipo_cambio?: number       // obligatorio con UYU, vacío con USD
+  tipo_cambio_fecha?: string // fecha de la cotización del BCU usada (sin tocar); la base decide si es 'BCU' o 'manual'
   estado: EstadoPago
   fecha_pago?: string
   vencimiento?: string       // solo pendiente: cuándo se espera cobrar o pagar (carga manual y precio posterior)

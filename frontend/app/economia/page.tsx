@@ -359,7 +359,10 @@ function Movimientos({ movimientos, rubros, conceptos, titulares, archivos, repa
                   <div className="text-right shrink-0">
                     <p className={cn("font-semibold tabular-nums", !anulado && COLOR_SENTIDO[m.sentido])}>{m.sentido === "ingreso" ? "+" : "−"} {usd(Number(m.monto_usd))}</p>
                     {m.moneda_original === "UYU" && (
-                      <p className="text-xs text-muted-foreground tabular-nums">{montoOriginal(Number(m.monto_original), m.moneda_original, m.tipo_cambio)}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {montoOriginal(Number(m.monto_original), m.moneda_original, m.tipo_cambio)}
+                        {m.tipo_cambio_fuente === "BCU" && m.tipo_cambio_fecha ? ` · BCU ${fechaCorta(m.tipo_cambio_fecha).slice(0, 5)}` : " · a mano"}
+                      </p>
                     )}
                   </div>
                 </div>

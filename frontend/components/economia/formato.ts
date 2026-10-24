@@ -36,17 +36,30 @@ export const montoOriginal = (monto: number, moneda: string, tipoCambio: number 
 
 // ── Precio (lo que se carga en los formularios) ──
 
+// Tipo de cambio del formulario: el texto del campo y, si vino del BCU sin tocarlo, la fecha real de
+// la cotización (la base lo guarda como 'BCU' solo si esa cotización existe; si no, 'manual')
+export interface TipoCambioForm {
+  texto: string
+  fechaBcu: string        // "" = cargado a mano
+  guardada: boolean       // false: vino del BCU pero no se pudo guardar en tipos_cambio
+}
+
+export const tipoCambioVacio = (): TipoCambioForm => ({ texto: "", fechaBcu: "", guardada: true })
+
+// 40.078 → "40,078" (sin separador de miles, hasta 4 decimales)
+export const tipoCambioATexto = (n: number) => n.toLocaleString("es-UY", { useGrouping: false, maximumFractionDigits: 4 })
+
 export interface PrecioForm {
   monto: string
   moneda: "USD" | "UYU"
-  tipoCambio: string
+  tipoCambio: TipoCambioForm
   estado: "pagado" | "pendiente"
   vencimiento: string     // solo pendiente: cuándo se espera cobrar o pagar (opcional)
 }
 
-export const precioVacio = (): PrecioForm => ({ monto: "", moneda: "USD", tipoCambio: "", estado: "pendiente", vencimiento: "" })
+export const precioVacio = (): PrecioForm => ({ monto: "", moneda: "USD", tipoCambio: tipoCambioVacio(), estado: "pendiente", vencimiento: "" })
 
-const numero = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")))
+export const numero = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")))
 
 // ── Montos en formato moneda (es-UY): "1.234,50" ──
 
@@ -101,9 +114,10 @@ export function leerPrecio(v: PrecioForm, fecha: string, fechaPagoPrevia?: strin
   if (monto === null || Number.isNaN(monto) || Math.round(monto * 100) <= 0) return { error: "El monto tiene que ser mayor a cero" }
   const precio: PrecioCarga = { monto, moneda: v.moneda, estado: v.estado }
   if (v.moneda === "UYU") {
-    const tc = numero(v.tipoCambio)
+    const tc = numero(v.tipoCambio.texto)
     if (tc === null || Number.isNaN(tc) || tc <= 0) return { error: "Con pesos hay que cargar el tipo de cambio" }
     precio.tipo_cambio = tc
+    if (v.tipoCambio.fechaBcu) precio.tipo_cambio_fecha = v.tipoCambio.fechaBcu
   }
   if (v.estado === "pagado") precio.fecha_pago = fechaPagoPrevia && fechaPagoPrevia >= fecha ? fechaPagoPrevia : fecha
   else if (v.vencimiento) {

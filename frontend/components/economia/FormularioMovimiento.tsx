@@ -17,7 +17,7 @@ import { OpcionesConcepto } from "@/components/economia/OpcionesConcepto"
 import { RepartoTitulares } from "@/components/economia/RepartoTitulares"
 import { ElegirArchivosMovimiento, type ArchivoElegido } from "@/components/economia/ArchivosMovimiento"
 import {
-  leerPrecio, leerTitulares, montoATexto, parsearMonto, precioVacio, type PrecioForm, type TitularForm,
+  leerPrecio, leerTitulares, montoATexto, parsearMonto, precioVacio, tipoCambioATexto, type PrecioForm, type TitularForm,
 } from "@/components/economia/formato"
 import { nuevoId } from "@/components/actividades/formato"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
@@ -38,7 +38,11 @@ interface Catalogos {
 const precioDe = (m: Movimiento): PrecioForm => ({
   monto: montoATexto(Number(m.monto_original)),
   moneda: m.moneda_original,
-  tipoCambio: m.tipo_cambio ? String(m.tipo_cambio).replace(".", ",") : "",
+  tipoCambio: {
+    texto: m.tipo_cambio ? tipoCambioATexto(Number(m.tipo_cambio)) : "",
+    fechaBcu: m.tipo_cambio_fuente === "BCU" ? m.tipo_cambio_fecha ?? "" : "",
+    guardada: true,
+  },
   estado: m.estado,
   vencimiento: m.fecha_vencimiento ?? "",
 })
@@ -191,7 +195,8 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
         </div>
       )}
 
-      <CamposPrecio id="mov" valor={precio} onCambio={setPrecio} ingreso={ingreso} fecha={fecha} />
+      <CamposPrecio id="mov" valor={precio} onCambio={setPrecio} ingreso={ingreso} fecha={fecha}
+        consultarTipoCambioAlInicio={!editando || m?.moneda_original !== "UYU"} />
 
       {catalogos.titulares.length > 0 && (
         <div className="space-y-1.5">
