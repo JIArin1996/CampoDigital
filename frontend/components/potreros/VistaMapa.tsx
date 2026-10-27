@@ -6,6 +6,7 @@ import { Expand, FileUp, PencilOff, Scan, Shrink } from "lucide-react"
 import { toast } from "sonner"
 
 import { PanelPotrero } from "@/components/potreros/PanelPotrero"
+import { ResumenEstablecimiento } from "@/components/potreros/ResumenEstablecimiento"
 import { BarraDibujo } from "@/components/potreros/BarraDibujo"
 import { ImportarFormas } from "@/components/potreros/ImportarFormas"
 import { CAPAS, CAPA_POR_DEFECTO, type IdCapa } from "@/components/potreros/mapa/capas"
@@ -64,11 +65,12 @@ function guardar(clave: string, valor: string) {
  * la computadora). Los potreros sin forma se listan aparte. Administrador y operador dibujan, editan,
  * borran e importan formas; se avisa (sin bloquear) si dos potreros se superponen.
  */
-export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, puedeOperar, acciones, onCambio }: {
+export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, salidas, puedeOperar, acciones, onCambio }: {
   establecimientoId: string
   potreros: Potrero[]                       // los activos
   formas: Map<string, FormaPotrero>
   ocupacion: Map<string, LoteEnPotrero[]>
+  salidas: Map<string, string>              // última salida de cada potrero (desde cuándo descansa)
   puedeOperar: boolean
   acciones: AccionesPotrero
   onCambio: () => void                      // recargar después de guardar
@@ -176,13 +178,15 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
       onReiniciar={() => { setEdicion({ id: dibujando.id, inicial: null }); setFormaEditada(null) }}
       onCancelar={() => setEdicion(null)} />
   ) : elegido && (
-    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} lotes={ocupacion.get(elegido.id) ?? []}
+    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} ultimaSalida={salidas.get(elegido.id) ?? null}
+      lotes={ocupacion.get(elegido.id) ?? []}
       puedeOperar={puedeOperar} acciones={acciones} onCerrar={() => setSeleccionado(null)}
       onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)} />
   )
   // En el celular: el mismo panel, resumido hasta que se toque "Ver detalle"
   const panelMovil = dibujando ? panel : elegido && (
-    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} lotes={ocupacion.get(elegido.id) ?? []}
+    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} ultimaSalida={salidas.get(elegido.id) ?? null}
+      lotes={ocupacion.get(elegido.id) ?? []}
       puedeOperar={puedeOperar} acciones={acciones} onCerrar={() => setSeleccionado(null)}
       onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)}
       resumido={!detalle} onVerDetalle={() => setDetalle(true)} />
@@ -213,6 +217,12 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
         </li>
       ))}
     </ul>
+  )
+
+  // Sin potrero elegido: el resumen de todo el establecimiento
+  const resumen = (
+    <ResumenEstablecimiento potreros={potreros} formas={formas} ocupacion={ocupacion} salidas={salidas}
+      onSeleccionar={id => { if (!edicion) setSeleccionado(id) }} />
   )
 
   const listaNumerados = numerados.length > 0 && (
@@ -307,9 +317,12 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
           )}
         </div>
         <aside className="hidden lg:block rounded-lg border bg-card p-4 lg:h-[70vh] lg:overflow-y-auto">
-          {panel ?? <p className="text-sm text-muted-foreground">Tocá un potrero en el mapa para ver qué tiene.</p>}
+          {panel || resumen}
         </aside>
       </div>
+
+      {/* Celular y tableta: el resumen debajo del mapa mientras no se elige un potrero */}
+      {!panel && <section className="rounded-lg border bg-card p-4 lg:hidden">{resumen}</section>}
 
       {/* Leyenda (siempre: el color nunca va solo) */}
       {leyenda}
