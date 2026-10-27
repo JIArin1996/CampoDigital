@@ -1821,6 +1821,7 @@ export type Database = {
           actividad_id: string | null
           anulado_en: string | null
           anulado_por: string | null
+          comentario: string | null
           concepto: string
           concepto_id: string | null
           contraparte: string | null
@@ -1836,6 +1837,7 @@ export type Database = {
           fecha_pago: string | null
           fecha_vencimiento: string | null
           id: string
+          identificador: string | null
           lote_id: string | null
           moneda_original: string
           monto_original: number
@@ -1855,6 +1857,7 @@ export type Database = {
           actividad_id?: string | null
           anulado_en?: string | null
           anulado_por?: string | null
+          comentario?: string | null
           concepto: string
           concepto_id?: string | null
           contraparte?: string | null
@@ -1870,6 +1873,7 @@ export type Database = {
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
           id?: string
+          identificador?: string | null
           lote_id?: string | null
           moneda_original: string
           monto_original: number
@@ -1889,6 +1893,7 @@ export type Database = {
           actividad_id?: string | null
           anulado_en?: string | null
           anulado_por?: string | null
+          comentario?: string | null
           concepto?: string
           concepto_id?: string | null
           contraparte?: string | null
@@ -1904,6 +1909,7 @@ export type Database = {
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
           id?: string
+          identificador?: string | null
           lote_id?: string | null
           moneda_original?: string
           monto_original?: number
