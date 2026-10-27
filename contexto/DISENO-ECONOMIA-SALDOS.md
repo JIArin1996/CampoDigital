@@ -1,8 +1,10 @@
 # Campo Digital — Economía: quién pagó, saldos entre titulares, datos de factura, filtros y listado
 
-Estado: **aprobado** (2026-10-27). Decisiones E1 a E10 y permisos de Consulta cerrados por Iñaki (sección 9). Se implementa en pasos (sección 10), con una parada entre cada uno.
+Estado: **implementado** (2026-10-27). Decisiones E1 a E10 y permisos de Consulta cerrados por Iñaki (sección 9). Se implementó en los seis pasos de la sección 10, con una parada y aprobación en cada uno.
 
 > **Cambio del 2026-10-27 (paso 2):** las razones sociales **no son un catálogo**. "Factura a nombre de" es un **texto** que se escribe en cada movimiento, con el RUT opcional (12 dígitos) y el número de comprobante; la app sugiere los nombres ya usados. Migración `20261027000200_factura_en_el_movimiento` (borra `razones_sociales` y `facturado_a_id`; suma `factura_nombre` y `factura_rut`). Las secciones de abajo ya lo reflejan.
+
+> **Cambio del 2026-10-27 (paso 4):** cada movimiento tiene un **identificador** (el nombre propio, ej. "Venta terneras refugo"; hasta 120 caracteres) y un **comentario** (hasta 2000), los dos opcionales. El identificador es lo que más se destaca en el listado; el concepto del catálogo (ej. "Venta ganado") pasa a ser otra columna. Sin identificador se muestra el texto del movimiento ("Venta de 20 terneras" en una venta). El comentario se ve solo en el detalle. Migración `20261027000300_identificador_y_comentario`: `_guardar_pago_y_factura` lee `identificador` y `comentario` de `p_precio`, así que entran en todas las cargas y ediciones sin cambiar ninguna firma.
 
 Base: `20261025000200` (conceptos y titulares), `20261025000300` (reparto entre titulares y edición), `20261025000400` (tipo de cambio del BCU).
 
@@ -75,8 +77,8 @@ Tabla `pagadores`:
 - No hay catálogo de razones sociales: se escribe al cargar cada ingreso o gasto, y la app sugiere los nombres ya usados.
 
 ### 3.3 Movimientos
-- **Columnas nuevas en `movimientos_economicos`:** `pagador_id`, `factura_nombre`, `factura_rut` y `numero_comprobante` (texto de hasta 50 caracteres, sin blancos sueltos). Todas opcionales.
-- **Sin cambiar la firma de ninguna función.** `registrar_movimiento`, `editar_movimiento`, `_registrar_movimiento` y `cargar_precio_actividad` leen claves nuevas de `p_precio`: `pagador_id`, `factura_nombre`, `factura_rut` y `numero_comprobante`. Se usa `create or replace`, que conserva los permisos.
+- **Columnas nuevas en `movimientos_economicos`:** `pagador_id`, `factura_nombre`, `factura_rut`, `numero_comprobante` (texto de hasta 50 caracteres, sin blancos sueltos), `identificador` (hasta 120) y `comentario` (hasta 2000). Todas opcionales.
+- **Sin cambiar la firma de ninguna función.** `registrar_movimiento`, `editar_movimiento`, `_registrar_movimiento` y `cargar_precio_actividad` leen claves nuevas de `p_precio`: `pagador_id`, `factura_nombre`, `factura_rut`, `numero_comprobante`, `identificador` y `comentario`. Se usa `create or replace`, que conserva los permisos.
 - **Validación:** el pagador tiene que ser del establecimiento y estar activo, salvo que ya esté puesto en ese movimiento (al editar). El RUT se acepta con espacios, puntos o guiones y se guarda solo con dígitos.
 
 ### 3.4 Liquidaciones
@@ -162,10 +164,13 @@ La liquidación no toca el resultado.
 ## 6. Movimientos: filtros y listado
 
 ### Filtros (en la URL)
-`?tipo=egreso&titular=<id>,<id>&pagador=<id>&rubro=<id>&factura=<nombre>&periodo=mes|anio|rango&desde=&hasta=&orden=fecha|monto`
+`?pestana=movimientos&tipo=egreso&tit=<id>&tit=<id>&pag=<id>&rub=<id>&con=<id>&fac=<nombre>&estado=pendiente|pagado&anulados=1`
+`&periodo=mes&mes=2026-10 | periodo=anio&anio=2026 | periodo=rango&desde=…&hasta=…&orden=monto`
+
+(Los de selección múltiple se repiten; sin `orden`, por fecha. La lógica está en `components/economia/movimientos/filtros.ts`.)
 
 - **Tipo:** un selector segmentado siempre visible, Todos / Ingresos / Egresos.
-- **Titulares, Pagador, Rubro y Factura a nombre de** (entre los nombres ya usados): selección múltiple.
+- **Titulares, Pagador, Rubro, Concepto y Factura a nombre de** (entre los nombres usados en el período): selección múltiple. Además, Estado (pagados o pendientes) y Ver anulados (los anulados no suman).
   - **En el celular:** un botón **"Filtros (N)"** abre una hoja desde abajo, y los filtros activos se ven como chips con ✕.
   - **En la computadora:** los mismos selectores en una fila.
 - **Período:** mes actual (por defecto), año o rango. Es **independiente** del ejercicio de Resultado (E7).
@@ -174,25 +179,26 @@ La liquidación no toca el resultado.
 - **Por pagador**, en cambio, se usa el **monto entero** (E10).
 
 ### Listado
-- **Computadora**, en columnas: **Fecha | Concepto | Rubro | Titular(es) | Pagado por | Monto USD**.
+- **Computadora**, en columnas: **Fecha | Identificador | Concepto | Rubro | Titular(es) | Pagado por | Monto USD**. El identificador va destacado.
   - Los montos van alineados a la derecha, con los ingresos en verde y los egresos en rojo, usando los colores del sistema de diseño.
   - Si el movimiento es en pesos, debajo del monto y en chico: "UYU 600.000 a 40,078 · BCU 23/10".
   - Titulares: hasta 2 con su porcentaje ("Hermanos 67 % · Madre 33 %"); si son más, "3 titulares", con el detalle al tocar.
   - Se ordena por fecha, de lo más nuevo a lo más viejo, y se puede ordenar por monto.
 - **Celular:** una tarjeta de dos renglones.
-  - Arriba: fecha y concepto a la izquierda, monto a la derecha.
-  - Abajo, en chico: "Rubro · Titular(es) · Pagó X".
+  - Arriba: fecha e identificador a la izquierda, monto a la derecha.
+  - Abajo, en chico: "Concepto · Rubro · Titular(es) · Pagó X" (el concepto no se repite si es igual al identificador).
   - Toques de 44 px.
-- **Detalle del movimiento** (al tocar): todo, más a nombre de quién es la factura, el RUT, el número de comprobante y los archivos.
-- **Componente nuevo `TablaResponsiva`:** tabla en la computadora y tarjetas en el celular. Lo usarían Movimientos y Saldos.
+- **Detalle del movimiento** (al tocar): todo, más el concepto, a nombre de quién es la factura, el RUT, el número de comprobante, el comentario y los archivos. El administrador y el operador marcan pagado, editan o anulan desde ahí.
+- **Componente nuevo `TablaResponsiva`** (`components/shared`): tabla en la computadora y tarjetas en el celular. Lo usa Movimientos; Saldos es una lista de frases y no lo necesitó.
+- **Archivos para Consulta:** no los ve (la base se los muestra solo a quien carga, como estaba).
 
 ---
 
 ## 7. Formulario de carga
-1. **Orden de los campos:** tipo, fecha, concepto, rubro, monto y moneda (con el tipo de cambio del BCU), titulares y reparto, **Pagado por** (en los gastos) o **Cobrado por** (en los ingresos). El campo lleva la ayuda "De qué bolsillo salió la plata (no a nombre de quién está la factura)"; en los ingresos dice "entró".
-2. **Al final, plegado en "Datos de factura":** a nombre de quién (texto, con los nombres ya usados como sugerencia), RUT opcional y número de comprobante.
+1. **Orden de los campos:** tipo, fecha, identificador (opcional), concepto, rubro, monto y moneda (con el tipo de cambio del BCU), titulares y reparto, **Pagado por** (en los gastos) o **Cobrado por** (en los ingresos). El campo lleva la ayuda "De qué bolsillo salió la plata (no a nombre de quién está la factura)"; en los ingresos dice "entró".
+2. **Al final, plegado en "Datos de factura":** a nombre de quién (texto, con los nombres ya usados como sugerencia), RUT opcional y número de comprobante. Después de los archivos, **Comentarios** (opcional).
 3. **Por defecto, el último "Pagado por" de ese usuario** en ese establecimiento, guardado en la base (E6): se mantiene entre dispositivos.
-4. **Lo mismo en el precio de la compra y la venta** de Actividades (`CamposPrecio` y `CargarPrecio`), que manda las claves en `p_precio`.
+4. **Lo mismo en el precio de la compra y la venta** de Actividades (`CamposPrecio` y `CargarPrecio`), que manda las claves en `p_precio`, con identificador y comentario.
 
 ---
 
@@ -203,7 +209,8 @@ La liquidación no toca el resultado.
 - **"Registrar liquidación"** (Administrador y Operador), desde el detalle o arriba de la lista. Pide:
   - fecha, de (parte), a (parte), monto, moneda (con el tipo de cambio del BCU) y observación;
   - desde el detalle de un par, viene precargada con ese par y el monto del saldo.
-- **"Pendientes":** **todos** los movimientos pagados sin reparto o sin pagador (E9), con acceso a editarlos.
+- **"No entran en los saldos":** **todos** los movimientos pagados sin reparto o sin pagador (E9), con qué les falta y el botón "Completar" (editar). En la app se llama así para no confundirlo con la pestaña Pendientes (por cobrar y por pagar).
+- **Lista "Liquidaciones"** (agregada al implementar): todas, con las anuladas tachadas y su motivo, y "Anular" para el administrador y el operador. Hace falta porque una liquidación que deja un par en cero desaparece de los saldos y no se podría anular desde el detalle.
 - **En el celular** se ve como lista de tarjetas y el detalle se abre desde abajo; **en la computadora**, lista a la izquierda y detalle a la derecha.
 
 ---
@@ -238,6 +245,6 @@ La liquidación no toca el resultado.
    - Vos aplicás y corrés; después, los tipos.
 2. **Configuraciones > Economía:** las cuatro secciones, con Pagadores nuevo, y los redireccionamientos. Más la migración `20261027000200`: la factura pasa a ser texto en el movimiento.
 3. **Formulario de carga:** el orden nuevo, Pagado por o Cobrado por, Datos de factura y el último pagador. Lo mismo en la compra y la venta, más la corrección del rubro por defecto. Sin botones de carga para Consulta.
-4. **Movimientos:** `TablaResponsiva`, filtros en la URL, totales con la parte de cada titular, el detalle con factura y comprobante, y la lectura para Consulta.
+4. **Movimientos:** `TablaResponsiva`, filtros en la URL, totales con la parte de cada titular, el detalle con factura y comprobante, y la lectura para Consulta. Más la migración `20261027000300`: identificador y comentario (pruebas: 57).
 5. **Saldos:** frases, detalle por par, registrar y anular liquidaciones, y Pendientes.
 6. **Cierre:** prueba de los tres roles, revisión en el celular, documentación y commit.

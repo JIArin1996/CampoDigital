@@ -76,6 +76,8 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 ## 6. Patrones
 
 - **Listas**: tarjetas con borde (`rounded-lg border bg-card`), toda la tarjeta es tocable cuando lleva a una ficha, con `ChevronRight` al final.
+- **Tablas con muchas columnas**: `TablaResponsiva` (`components/shared`): tabla en la computadora y una tarjeta de dos renglones por fila en el celular, toda tocable (44 px). Los montos a la derecha, con `tabular-nums`; ingresos en verde y egresos en rojo. La usa Economía > Movimientos (2026-10-27).
+- **Filtros en el celular**: un botón "Filtros (N)" que abre una hoja desde abajo, y lo filtrado como chips que se sacan con ✕; en la computadora, los mismos filtros en una fila. Si conviene recargar o compartir, van en la URL (Economía > Movimientos).
 - **Vacío**: borde punteado, ícono, una frase y, si corresponde, la acción para empezar.
 - **Cargando**: bloques `bg-muted animate-pulse` del tamaño aproximado del contenido.
 - **Próximamente**: componente `Proximamente` con la etapa en que llega.
