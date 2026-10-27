@@ -1,6 +1,6 @@
 # Diseño: Responsables
 
-Estado: **aprobado** (2026-10-27). Se implementa en pasos (sección 6), con una parada y aprobación en cada uno.
+Estado: **implementado** (2026-10-27). Se implementó en los seis pasos de la sección 6, con una parada y aprobación en cada uno.
 
 ## 1. Qué se pide
 
@@ -61,8 +61,8 @@ Lo decidido: **solo el administrador** crea responsables, y se pueden asignar va
   - **Al repetir:** la tarea nueva copia todos los responsables.
   - **Filtro por responsable** (Bitácora y Calendario): muestra lo que incluye a esa persona.
 - **R8. En pantalla:**
-  - **Formularios:** el selector es una lista de chips para tocar (44 px, varios a la vez) con los activos, ordenados por nombre. Arriba van los que ya tiene el registro, aunque estén inactivos.
-  - **Tarjetas, calendario y detalle de actividad:** "Responsables: Juan, Pedro". Si son más de 3: "Juan, Pedro y 2 más", y la lista completa en el detalle.
+  - **Formularios:** el selector (`components/shared/Responsables.tsx`) es una lista de chips para tocar (44 px, varios a la vez, hasta 10) con los activos, usuarios y personas juntos y ordenados por nombre, sin distinguirlos. Al editar se conservan los que ya tenía, aunque estén de baja (marcados "de baja").
+  - **Tarjetas, calendario y detalle de actividad:** una etiqueta "Juan y Pedro". Si son más de 3: "Juan, Pedro y 2 más", y la lista completa en la bitácora y en el detalle de la actividad.
 
 ## 4. Fuera de alcance
 
@@ -81,7 +81,7 @@ Lo decidido: **solo el administrador** crea responsables, y se pueden asignar va
 ## 6. Pasos
 
 1. **Diseño:** este documento, aprobado.
-2. **Base:**
+2. **Base** (`20261028000100_responsables`, 47 pruebas; y en el paso 3, `20261028000200_nombre_de_usuarios`, 13 pruebas):
    - Migración `20261028000100_responsables`, con las tablas, la copia de datos, las fichas de administradores, las funciones nuevas y las vistas.
    - Pruebas nuevas en `supabase/tests/responsables.sql` y actualización de las existentes.
    - Te paso el SQL, lo aplicás vos y regeneramos los tipos.
