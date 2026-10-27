@@ -54,7 +54,7 @@ interface Props {
   dia: string | null                            // día elegido
   onDia: (dia: string | null) => void
   clases: Set<ClaseItem>                        // qué tipos se muestran
-  pasa: (x: { persona_id: string | null; lotes: string[] | null }) => boolean   // responsable y lote
+  pasa: (x: { responsables: string[] | null; lotes: string[] | null }) => boolean   // responsable y lote
   nombresLote: Map<string, string>
   personas: Persona[]
   puedeOperar: boolean

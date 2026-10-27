@@ -79,14 +79,15 @@ export async function contarIdeasAbiertas(establecimiento_id: string) {
   return count ?? 0
 }
 
-// Suma los lotes etiquetados y el vínculo entre una tarea y la nota de la que salió (en los dos sentidos)
+// Suma los lotes etiquetados, los responsables y el vínculo entre una tarea y la nota de la que salió (en los dos sentidos)
 async function conLotes(entradas: EntradaBitacora[]): Promise<EntradaConLotes[]> {
   if (entradas.length === 0) return []
   const supabase = createClient()
   const ids = entradas.map(e => e.id)
   const idsOrigen = [...new Set(entradas.map(e => e.entrada_origen_id).filter((x): x is string => !!x))]
-  const [lotes, derivadas, origenes] = await Promise.all([
+  const [lotes, responsables, derivadas, origenes] = await Promise.all([
     supabase.from('bitacora_lotes').select('entrada_id, lote_id').in('entrada_id', ids),
+    supabase.from('bitacora_responsables').select('entrada_id, persona_id').in('entrada_id', ids),
     supabase.from('bitacora_entradas')
       .select('id, entrada_origen_id, texto, vencimiento, estado_tarea')
       .in('entrada_origen_id', ids)
@@ -96,11 +97,15 @@ async function conLotes(entradas: EntradaBitacora[]): Promise<EntradaConLotes[]>
       ? supabase.from('bitacora_entradas').select('id, tipo, texto').in('id', idsOrigen)
       : Promise.resolve({ data: [], error: null }),
   ])
-  for (const r of [lotes, derivadas, origenes]) if (r.error) throw r.error
+  for (const r of [lotes, responsables, derivadas, origenes]) if (r.error) throw r.error
 
   const porEntrada = new Map<string, string[]>()
   for (const fila of lotes.data ?? []) {
     porEntrada.set(fila.entrada_id, [...(porEntrada.get(fila.entrada_id) ?? []), fila.lote_id])
+  }
+  const responsablesPorEntrada = new Map<string, string[]>()
+  for (const fila of responsables.data ?? []) {
+    responsablesPorEntrada.set(fila.entrada_id, [...(responsablesPorEntrada.get(fila.entrada_id) ?? []), fila.persona_id])
   }
   // De una tarea repetida, la ocurrencia más nueva representa a la serie
   const tareaPorOrigen = new Map<string, TareaDerivada>()
@@ -113,6 +118,7 @@ async function conLotes(entradas: EntradaBitacora[]): Promise<EntradaConLotes[]>
   return entradas.map(e => ({
     ...e,
     lotes: porEntrada.get(e.id) ?? [],
+    responsables: responsablesPorEntrada.get(e.id) ?? [],
     tarea: tareaPorOrigen.get(e.id) ?? null,
     origen: e.entrada_origen_id ? origenPorId.get(e.entrada_origen_id) ?? null : null,
   }))
@@ -127,7 +133,7 @@ export interface DatosEntrada {
   tipo: TipoEntrada
   texto: string
   lotes: string[]
-  persona_id: string | null
+  responsables: string[]               // ninguno = sin responsable
   vencimiento?: string | null          // tareas: obligatorio
   repetir_cada_dias?: number | null    // tareas: opcional
 }
@@ -141,7 +147,7 @@ export async function crearEntrada(establecimiento_id: string, datos: DatosEntra
     p_tipo: datos.tipo,
     p_texto: datos.texto,
     p_lotes: datos.lotes,
-    p_persona_id: datos.persona_id ?? undefined,
+    p_responsables: datos.responsables,
     p_vencimiento: datos.vencimiento ?? undefined,
     p_repetir_cada_dias: datos.repetir_cada_dias ?? undefined,
     p_entrada_origen_id: entrada_origen_id ?? undefined,
@@ -150,7 +156,7 @@ export async function crearEntrada(establecimiento_id: string, datos: DatosEntra
   return data as string
 }
 
-// Edita el contenido y REEMPLAZA los lotes (y el responsable: null lo quita)
+// Edita el contenido y REEMPLAZA los lotes y los responsables (una lista vacía los quita)
 export async function editarEntrada(entrada_id: string, datos: DatosEntrada) {
   const supabase = createClient()
   const { error } = await supabase.rpc('editar_entrada_bitacora', {
@@ -159,7 +165,7 @@ export async function editarEntrada(entrada_id: string, datos: DatosEntrada) {
     p_tipo: datos.tipo,
     p_texto: datos.texto,
     p_lotes: datos.lotes,
-    p_persona_id: datos.persona_id ?? undefined,
+    p_responsables: datos.responsables,
     p_vencimiento: datos.vencimiento ?? undefined,
     p_repetir_cada_dias: datos.repetir_cada_dias ?? undefined,
   })

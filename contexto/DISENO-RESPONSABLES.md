@@ -34,7 +34,7 @@ Lo decidido: **solo el administrador** crea responsables, y se pueden asignar va
   - **Desactivar y reactivar:** una persona inactiva no se ofrece en los formularios, pero sigue apareciendo en lo que ya tiene asignado. No se borra nada.
   - **Personas que son usuarios:** desactivarlas acá no les quita el acceso. Eso se hace en Usuarios.
   - **Nombre de los usuarios** (agregado en el paso 3, migración `20261028000200`): es siempre el de Usuarios y se actualiza solo cuando cambia ahí o en Mi perfil. En Personas no se edita: solo su rol y la baja.
-  - **Dos grupos** en Personas y en el selector de responsables: Usuarios y Personas (las que no son usuarios).
+  - **Dos grupos en Configuraciones > Personas:** Usuarios y Personas (las que no son usuarios). Al asignar responsables no se distinguen: van todos juntos, por nombre.
   - **Nombres repetidos:** no se permiten en el mismo establecimiento entre activos, sin importar mayúsculas.
 - **R3. Los administradores tienen ficha en cada establecimiento**, igual que los operadores.
   - **Ahora:** la migración crea la ficha de los administradores actuales en todos los establecimientos.

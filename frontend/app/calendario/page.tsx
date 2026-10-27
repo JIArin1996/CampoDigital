@@ -78,13 +78,16 @@ function Calendario() {
   const miPersona = listos?.personas.find(p => p.user_id && p.user_id === perfil?.id)?.id ?? null
   const nombrePersona = (id: string) => listos?.personas.find(p => p.id === id)?.nombre
 
-  // Responsable y lote: valen para tareas, dosis (sin responsable), actividades y notas
-  const pasa = (x: { persona_id: string | null; lotes: string[] | null }) =>
-    (!loteId || (x.lotes ?? []).includes(loteId)) &&
-    (responsable === "" ||
-      (responsable === "mias" && (x.persona_id === null || x.persona_id === miPersona)) ||
-      (responsable === "nadie" && x.persona_id === null) ||
-      x.persona_id === responsable)
+  // Responsable y lote: valen para tareas, dosis (sin responsable), actividades y notas. Con varios
+  // responsables, una persona ve lo que la incluye.
+  const pasa = (x: { responsables: string[] | null; lotes: string[] | null }) => {
+    const r = x.responsables ?? []
+    return (!loteId || (x.lotes ?? []).includes(loteId)) &&
+      (responsable === "" ||
+        (responsable === "mias" && (r.length === 0 || (!!miPersona && r.includes(miPersona)))) ||
+        (responsable === "nadie" && r.length === 0) ||
+        r.includes(responsable))
+  }
 
   const alternar = (c: ClaseItem) => setClases(prev => {
     const nuevo = new Set(prev)
