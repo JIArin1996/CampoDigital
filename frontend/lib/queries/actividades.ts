@@ -155,7 +155,7 @@ interface Comunes {
   id: string
   fecha: string
   lineas: LineaCarga[]
-  persona_id?: string | null
+  responsables?: string[]       // ninguno = sin responsable
   notas?: string | null
 }
 
@@ -165,7 +165,7 @@ export async function registrarPesada(p: Comunes & { lote_id: string }) {
     p_lote_id: p.lote_id,
     p_fecha: p.fecha,
     p_lineas: p.lineas,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -180,7 +180,7 @@ export async function registrarMortandad(p: Comunes & { lote_id: string; causa?:
     p_lineas: p.lineas,
     p_causa: p.causa ?? undefined,
     p_observaciones: p.observaciones ?? undefined,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -211,7 +211,7 @@ export async function registrarCompra(p: Comunes & CompraVenta & {
     p_contraparte: p.contraparte ?? undefined,
     p_kg_gancho: p.kg_gancho ?? undefined,
     p_precio: p.precio ?? undefined,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -229,7 +229,7 @@ export async function registrarVenta(p: Comunes & CompraVenta & { lote_id: strin
     p_contraparte: p.contraparte ?? undefined,
     p_kg_gancho: p.kg_gancho ?? undefined,
     p_precio: p.precio ?? undefined,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -251,7 +251,7 @@ export async function registrarParicion(p: Comunes & {
     p_nacidos_muertos: p.nacidos_muertos ?? undefined,
     p_lote_cria_id: p.lote_cria_id ?? undefined,
     p_lote_cria_nuevo: p.lote_cria_nuevo ?? undefined,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -265,7 +265,7 @@ interface VariosLotes {
   establecimiento_id: string
   lotes: string[]
   fecha: string
-  persona_id?: string | null
+  responsables?: string[]       // ninguno = sin responsable
   notas?: string | null
 }
 
@@ -277,7 +277,7 @@ export async function registrarSanidad(p: VariosLotes & { productos: ProductoCar
     p_lotes: p.lotes,
     p_fecha: p.fecha,
     p_productos: p.productos,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -292,7 +292,7 @@ export async function registrarEsquila(p: VariosLotes & { kg_lana_total: number 
     p_lotes: p.lotes,
     p_fecha: p.fecha,
     p_kg_lana_total: p.kg_lana_total,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -307,7 +307,7 @@ export async function registrarPersonalizada(p: VariosLotes & { nombre: string; 
     p_fecha: p.fecha,
     p_nombre: p.nombre,
     p_campos: p.campos,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -318,7 +318,7 @@ interface UnLote {
   id: string
   lote_id: string
   fecha: string
-  persona_id?: string | null
+  responsables?: string[]       // ninguno = sin responsable
   notas?: string | null
 }
 
@@ -329,7 +329,7 @@ export async function registrarServicio(p: UnLote & { vacas_entoradas: number; t
     p_fecha: p.fecha,
     p_vacas_entoradas: p.vacas_entoradas,
     p_toros: p.toros ?? undefined,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -343,7 +343,7 @@ export async function registrarDiagnostico(p: UnLote & { vacas_diagnosticadas: n
     p_fecha: p.fecha,
     p_vacas_diagnosticadas: p.vacas_diagnosticadas,
     p_vacas_prenadas: p.vacas_prenadas,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error
@@ -360,7 +360,7 @@ export async function registrarDestete(p: {
   fecha: string
   origenes: OrigenDestete[]
   destinos: DestinoDestete[]
-  persona_id?: string | null
+  responsables?: string[]       // ninguno = sin responsable
   notas?: string | null
 }) {
   const { data, error } = await createClient().rpc('registrar_destete', {
@@ -369,7 +369,7 @@ export async function registrarDestete(p: {
     p_fecha: p.fecha,
     p_origenes: p.origenes,
     p_destinos: p.destinos,
-    p_persona_id: p.persona_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
   if (error) throw error

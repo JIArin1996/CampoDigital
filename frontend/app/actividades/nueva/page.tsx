@@ -31,6 +31,7 @@ import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import { SelectorAnios } from "@/components/lotes/SelectorAnios"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { hoyLocal } from "@/components/lotes/formato"
+import { SelectorResponsables } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, Lote, StockLote } from "@/types/lotes"
@@ -189,7 +190,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [loteId, setLoteId] = useState(lotes.some(l => l.id === loteInicial) ? loteInicial : "")
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [pesos, setPesos] = useState<Record<string, string>>({})
-  const [personaId, setPersonaId] = useState("")
+  const [responsables, setResponsables] = useState<string[]>([])
   const [notas, setNotas] = useState("")
 
   // Compra: lote existente o nuevo
@@ -338,7 +339,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       }
     }
 
-    const comunes = { id, fecha, lineas, persona_id: personaId || null, notas: notas.trim() || null }
+    const comunes = { id, fecha, lineas, responsables, notas: notas.trim() || null }
     const compraventa = { modalidad, contraparte: contraparte.trim() || null, kg_gancho: gancho, precio }
 
     setEnviando(true)
@@ -626,13 +627,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
         )}
 
         {/* Comunes */}
-        <div className="space-y-1.5">
-          <Label htmlFor="act-persona">Responsable</Label>
-          <select id="act-persona" className={SELECT_NATIVO} value={personaId} onChange={e => setPersonaId(e.target.value)}>
-            <option value="">Sin indicar</option>
-            {personas.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
+        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} />
         <div className="space-y-1.5">
           <Label htmlFor="act-notas">Notas</Label>
           <textarea id="act-notas" rows={2} className={TEXTAREA} value={notas} onChange={e => setNotas(e.target.value)} />

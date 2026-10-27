@@ -18,6 +18,7 @@ import { DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, errorKg, nuevoId } from "@/c
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import type { Especie, Lote, StockLote } from "@/types/lotes"
+import { SelectorResponsables, type PersonaResponsable } from "@/components/shared/Responsables"
 import type { CampoPersonalizado, ProductoCarga, TipoActividad6b1 } from "@/types/actividades"
 
 export interface DatosSinStock {
@@ -25,7 +26,7 @@ export interface DatosSinStock {
   lotes: Lote[]
   especies: Especie[]
   stock: StockLote[]
-  personas: { id: string; nombre: string; activo: boolean }[]
+  personas: PersonaResponsable[]
   categoriasSanidad: string[]
   vias: string[]
   nombresPersonalizadas: string[]
@@ -76,7 +77,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
   const [fecha, setFecha] = useState(hoyLocal())
   const [seleccion, setSeleccion] = useState<string[]>(inicialValido ? [loteInicial] : [])
   const [loteId, setLoteId] = useState(inicialValido ? loteInicial : "")
-  const [personaId, setPersonaId] = useState("")
+  const [responsables, setResponsables] = useState<string[]>([])
   const [notas, setNotas] = useState("")
 
   const [productos, setProductos] = useState<ProductoForm[]>(() => [productoVacio()])
@@ -129,7 +130,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
     if (varios && seleccion.length === 0) return setError("Elegí al menos un lote")
     if (!varios && !loteId) return setError("Elegí el lote")
 
-    const comunes = { id, fecha, persona_id: personaId || null, notas: notas.trim() || null }
+    const comunes = { id, fecha, responsables, notas: notas.trim() || null }
     const variosLotes = { ...comunes, establecimiento_id: datos.estId, lotes: seleccion }
 
     let enviar: () => Promise<string>
@@ -417,13 +418,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
         )}
 
         {/* Comunes */}
-        <div className="space-y-1.5">
-          <Label htmlFor="ss-persona">Responsable</Label>
-          <select id="ss-persona" className={SELECT_NATIVO} value={personaId} onChange={e => setPersonaId(e.target.value)}>
-            <option value="">Sin indicar</option>
-            {personas.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
+        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} />
         <div className="space-y-1.5">
           <Label htmlFor="ss-notas">Notas</Label>
           <textarea id="ss-notas" rows={2} className={TEXTAREA} value={notas} onChange={e => setNotas(e.target.value)} />
