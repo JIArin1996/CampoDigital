@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-// Rutas que se pueden ver sin sesión
-const RUTAS_PUBLICAS = ["/login"]
+// Rutas que se pueden ver sin sesión. /dev (páginas de prueba con datos inventados) solo en desarrollo.
+const RUTAS_PUBLICAS = ["/login", ...(process.env.NODE_ENV === "development" ? ["/dev"] : [])]
 
 function esRutaPublica(pathname: string) {
   return RUTAS_PUBLICAS.some(r => pathname === r || pathname.startsWith(r + "/"))
