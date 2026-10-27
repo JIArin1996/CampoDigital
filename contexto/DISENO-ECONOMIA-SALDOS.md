@@ -2,6 +2,8 @@
 
 Estado: **aprobado** (2026-10-27). Decisiones E1 a E10 y permisos de Consulta cerrados por Iñaki (sección 9). Se implementa en pasos (sección 10), con una parada entre cada uno.
 
+> **Cambio del 2026-10-27 (paso 2):** las razones sociales **no son un catálogo**. "Factura a nombre de" es un **texto** que se escribe en cada movimiento, con el RUT opcional (12 dígitos) y el número de comprobante; la app sugiere los nombres ya usados. Migración `20261027000200_factura_en_el_movimiento` (borra `razones_sociales` y `facturado_a_id`; suma `factura_nombre` y `factura_rut`). Las secciones de abajo ya lo reflejan.
+
 Base: `20261025000200` (conceptos y titulares), `20261025000300` (reparto entre titulares y edición), `20261025000400` (tipo de cambio del BCU).
 
 ---
@@ -12,7 +14,7 @@ Base: `20261025000200` (conceptos y titulares), `20261025000300` (reparto entre 
 |---|---|---|
 | **Titular** (reparto) | De quién es el ingreso o el gasto | Resultado económico de cada uno |
 | **Pagado por / Cobrado por** (pagador) | De qué bolsillo salió la plata, o a cuál entró | Saldos: quién le debe a quién |
-| **Factura a nombre de** (razón social) | Dato del comprobante (fiscal o contable) | Nada más: ni saldos ni resultado |
+| **Factura a nombre de** (texto en el movimiento, con RUT opcional) | Dato del comprobante (fiscal o contable) | Nada más: ni saldos ni resultado |
 
 Ejemplo:
 - La veterinaria factura a nombre de Padre.
@@ -68,15 +70,14 @@ Tabla `pagadores`:
   - **Crean el administrador y el operador.**
   - **Editan, dan de baja o borran solo el administrador.** Se borra solo si nadie lo usa; si no, se da de baja.
 
-### 3.2 Razones sociales
-Tabla `razones_sociales`:
-- **Columnas:** nombre, RUT opcional y activo. El RUT, si se carga, tiene que tener **12 dígitos** (E8).
-- **Permisos:** los mismos que pagadores.
+### 3.2 Factura a nombre de (sin catálogo)
+- Es un **texto** del movimiento (`factura_nombre`, hasta 120 caracteres), con el **RUT** opcional (`factura_rut`, 12 dígitos; E8) y el número de comprobante.
+- No hay catálogo de razones sociales: se escribe al cargar cada ingreso o gasto, y la app sugiere los nombres ya usados.
 
 ### 3.3 Movimientos
-- **Columnas nuevas en `movimientos_economicos`:** `pagador_id`, `facturado_a_id` y `numero_comprobante` (texto de hasta 50 caracteres, sin blancos sueltos). Las tres son opcionales.
-- **Sin cambiar la firma de ninguna función.** `registrar_movimiento`, `editar_movimiento`, `_registrar_movimiento` y `cargar_precio_actividad` leen tres claves nuevas de `p_precio`: `pagador_id`, `facturado_a_id` y `numero_comprobante`. Se usa `create or replace`, que conserva los permisos.
-- **Validación:** el pagador y la razón social tienen que ser del establecimiento y estar activos, salvo que ya estén puestos en ese movimiento (al editar).
+- **Columnas nuevas en `movimientos_economicos`:** `pagador_id`, `factura_nombre`, `factura_rut` y `numero_comprobante` (texto de hasta 50 caracteres, sin blancos sueltos). Todas opcionales.
+- **Sin cambiar la firma de ninguna función.** `registrar_movimiento`, `editar_movimiento`, `_registrar_movimiento` y `cargar_precio_actividad` leen claves nuevas de `p_precio`: `pagador_id`, `factura_nombre`, `factura_rut` y `numero_comprobante`. Se usa `create or replace`, que conserva los permisos.
+- **Validación:** el pagador tiene que ser del establecimiento y estar activo, salvo que ya esté puesto en ese movimiento (al editar). El RUT se acepta con espacios, puntos o guiones y se guarda solo con dígitos.
 
 ### 3.4 Liquidaciones
 Una liquidación "de A a B" significa **A le pasó plata a B**. Achica lo que A le debe a B, o agranda lo que B le debe a A. No es ingreso ni gasto: no entra en el resultado.
@@ -126,7 +127,7 @@ Era la decisión original y quedó mal implementada: **Consulta ve, en modo lect
 **Catálogos:**
 - Titulares: **Hermanos**, **Madre** y **Juan**.
 - Pagador **"Juan"**, vinculado al titular Juan.
-- Razón social **Padre**.
+- Factura a nombre de **Padre** (texto en el movimiento).
 
 | # | Movimiento | Reparto (USD) | Pagó o cobró | Deudas que genera |
 |---|---|---|---|---|
@@ -150,22 +151,21 @@ La liquidación no toca el resultado.
 ---
 
 ## 5. Configuraciones > Economía
-- **Una sola entrada "Economía"** dentro de Configuraciones, en la ruta `/configuraciones/economia?seccion=…`. Tiene cinco secciones: **Rubros**, **Conceptos**, **Titulares**, **Pagadores** y **Razones sociales**.
+- **Una sola entrada "Economía"** dentro de Configuraciones, en la ruta `/configuraciones/economia?seccion=…`. Tiene cuatro secciones: **Rubros**, **Conceptos**, **Titulares** y **Pagadores** (las razones sociales no tienen catálogo).
 - **En el celular** son pestañas con desplazamiento horizontal; en la computadora, pestañas arriba.
 - **Las rutas viejas** `/rubros`, `/conceptos` y `/titulares` redirigen a su sección.
 - **Pagadores:** nombre, "Es el titular…" (opcional), activo.
-- **Razones sociales:** nombre, RUT (opcional), activa.
-- El operador puede **crear** pagadores y razones sociales (también desde el formulario de carga). Editar, dar de baja o borrar lo hace solo el administrador.
+- El operador puede **crear** pagadores (desde el formulario de carga). Editar, dar de baja o borrar lo hace solo el administrador.
 
 ---
 
 ## 6. Movimientos: filtros y listado
 
 ### Filtros (en la URL)
-`?tipo=egreso&titular=<id>,<id>&pagador=<id>&rubro=<id>&razon=<id>&periodo=mes|anio|rango&desde=&hasta=&orden=fecha|monto`
+`?tipo=egreso&titular=<id>,<id>&pagador=<id>&rubro=<id>&factura=<nombre>&periodo=mes|anio|rango&desde=&hasta=&orden=fecha|monto`
 
 - **Tipo:** un selector segmentado siempre visible, Todos / Ingresos / Egresos.
-- **Titulares, Pagador, Rubro y Razón social:** selección múltiple.
+- **Titulares, Pagador, Rubro y Factura a nombre de** (entre los nombres ya usados): selección múltiple.
   - **En el celular:** un botón **"Filtros (N)"** abre una hoja desde abajo, y los filtros activos se ven como chips con ✕.
   - **En la computadora:** los mismos selectores en una fila.
 - **Período:** mes actual (por defecto), año o rango. Es **independiente** del ejercicio de Resultado (E7).
@@ -183,14 +183,14 @@ La liquidación no toca el resultado.
   - Arriba: fecha y concepto a la izquierda, monto a la derecha.
   - Abajo, en chico: "Rubro · Titular(es) · Pagó X".
   - Toques de 44 px.
-- **Detalle del movimiento** (al tocar): todo, más la razón social, el número de comprobante y los archivos.
+- **Detalle del movimiento** (al tocar): todo, más a nombre de quién es la factura, el RUT, el número de comprobante y los archivos.
 - **Componente nuevo `TablaResponsiva`:** tabla en la computadora y tarjetas en el celular. Lo usarían Movimientos y Saldos.
 
 ---
 
 ## 7. Formulario de carga
 1. **Orden de los campos:** tipo, fecha, concepto, rubro, monto y moneda (con el tipo de cambio del BCU), titulares y reparto, **Pagado por** (en los gastos) o **Cobrado por** (en los ingresos). El campo lleva la ayuda "De qué bolsillo salió la plata (no a nombre de quién está la factura)"; en los ingresos dice "entró".
-2. **Al final, plegado en "Datos de factura":** razón social y número de comprobante.
+2. **Al final, plegado en "Datos de factura":** a nombre de quién (texto, con los nombres ya usados como sugerencia), RUT opcional y número de comprobante.
 3. **Por defecto, el último "Pagado por" de ese usuario** en ese establecimiento, guardado en la base (E6): se mantiene entre dispositivos.
 4. **Lo mismo en el precio de la compra y la venta** de Actividades (`CamposPrecio` y `CargarPrecio`), que manda las claves en `p_precio`.
 
@@ -214,11 +214,11 @@ La liquidación no toca el resultado.
 | **E1** | ¿Existe `pagado_por_titular_id`? | **No** (la consulta no devuelve filas): la migración no la borra |
 | **E2** | ¿Cuentan los pendientes de pago o cobro en los saldos? | **No:** solo los pagados |
 | **E3** | ¿El pagador vinculado cuenta como su titular? | **Sí** |
-| **E4** | ¿Quién administra pagadores y razones sociales? | **Crean** administrador y operador. **Editan, dan de baja o borran** solo el administrador |
+| **E4** | ¿Quién administra pagadores? | **Crean** administrador y operador. **Editan, dan de baja o borran** solo el administrador. (Las razones sociales no tienen catálogo: cambio del paso 2) |
 | **E5** | ¿Las liquidaciones se editan? | **No:** se anulan y se cargan de nuevo |
 | **E6** | ¿Dónde se recuerda el último "Pagado por"? | **Por usuario en la base** (`preferencias_economia`), no por dispositivo |
 | **E7** | ¿Período de Movimientos independiente del ejercicio? | **Sí** |
-| **E8** | ¿Validar el RUT? | **Sí**, 12 dígitos, opcional |
+| **E8** | ¿Validar el RUT? | **Sí**, 12 dígitos, opcional (se escribe en cada movimiento) |
 | **E9** | ¿Filtro para las compras y ventas viejas en Pendientes? | **No:** Pendientes muestra todos |
 | **E10** | ¿Al filtrar por pagador se usa la parte? | **No:** el monto entero |
 | **Consulta** | ¿Ve la plata? | **Sí, en modo lectura** (opción A): Movimientos, Resultado y Saldos, sin ningún permiso de escritura. En la app, sin botones de carga ni edición |
@@ -236,7 +236,7 @@ La liquidación no toca el resultado.
      - Se ponen al día `etapa7b_economia.sql` (firmas del 25/10 y lectura de Consulta) y `etapa6a_rls.sql` (Consulta ve los movimientos).
      - **Auditoría:** las funciones y los permisos del 25/10 y de este paso.
    - Vos aplicás y corrés; después, los tipos.
-2. **Configuraciones > Economía:** las cinco secciones, con Pagadores y Razones sociales nuevos, y los redireccionamientos.
+2. **Configuraciones > Economía:** las cuatro secciones, con Pagadores nuevo, y los redireccionamientos. Más la migración `20261027000200`: la factura pasa a ser texto en el movimiento.
 3. **Formulario de carga:** el orden nuevo, Pagado por o Cobrado por, Datos de factura y el último pagador. Lo mismo en la compra y la venta, más la corrección del rubro por defecto. Sin botones de carga para Consulta.
 4. **Movimientos:** `TablaResponsiva`, filtros en la URL, totales con la parte de cada titular, el detalle con factura y comprobante, y la lectura para Consulta.
 5. **Saldos:** frases, detalle por par, registrar y anular liquidaciones, y Pendientes.

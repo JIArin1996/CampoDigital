@@ -2,10 +2,11 @@ import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
 import type { PrecioCarga } from '@/types/actividades'
 import type {
-  Concepto, GrupoConcepto, Movimiento, MovimientoTitular, Pendiente, ResultadoDetalle, ResultadoRubroMes, Rubro, Sentido, SinPrecio, Titular,
+  Concepto, GrupoConcepto, Movimiento, MovimientoTitular, Pagador, Pendiente, ResultadoDetalle, ResultadoRubroMes, Rubro, Sentido,
+  SinPrecio, Titular,
 } from '@/types/economia'
 
-// Lo leen solo quienes pueden cargar (administrador y operador); a Consulta la base le devuelve vacío.
+// La plata la leen los miembros, Consulta incluido (desde 20261027000100); escriben el administrador y el operador.
 
 // ── Lectura ──────────────────────────────────────────────────────────────────
 
@@ -269,8 +270,35 @@ export async function actualizarTitular(id: string, cambios: { nombre?: string; 
   return exigirFilas(data) as Titular
 }
 
-// Borrar un concepto, grupo o titular sin uso. Con uso, la base lo impide: el mensaje sugiere darlo de baja.
-export async function borrarDeCatalogo(tabla: 'conceptos' | 'concepto_grupos' | 'titulares', id: string, enUso: string) {
+// ── Pagadores ────────────────────────────────────────────────────────────────
+// Los crean el administrador y el operador; los editan, dan de baja o borran solo el administrador (RLS).
+
+export async function getPagadores(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('pagadores')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('nombre')
+  if (error) throw error
+  return (data ?? []) as Pagador[]
+}
+
+export async function crearPagador(establecimiento_id: string, nombre: string, titular_id: string | null) {
+  const { data, error } = await createClient().from('pagadores').insert({ establecimiento_id, nombre, titular_id }).select()
+  if (error) throw error
+  return exigirFilas(data) as Pagador
+}
+
+export async function actualizarPagador(id: string, cambios: { nombre?: string; titular_id?: string | null; activo?: boolean }) {
+  const { data, error } = await createClient().from('pagadores').update(cambios).eq('id', id).select()
+  if (error) throw error
+  return exigirFilas(data) as Pagador
+}
+
+// Borrar un elemento de un catálogo sin uso. Con uso, la base lo impide: el mensaje sugiere darlo de baja.
+export async function borrarDeCatalogo(
+  tabla: 'conceptos' | 'concepto_grupos' | 'titulares' | 'pagadores', id: string, enUso: string,
+) {
   const { data, error } = await createClient().from(tabla).delete().eq('id', id).select('id')
   if (error) {
     if (error.code === '23503') throw new Error(enUso)

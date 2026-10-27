@@ -1,5 +1,5 @@
 import {
-  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Tags, ListTree, Contact,
+  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet,
   type LucideIcon,
 } from "lucide-react"
 
@@ -38,9 +38,8 @@ export const NAV_PRINCIPAL: ItemNav[] = [
 // Lo que hay dentro de la pantalla Configuraciones (solo administrador)
 export const NAV_CONFIGURACION: ItemNav[] = [
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
-  { href: "/rubros",           label: "Rubros",           icon: Tags,     necesitaEstablecimiento: true },
-  { href: "/conceptos",        label: "Conceptos",        icon: ListTree, necesitaEstablecimiento: true },
-  { href: "/titulares",        label: "Titulares",        icon: Contact,  necesitaEstablecimiento: true },
+  // Rubros, conceptos, titulares y pagadores, en pestañas (las rutas viejas redirigen ahí)
+  { href: "/configuraciones/economia", label: "Economía", icon: Wallet, necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/usuarios",         label: "Usuarios",         icon: Users },
 ]

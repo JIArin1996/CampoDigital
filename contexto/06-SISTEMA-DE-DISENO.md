@@ -65,7 +65,7 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 
 - **Barra inferior** [Decidido]: Inicio, Lotes, Bitácora, Calendario y Más. Son las cuatro prioridades del enfoque a un toque.
 - **Más**: atajos a lo que no entra en la barra (Economía, Actividades, Indicadores y Potreros, según el rol), el botón **⚙ Configuraciones** (solo administrador), Mi perfil y Salir.
-- **Configuraciones** (solo administrador): pantalla aparte con Especies, Rubros, Establecimientos y Usuarios. Potreros salió de acá (2026-10-23): está en el menú para todos los roles.
+- **Configuraciones** (solo administrador): pantalla aparte con Especies, **Economía** (Rubros, Conceptos, Titulares y Pagadores, en pestañas; 2026-10-27), Establecimientos y Usuarios. Potreros salió de acá (2026-10-23): está en el menú para todos los roles.
 - **Botón "+"** [Decidido]: carga rápida desde cualquier pantalla (nota de bitácora, actividad, nuevo lote, tarea). Solo para administrador u operador; no aparece dentro de formularios. Las opciones de etapas futuras se muestran como "Próximamente".
 - Respeta la barra de gestos del teléfono (`env(safe-area-inset-bottom)`).
 

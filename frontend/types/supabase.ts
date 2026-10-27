@@ -1830,7 +1830,8 @@ export type Database = {
           editado_por: string | null
           establecimiento_id: string
           estado: string
-          facturado_a_id: string | null
+          factura_nombre: string | null
+          factura_rut: string | null
           fecha: string
           fecha_pago: string | null
           fecha_vencimiento: string | null
@@ -1863,7 +1864,8 @@ export type Database = {
           editado_por?: string | null
           establecimiento_id: string
           estado: string
-          facturado_a_id?: string | null
+          factura_nombre?: string | null
+          factura_rut?: string | null
           fecha: string
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
@@ -1896,7 +1898,8 @@ export type Database = {
           editado_por?: string | null
           establecimiento_id?: string
           estado?: string
-          facturado_a_id?: string | null
+          factura_nombre?: string | null
+          factura_rut?: string | null
           fecha?: string
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
@@ -1951,13 +1954,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "establecimientos"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "movimientos_economicos_facturado_fkey"
-            columns: ["facturado_a_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "razones_sociales"
-            referencedColumns: ["id", "establecimiento_id"]
           },
           {
             foreignKeyName: "movimientos_economicos_lote_id_establecimiento_id_fkey"
@@ -2355,47 +2351,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "perfiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      razones_sociales: {
-        Row: {
-          activo: boolean
-          created_at: string
-          created_by: string | null
-          establecimiento_id: string
-          id: string
-          nombre: string
-          rut: string | null
-          updated_at: string
-        }
-        Insert: {
-          activo?: boolean
-          created_at?: string
-          created_by?: string | null
-          establecimiento_id: string
-          id?: string
-          nombre: string
-          rut?: string | null
-          updated_at?: string
-        }
-        Update: {
-          activo?: boolean
-          created_at?: string
-          created_by?: string | null
-          establecimiento_id?: string
-          id?: string
-          nombre?: string
-          rut?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "razones_sociales_establecimiento_id_fkey"
-            columns: ["establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "establecimientos"
             referencedColumns: ["id"]
           },
         ]

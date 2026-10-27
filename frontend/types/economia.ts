@@ -39,6 +39,9 @@ export type GrupoConcepto = Tables<'concepto_grupos'>
 export type Concepto = Omit<Tables<'conceptos'>, 'tipo'> & { tipo: Sentido }
 export type Titular = Tables<'titulares'>
 
+// Quién puso o recibió la plata ("Pagado por" / "Cobrado por"); puede ser de un titular
+export type Pagador = Tables<'pagadores'>
+
 // Resultado por mes, sentido, rubro, concepto, grupo y titular (la app suma por la dimensión elegida).
 // Sin concepto, sin grupo o sin titular: null.
 export type ResultadoDetalle = Omit<SinNulos<Tables<'v_resultado_detalle'>>,
