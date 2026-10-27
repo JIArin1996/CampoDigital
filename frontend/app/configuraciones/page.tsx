@@ -6,7 +6,7 @@ import { ListaAccesos } from "@/components/layout/ListaAccesos"
 import { NAV_CONFIGURACION } from "@/components/layout/navegacion"
 
 // Configuraciones (solo administrador): especies, economía (rubros, conceptos, titulares y pagadores),
-// establecimientos y usuarios
+// personas (responsables), establecimientos y usuarios
 export default function ConfiguracionesPage() {
   const { esAdmin, establecimientoActivo, cargando } = useEstablecimiento()
 

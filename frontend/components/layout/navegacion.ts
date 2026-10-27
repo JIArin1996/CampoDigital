@@ -1,5 +1,5 @@
 import {
-  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet,
+  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Contact,
   type LucideIcon,
 } from "lucide-react"
 
@@ -40,6 +40,8 @@ export const NAV_CONFIGURACION: ItemNav[] = [
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
   // Rubros, conceptos, titulares y pagadores, en pestañas (las rutas viejas redirigen ahí)
   { href: "/configuraciones/economia", label: "Economía", icon: Wallet, necesitaEstablecimiento: true },
+  // Responsables de notas, tareas y actividades (usuarios o no)
+  { href: "/configuraciones/personas", label: "Personas", icon: Contact, necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/usuarios",         label: "Usuarios",         icon: Users },
 ]

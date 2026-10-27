@@ -140,9 +140,10 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de responsables, 20261028000100): 103 filas, todas con ok = true.
+-- ESPERADO (después de 20261028000200, nombre de usuarios): 105 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
--- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona.)
+-- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
+-- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -218,6 +219,7 @@ order by 1 desc, 2, 3, 4;
 --   proteger_actividad          | false            | false         | false | false
 --   proteger_lote_archivo       | false            | false         | false | false
 --   proteger_movimiento_archivo | false            | false         | false | false
+--   proteger_nombre_persona     | false            | false         | false | false
 --   proteger_potrero_ocupado    | false            | false         | false | false
 --   proteger_ultimo_admin       | false            | false         | false | false
 --   puede_operar                | true             | true          | false | false
@@ -243,6 +245,7 @@ order by 1 desc, 2, 3, 4;
 --   restaurar_archivo_lote      | true             | true          | false | false
 --   restaurar_entrada_bitacora  | true             | true          | false | false
 --   set_updated_at              | false            | false         | false | false
+--   sincronizar_nombre_persona  | true             | false         | false | false
 --   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
@@ -279,7 +282,8 @@ select
                                                                            'validar_anios_nacimiento', 'proteger_lote_archivo',
                                                                            'validar_estadia', 'sincronizar_potrero_lote', 'estadia_alta_lote',
                                                                            'estadia_cambio_estado_lote', 'proteger_potrero_ocupado',
-                                                                           'proteger_movimiento_archivo'))
+                                                                           'proteger_movimiento_archivo', 'proteger_nombre_persona',
+                                                                           'sincronizar_nombre_persona'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -300,7 +304,7 @@ select
                                             'cambiar_potrero_lote', 'deshacer_cambio_potrero', 'guardar_forma_potrero',
                                             'sincronizar_potrero_lote', 'estadia_alta_lote', 'estadia_cambio_estado_lote',
                                             'adjuntar_archivo_movimiento', 'quitar_archivo_movimiento', 'editar_movimiento',
-                                            'registrar_liquidacion', 'anular_liquidacion'))
+                                            'registrar_liquidacion', 'anular_liquidacion', 'sincronizar_nombre_persona'))
   ) as ok
 from f
 order by f.funcion;

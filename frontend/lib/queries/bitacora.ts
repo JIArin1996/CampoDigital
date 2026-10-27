@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { exigirFilas } from '@/lib/supabase/errores'
 import type { EntradaBitacora, EntradaConLotes, EstadoIdea, EstadoTarea, TipoEntrada } from '@/types/bitacora'
 
 // ── Lectura ──────────────────────────────────────────────────────────────────
@@ -204,4 +205,19 @@ export async function getPersonas(establecimiento_id: string) {
     .order('nombre')
   if (error) throw error
   return data ?? []
+}
+
+export type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
+
+// Alta y edición de personas: solo el administrador (lo impone el RLS)
+export async function crearPersona(establecimiento_id: string, nombre: string, rol: string | null) {
+  const { data, error } = await createClient().from('personas').insert({ establecimiento_id, nombre, rol }).select('id, nombre, rol, user_id, activo')
+  if (error) throw error
+  return exigirFilas(data)
+}
+
+export async function actualizarPersona(id: string, cambios: { nombre?: string; rol?: string | null; activo?: boolean }) {
+  const { data, error } = await createClient().from('personas').update(cambios).eq('id', id).select('id')
+  if (error) throw error
+  return exigirFilas(data)
 }
