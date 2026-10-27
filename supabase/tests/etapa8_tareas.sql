@@ -203,8 +203,8 @@ end $$;
 
 -- Tarea: crea una nota de tipo tarea y devuelve su id
 create function pruebas.tarea(p_texto text, p_vence date, p_repetir int default null, p_origen uuid default null,
-                              p_lotes uuid[] default null, p_persona uuid default null) returns uuid language sql as $$
-  select public.crear_entrada_bitacora(pruebas.id('est_a'), public.fecha_hoy(), 'tarea', p_texto, p_lotes, p_persona,
+                              p_lotes uuid[] default null, p_responsables uuid[] default null) returns uuid language sql as $$
+  select public.crear_entrada_bitacora(pruebas.id('est_a'), public.fecha_hoy(), 'tarea', p_texto, p_lotes, p_responsables,
                                        p_vence, p_repetir, p_origen)
 $$;
 grant execute on all functions in schema pruebas to authenticated, anon;
@@ -254,9 +254,9 @@ select pruebas.guardar('p_oper',   $q$ select id from public.personas where esta
 select pruebas.como('u_operador');
 select pruebas.guardar('LV', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'LV Novillos', pruebas.d(60), pruebas.comp('novillos', 20)) $q$);
 
-select pruebas.guardar('t1', $q$ select pruebas.tarea('Vacunar contra aftosa', pruebas.d(-5), null, null, array[pruebas.id('LV')], pruebas.id('p_oper')) $q$);
+select pruebas.guardar('t1', $q$ select pruebas.tarea('Vacunar contra aftosa', pruebas.d(-5), null, null, array[pruebas.id('LV')], array[pruebas.id('p_oper')]) $q$);
 select pruebas.espera_valor('T01 Tarea: pendiente, con vencimiento, responsable y lote',
-  $q$ select e.estado_tarea || '|' || (e.vencimiento = pruebas.d(-5))::text || '|' || (e.persona_id = pruebas.id('p_oper'))::text || '|'
+  $q$ select e.estado_tarea || '|' || (e.vencimiento = pruebas.d(-5))::text || '|' || (select array_agg(r.persona_id) = array[pruebas.id('p_oper')] from public.bitacora_responsables r where r.entrada_id = e.id)::text || '|'
           || (select count(*) from public.bitacora_lotes l where l.entrada_id = e.id)
       from public.bitacora_entradas e where e.id = pruebas.id('t1') $q$, 'pendiente|true|true|1');
 select pruebas.espera_error('T02 Una tarea sin vencimiento',
@@ -267,7 +267,7 @@ select pruebas.espera_error('T04 Repetición de 0 días',
   $q$ select pruebas.tarea('x', pruebas.d(-1), 0) $q$, '22023');
 select pruebas.espera_ok('T05 Editar la tarea: otro texto y otro vencimiento',
   $q$ select public.editar_entrada_bitacora(pruebas.id('t1'), public.fecha_hoy(), 'tarea', 'Vacunar contra aftosa (2 dosis)',
-      array[pruebas.id('LV')], pruebas.id('p_oper'), pruebas.d(-7)) $q$);
+      array[pruebas.id('LV')], array[pruebas.id('p_oper')], pruebas.d(-7)) $q$);
 select pruebas.espera_valor('T06 Sigue pendiente, con el vencimiento nuevo, y cuenta como editada',
   $q$ select estado_tarea || '|' || (vencimiento = pruebas.d(-7))::text || '|' || (editada_en is not null)::text
       from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'pendiente|true|true');

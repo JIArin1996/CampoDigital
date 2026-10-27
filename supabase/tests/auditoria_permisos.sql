@@ -140,8 +140,9 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de economía: saldos, 20261027000100): 100 filas, todas con ok = true.
--- (+8 de 20261025000100 a 20261025000400 y +4 de 20261027000100.)
+-- ESPERADO (después de responsables, 20261028000100): 103 filas, todas con ok = true.
+-- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
+-- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -159,10 +160,12 @@ order by 1 desc, 2, 3, 4;
 --   _concepto_por_defecto       | false            | false         | false | false
 --   _entero_jsonb               | false            | false         | false | false
 --   _exigir_categoria           | false            | false         | false | false
---   _exigir_persona             | false            | false         | false | false
+--   _fichas_de_admins           | false            | false         | false | false
 --   _fuente_tipo_cambio         | false            | false         | false | false
 --   _guardar_pago_y_factura     | false            | false         | false | false
 --   _guardar_lotes_bitacora     | false            | false         | false | false
+--   _guardar_responsables_actividad | false            | false         | false | false
+--   _guardar_responsables_entrada | false            | false         | false | false
 --   _guardar_titulares          | false            | false         | false | false
 --   _insertar_lineas            | false            | false         | false | false
 --   _parte_de_saldo             | false            | false         | false | false
@@ -174,6 +177,7 @@ order by 1 desc, 2, 3, 4;
 --   _validar_datos_tarea        | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
+--   _validar_responsables       | false            | false         | false | false
 --   _validar_saldo              | false            | false         | false | false
 --   actividad_lotes_desde_actividad | true             | false         | false | false
 --   actividad_lotes_desde_paricion | true             | false         | false | false

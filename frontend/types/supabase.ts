@@ -613,6 +613,66 @@ export type Database = {
           },
         ]
       }
+      actividad_responsables: {
+        Row: {
+          actividad_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          persona_id: string
+        }
+        Insert: {
+          actividad_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          persona_id: string
+        }
+        Update: {
+          actividad_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividad_responsables_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_persona_id_establecimiento_id_fkey"
+            columns: ["persona_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       actividades: {
         Row: {
           anulada_en: string | null
@@ -626,7 +686,6 @@ export type Database = {
           lote_id: string | null
           motivo_anulacion: string | null
           notas: string | null
-          persona_id: string | null
           tipo: string
         }
         Insert: {
@@ -641,7 +700,6 @@ export type Database = {
           lote_id?: string | null
           motivo_anulacion?: string | null
           notas?: string | null
-          persona_id?: string | null
           tipo: string
         }
         Update: {
@@ -656,7 +714,6 @@ export type Database = {
           lote_id?: string | null
           motivo_anulacion?: string | null
           notas?: string | null
-          persona_id?: string | null
           tipo?: string
         }
         Relationships: [
@@ -679,13 +736,6 @@ export type Database = {
             columns: ["lote_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "lotes"
-            referencedColumns: ["id", "establecimiento_id"]
-          },
-          {
-            foreignKeyName: "actividades_persona_id_establecimiento_id_fkey"
-            columns: ["persona_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -751,7 +801,6 @@ export type Database = {
           fecha: string
           id: string
           motivo_anulacion: string | null
-          persona_id: string | null
           repetir_cada_dias: number | null
           tarea_anterior_id: string | null
           texto: string
@@ -775,7 +824,6 @@ export type Database = {
           fecha?: string
           id?: string
           motivo_anulacion?: string | null
-          persona_id?: string | null
           repetir_cada_dias?: number | null
           tarea_anterior_id?: string | null
           texto: string
@@ -799,7 +847,6 @@ export type Database = {
           fecha?: string
           id?: string
           motivo_anulacion?: string | null
-          persona_id?: string | null
           repetir_cada_dias?: number | null
           tarea_anterior_id?: string | null
           texto?: string
@@ -827,13 +874,6 @@ export type Database = {
             columns: ["entrada_origen_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "bitacora_entradas"
-            referencedColumns: ["id", "establecimiento_id"]
-          },
-          {
-            foreignKeyName: "bitacora_entradas_persona_id_establecimiento_id_fkey"
-            columns: ["persona_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -880,6 +920,52 @@ export type Database = {
             columns: ["lote_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
+      bitacora_responsables: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entrada_id: string
+          establecimiento_id: string
+          persona_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entrada_id: string
+          establecimiento_id: string
+          persona_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entrada_id?: string
+          establecimiento_id?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bitacora_responsables_entrada_id_establecimiento_id_fkey"
+            columns: ["entrada_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "bitacora_entradas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "bitacora_responsables_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bitacora_responsables_persona_id_establecimiento_id_fkey"
+            columns: ["persona_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -2558,13 +2644,13 @@ export type Database = {
           nacidos_muertos: number | null
           notas: string | null
           observaciones: string | null
-          persona_id: string | null
           personalizada: string | null
           peso_promedio_kg: number | null
           peso_vivo_total_kg: number | null
           producto: string | null
           productos: number | null
           rendimiento_pct: number | null
+          responsables: string[] | null
           tipo: string | null
           toros: number | null
           vacas_diagnosticadas: number | null
@@ -2594,13 +2680,6 @@ export type Database = {
             referencedRelation: "lotes"
             referencedColumns: ["id", "establecimiento_id"]
           },
-          {
-            foreignKeyName: "actividades_persona_id_establecimiento_id_fkey"
-            columns: ["persona_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
-            referencedColumns: ["id", "establecimiento_id"]
-          },
         ]
       }
       v_calendario: {
@@ -2614,8 +2693,8 @@ export type Database = {
           lotes: string[] | null
           orden: number | null
           origen: string | null
-          persona_id: string | null
           repetir_cada_dias: number | null
+          responsables: string[] | null
           texto: string | null
         }
         Relationships: []
@@ -3072,7 +3151,6 @@ export type Database = {
           fecha: string
           id: string
           motivo_anulacion: string | null
-          persona_id: string | null
           repetir_cada_dias: number | null
           tarea_anterior_id: string | null
           texto: string
@@ -3148,8 +3226,8 @@ export type Database = {
         Args: { p_categoria_id: string; p_especie_id: string }
         Returns: undefined
       }
-      _exigir_persona: {
-        Args: { p_establecimiento_id: string; p_persona_id: string }
+      _fichas_de_admins: {
+        Args: { p_establecimiento_id: string; p_user_id: string }
         Returns: undefined
       }
       _fuente_tipo_cambio: {
@@ -3171,6 +3249,18 @@ export type Database = {
       }
       _guardar_pago_y_factura: {
         Args: { p_movimiento_id: string; p_precio: Json }
+        Returns: undefined
+      }
+      _guardar_responsables_actividad: {
+        Args: { p_actividad_id: string; p_responsables: string[] }
+        Returns: undefined
+      }
+      _guardar_responsables_entrada: {
+        Args: {
+          p_entrada_id: string
+          p_establecimiento_id: string
+          p_responsables: string[]
+        }
         Returns: undefined
       }
       _guardar_titulares: {
@@ -3238,7 +3328,6 @@ export type Database = {
         Args: {
           p_establecimiento_id: string
           p_fecha: string
-          p_persona_id: string
           p_texto: string
           p_tipo: string
         }
@@ -3246,6 +3335,14 @@ export type Database = {
       }
       _validar_fecha_operacion: {
         Args: { p_apertura: string; p_fecha: string }
+        Returns: undefined
+      }
+      _validar_responsables: {
+        Args: {
+          p_actuales?: string[]
+          p_establecimiento_id: string
+          p_responsables: string[]
+        }
         Returns: undefined
       }
       _validar_saldo: {
@@ -3326,8 +3423,8 @@ export type Database = {
           p_establecimiento_id: string
           p_fecha: string
           p_lotes?: string[]
-          p_persona_id?: string
           p_repetir_cada_dias?: number
+          p_responsables?: string[]
           p_texto: string
           p_tipo: string
           p_vencimiento?: string
@@ -3390,8 +3487,8 @@ export type Database = {
           p_entrada_id: string
           p_fecha: string
           p_lotes?: string[]
-          p_persona_id?: string
           p_repetir_cada_dias?: number
+          p_responsables?: string[]
           p_texto: string
           p_tipo: string
           p_vencimiento?: string
@@ -3501,8 +3598,8 @@ export type Database = {
           p_lote_nuevo?: Json
           p_modalidad: string
           p_notas?: string
-          p_persona_id?: string
           p_precio?: Json
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3514,7 +3611,7 @@ export type Database = {
           p_id: string
           p_notas?: string
           p_origenes: Json
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3524,7 +3621,7 @@ export type Database = {
           p_id: string
           p_lote_id: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
           p_vacas_diagnosticadas: number
           p_vacas_prenadas: number
         }
@@ -3538,7 +3635,7 @@ export type Database = {
           p_kg_lana_total: number
           p_lotes: string[]
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3565,7 +3662,7 @@ export type Database = {
           p_lote_id: string
           p_notas?: string
           p_observaciones?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3594,7 +3691,7 @@ export type Database = {
           p_lote_madres_id: string
           p_nacidos_muertos?: number
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3607,7 +3704,7 @@ export type Database = {
           p_lotes: string[]
           p_nombre: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3618,7 +3715,7 @@ export type Database = {
           p_lineas: Json
           p_lote_id: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3629,8 +3726,8 @@ export type Database = {
           p_id: string
           p_lotes: string[]
           p_notas?: string
-          p_persona_id?: string
           p_productos: Json
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3640,7 +3737,7 @@ export type Database = {
           p_id: string
           p_lote_id: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
           p_toros?: number
           p_vacas_entoradas: number
         }
@@ -3656,8 +3753,8 @@ export type Database = {
           p_lote_id: string
           p_modalidad: string
           p_notas?: string
-          p_persona_id?: string
           p_precio?: Json
+          p_responsables?: string[]
         }
         Returns: string
       }

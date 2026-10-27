@@ -272,7 +272,7 @@ select pruebas.guardar('c1', $q$ select public.registrar_compra(
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 15, 2250)), p_modalidad => 'remate',
       p_lote_nuevo => jsonb_build_object('nombre', 'LC Compra remate', 'especie_id', pruebas.id('vacunos')),
       p_contraparte => 'Escritorio Rural', p_precio => pruebas.precio(9000, 'USD', null, 'pagado'),
-      p_persona_id => pruebas.id('persona_o')) $q$);
+      p_responsables => array[pruebas.id('persona_o')]) $q$);
 select pruebas.guardar('LC', $q$ select lote_id from public.actividades where id = pruebas.id('c1') $q$);
 select pruebas.espera_valor('C01 Compra con lote nuevo: 15 terneros, el lote abre en la fecha de la compra',
   $q$ select pruebas.stock('LC', 'terneros') || '|' || (l.fecha_apertura = pruebas.d(8))::text || '|' || l.estado
@@ -325,16 +325,16 @@ select pruebas.como('u_operador');
 select pruebas.guardar('c3', $q$ select public.registrar_compra(
       p_id => gen_random_uuid(), p_establecimiento_id => pruebas.id('est_a'), p_fecha => pruebas.d(6),
       p_lineas => jsonb_build_array(pruebas.lin('toros', 2)), p_modalidad => 'otra', p_lote_id => pruebas.id('LV'),
-      p_lote_nuevo => null, p_contraparte => null, p_kg_gancho => null, p_precio => null, p_persona_id => null, p_notas => null) $q$);
+      p_lote_nuevo => null, p_contraparte => null, p_kg_gancho => null, p_precio => null, p_responsables => null, p_notas => null) $q$);
 select pruebas.espera_valor('C06 Compra con precio NULL: no crea movimiento económico',
   $q$ select count(*) from public.movimientos_economicos where actividad_id = pruebas.id('c3') $q$, '0');
 select pruebas.espera_valor('C06b Compra con opcionales NULL: sin responsable, contraparte, kg al gancho ni monto; LV suma 2 toros',
-  $q$ select coalesce(a.persona_id::text, 'sin persona') || '|' || coalesce(cv.contraparte, 'sin contraparte') || '|'
+  $q$ select (case when v.responsables = '{}' then 'sin persona' else 'con persona' end) || '|' || coalesce(cv.contraparte, 'sin contraparte') || '|'
           || coalesce(cv.kg_gancho::text, 'sin gancho') || '|' || coalesce(v.monto_usd::text, 'sin monto') || '|' || pruebas.stock('LV', 'toros')
       from public.actividades a join public.act_compraventa cv on cv.actividad_id = a.id join public.v_actividades v on v.id = a.id
       where a.id = pruebas.id('c3') $q$, 'sin persona|sin contraparte|sin gancho|sin monto|2');
 select pruebas.espera_valor('C06c Con responsable: la compra c1 guarda la persona',
-  $q$ select (persona_id = pruebas.id('persona_o'))::text from public.actividades where id = pruebas.id('c1') $q$, 'true');
+  $q$ select (responsables = array[pruebas.id('persona_o')])::text from public.v_actividades where id = pruebas.id('c1') $q$, 'true');
 
 select pruebas.espera_error('C07 Pesos sin tipo de cambio',
   $q$ select public.registrar_compra(p_id => gen_random_uuid(), p_establecimiento_id => pruebas.id('est_a'), p_fecha => public.fecha_hoy(),
@@ -373,9 +373,10 @@ select pruebas.espera_error('C14 Compra con una categoría de otra especie (cord
 select pruebas.guardar('pe1', $q$ select public.registrar_pesada(
       p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(5),
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 10, 3500.5), pruebas.lin('terneros', 10, 1500)),
-      p_persona_id => null, p_notas => null) $q$);
+      p_responsables => null, p_notas => null) $q$);
 select pruebas.espera_valor('PE00 Pesada con responsable y notas NULL: se guarda sin persona',
-  $q$ select coalesce(persona_id::text, 'sin persona') || '|' || coalesce(notas, 'sin notas') from public.actividades where id = pruebas.id('pe1') $q$,
+  $q$ select (case when responsables = '{}' then 'sin persona' else 'con persona' end) || '|' || coalesce(notas, 'sin notas')
+      from public.v_actividades where id = pruebas.id('pe1') $q$,
   'sin persona|sin notas');
 select pruebas.espera_valor('PE01 Pesada: no mueve stock (0 eventos, LV sigue en 25 novillos)',
   $q$ select (select count(*) from public.lote_eventos where actividad_id = pruebas.id('pe1')) || '|' || pruebas.stock('LV', 'novillos') $q$, '0|25');
@@ -407,7 +408,7 @@ select pruebas.espera_error('PE10 Pesada anterior a la apertura del lote',
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 1, 300))) $q$, '22023');
 select pruebas.espera_error('PE11 Pesada con un responsable de otro establecimiento',
   $q$ select public.registrar_pesada(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => public.fecha_hoy(),
-      p_lineas => jsonb_build_array(pruebas.lin('novillos', 1, 300)), p_persona_id => pruebas.id('persona_x')) $q$, '22023');
+      p_lineas => jsonb_build_array(pruebas.lin('novillos', 1, 300)), p_responsables => array[pruebas.id('persona_x')]) $q$, '22023');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Operador: ventas (kg al gancho, rendimiento, cierre automático)
@@ -437,11 +438,11 @@ select pruebas.espera_error('V05 Venta con kg al gancho negativos',
 select pruebas.guardar('LS', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'LS Toros', pruebas.d(10), pruebas.comp('toros', 3)) $q$);
 select pruebas.guardar('v2', $q$ select public.registrar_venta(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LS'), p_fecha => pruebas.d(3),
       p_lineas => jsonb_build_array(pruebas.lin('toros', 3)), p_modalidad => 'remate',
-      p_contraparte => null, p_kg_gancho => null, p_precio => null, p_persona_id => null, p_notas => null) $q$);
+      p_contraparte => null, p_kg_gancho => null, p_precio => null, p_responsables => null, p_notas => null) $q$);
 select pruebas.espera_valor('V05b Venta con opcionales NULL: sin movimiento, sin kg al gancho ni rendimiento, sin persona',
   $q$ select (select count(*) from public.movimientos_economicos where actividad_id = a.id) || '|'
           || coalesce(cv.kg_gancho::text, 'sin gancho') || '|' || coalesce(v.rendimiento_pct::text, 'sin rendimiento') || '|'
-          || coalesce(v.peso_promedio_kg::text, 'sin peso') || '|' || coalesce(a.persona_id::text, 'sin persona')
+          || coalesce(v.peso_promedio_kg::text, 'sin peso') || '|' || (case when v.responsables = '{}' then 'sin persona' else 'con persona' end)
       from public.actividades a join public.act_compraventa cv on cv.actividad_id = a.id join public.v_actividades v on v.id = a.id
       where a.id = pruebas.id('v2') $q$, '0|sin gancho|sin rendimiento|sin peso|sin persona');
 select pruebas.espera_valor('V06 La venta que deja el lote en cero lo cierra con la fecha de la venta',
@@ -458,7 +459,7 @@ select pruebas.espera_error('V08 Venta en un lote cerrado',
 
 select pruebas.guardar('m1', $q$ select public.registrar_mortandad(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(3),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 2)), p_causa => null, p_observaciones => 'En el bañado',
-      p_persona_id => null, p_notas => null) $q$);
+      p_responsables => null, p_notas => null) $q$);
 select pruebas.espera_valor('M01 Mortandad con causa NULL: LV baja a 8 terneros y la causa queda "Desconocida"',
   $q$ select pruebas.stock('LV', 'terneros') || '|' || causa || '|' || observaciones from public.act_mortandad where actividad_id = pruebas.id('m1') $q$,
   '8|Desconocida|En el bañado');
@@ -504,10 +505,10 @@ select pruebas.espera_valor('PA03 Actividad: lote_id = madres, lote creado = cr�
 select pruebas.guardar('pa2', $q$ select public.registrar_paricion(
       p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LM'), p_fecha => pruebas.d(4),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 3)), p_lote_cria_id => pruebas.id('LCE'),
-      p_nacidos_muertos => null, p_lote_cria_nuevo => null, p_persona_id => null, p_notas => null) $q$);
+      p_nacidos_muertos => null, p_lote_cria_nuevo => null, p_responsables => null, p_notas => null) $q$);
 select pruebas.espera_valor('PA04 Lote de cría existente: LCE pasa de 1 a 4 terneros; nacidos muertos NULL queda en 0; sin persona',
-  $q$ select pruebas.stock('LCE', 'terneros') || '|' || p.nacidos_muertos || '|' || coalesce(a.persona_id::text, 'sin persona')
-      from public.act_paricion p join public.actividades a on a.id = p.actividad_id where p.actividad_id = pruebas.id('pa2') $q$, '4|0|sin persona');
+  $q$ select pruebas.stock('LCE', 'terneros') || '|' || p.nacidos_muertos || '|' || (case when a.responsables = '{}' then 'sin persona' else 'con persona' end)
+      from public.act_paricion p join public.v_actividades a on a.id = p.actividad_id where p.actividad_id = pruebas.id('pa2') $q$, '4|0|sin persona');
 select pruebas.espera_error('PA04b Parición sin lote de madres (NULL)',
   $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => null, p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 1)), p_lote_cria_id => pruebas.id('LCE')) $q$, '22023');
@@ -792,7 +793,7 @@ select pruebas.espera_valor('B13 Funciones nuevas: ninguna para anon; internas y
       from pg_proc p
       where p.pronamespace = 'public'::regnamespace
         and p.proname in ('registrar_pesada', 'registrar_mortandad', 'registrar_compra', 'registrar_venta', 'registrar_paricion',
-                          'anular_actividad', '_actividad_ya_registrada', '_exigir_persona', '_stock_categoria_al',
+                          'anular_actividad', '_actividad_ya_registrada', '_validar_responsables', '_stock_categoria_al',
                           '_insertar_lineas', '_registrar_movimiento', 'proteger_actividad') $q$, 'true');
 select pruebas.espera_valor('B14 Tablas y vista nuevas: authenticated solo lee; anon nada',
   $q$ select bool_and(has_table_privilege('authenticated', t, 'select')

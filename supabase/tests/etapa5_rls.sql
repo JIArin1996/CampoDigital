@@ -384,7 +384,7 @@ select pruebas.espera_valor('S04 stock_al cuenta lotes hoy cerrados (toros de L3
 -- ════════════════════════════════════════════════════════════════════════════
 
 select pruebas.guardar('e_idea', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'idea',
-      'Probar suplemento en los terneros', array[pruebas.id('L1'), pruebas.id('L_juntos')], pruebas.id('persona_o')) $q$);
+      'Probar suplemento en los terneros', array[pruebas.id('L1'), pruebas.id('L_juntos')], array[pruebas.id('persona_o')]) $q$);
 select pruebas.espera_valor('B01 Una idea nueva arranca abierta, con 2 lotes y fecha de hoy',
   $q$ select e.estado_idea || '/' || (select count(*) from public.bitacora_lotes l where l.entrada_id = e.id) || '/' || (e.fecha = public.fecha_hoy())::text
       from public.bitacora_entradas e where e.id = pruebas.id('e_idea') $q$, 'abierta/2/true');
@@ -404,13 +404,13 @@ select pruebas.espera_error('B07 Crear con texto vacío',
 select pruebas.espera_error('B08 Operador escribe en un establecimiento donde no está asignado',
   $q$ select public.crear_entrada_bitacora(pruebas.id('est_x'), null, 'observacion', 'x', array[pruebas.id('L1')]) $q$, '42501');
 select pruebas.espera_error('B09 Responsable de otro establecimiento',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, pruebas.id('persona_x')) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, array[pruebas.id('persona_x')]) $q$, '22023');
 
 -- Edición por otro usuario (admin): created_by no cambia, editada_* sí
 select pruebas.como('u_admin');
 select pruebas.espera_ok('B10 El admin edita la idea: pasa a observación, con un solo lote',
   $q$ select public.editar_entrada_bitacora(pruebas.id('e_idea'), public.fecha_hoy(), 'observacion',
-      'Se probó suplemento en los terneros', array[pruebas.id('L1')], pruebas.id('persona_o')) $q$);
+      'Se probó suplemento en los terneros', array[pruebas.id('L1')], array[pruebas.id('persona_o')]) $q$);
 select pruebas.espera_valor('B11 Después de editar: sin estado, 1 lote, created_by = operador, editada_por = admin',
   $q$ select coalesce(e.estado_idea, 'sin estado') || '/' || (select count(*) from public.bitacora_lotes l where l.entrada_id = e.id)
            || '/' || (e.created_by = pruebas.id('u_operador'))::text || '/' || (e.editada_por = pruebas.id('u_admin'))::text

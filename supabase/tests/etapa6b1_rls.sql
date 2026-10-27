@@ -298,7 +298,7 @@ select pruebas.guardar('s1', $q$ select public.registrar_sanidad(
       p_productos => jsonb_build_array(
         pruebas.prod('Aftosa', 'Vacunación', 0, 'Inyectable', pruebas.d(-170), '2 ml'),
         pruebas.prod('Ivermectina', 'Antiparasitario', 35, 'Pour-on', null, '1 ml cada 50 kg')),
-      p_persona_id => pruebas.id('persona_o')) $q$);
+      p_responsables => array[pruebas.id('persona_o')]) $q$);
 select pruebas.espera_valor('S01 Sanidad de varios lotes: tipo sanidad y sin lote_id (los lotes van en actividad_lotes)',
   $q$ select tipo || '|' || coalesce(lote_id::text, 'sin lote') from public.actividades where id = pruebas.id('s1') $q$, 'sanidad|sin lote');
 select pruebas.espera_valor('S02 Dos filas principal en actividad_lotes (LV y LT)',
@@ -384,7 +384,7 @@ select pruebas.espera_error('S28 Fecha anterior a la apertura de uno de los lote
 select pruebas.espera_error('S29 Responsable de otro establecimiento',
   $q$ select public.registrar_sanidad(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LV')], public.fecha_hoy(),
       jsonb_build_array(pruebas.prod('Aftosa', 'Vacunación')),
-      pruebas.id('persona_x')) $q$, '22023');
+      array[pruebas.id('persona_x')]) $q$, '22023');
 
 -- s2: vencida (LV, d-15, 3 días de carencia); s3: se anula (LT, d-5, 28 días)
 select pruebas.guardar('s2', $q$ select public.registrar_sanidad(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LV')], pruebas.d(15),
