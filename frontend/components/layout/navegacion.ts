@@ -27,7 +27,7 @@ export const NAV_MOVIL: ItemNav[] = [
 export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/inicio",      label: "Inicio",      icon: Home },
   { href: "/lotes",       label: "Lotes",       icon: Layers,        necesitaEstablecimiento: true },
-  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true, necesitaOperar: true },
+  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true },
   { href: "/actividades", label: "Actividades", icon: ClipboardList, necesitaEstablecimiento: true },
   { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
   { href: "/calendario",  label: "Calendario",  icon: CalendarDays,  necesitaEstablecimiento: true },

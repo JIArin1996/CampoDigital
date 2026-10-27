@@ -90,6 +90,8 @@ export type PrecioCarga = {
   factura_nombre?: string    // a nombre de quién está la factura (dato del comprobante)
   factura_rut?: string       // 12 dígitos
   numero_comprobante?: string
+  identificador?: string     // nombre propio del movimiento (ej. "Venta terneras refugo"); lo que más se ve en el listado
+  comentario?: string        // solo se ve en el detalle
 }
 
 // Destete: lo que sale de cada origen (solo cría al pie) y lo que entra a cada lote nuevo (ya sexado)

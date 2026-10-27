@@ -9,7 +9,7 @@ import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CAMPO, SELECT_NATIVO } from "@/components/shared/estilos"
+import { CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
 import type { PrecioCarga } from "@/types/actividades"
 import type { Pagador, Titular } from "@/types/economia"
@@ -21,9 +21,12 @@ export interface PagoFacturaForm {
   facturaNombre: string
   facturaRut: string
   comprobante: string
+  identificador: string   // nombre propio del movimiento: lo que más se ve en el listado
+  comentario: string      // solo se ve en el detalle
 }
 
-export const pagoFacturaVacio = (): PagoFacturaForm => ({ pagadorId: "", facturaNombre: "", facturaRut: "", comprobante: "" })
+export const pagoFacturaVacio = (): PagoFacturaForm =>
+  ({ pagadorId: "", facturaNombre: "", facturaRut: "", comprobante: "", identificador: "", comentario: "" })
 
 // Opción del selector de pagador que abre el alta de uno nuevo
 const NUEVO = "__nuevo"
@@ -32,21 +35,50 @@ const NUEVO = "__nuevo"
 const limpiarRut = (rut: string) => rut.replace(/[\s.-]/g, "")
 
 // Lo que va en el precio. Al editar, una clave que no va borra el dato.
-export function leerPagoFactura(v: PagoFacturaForm):
-  { datos: Pick<PrecioCarga, "pagador_id" | "factura_nombre" | "factura_rut" | "numero_comprobante"> } | { error: string } {
+export function leerPagoFactura(v: PagoFacturaForm): {
+  datos: Pick<PrecioCarga, "pagador_id" | "factura_nombre" | "factura_rut" | "numero_comprobante" | "identificador" | "comentario">
+} | { error: string } {
   if (v.pagadorId === NUEVO) return { error: "Agregá el pagador nuevo o elegí otro" }
   const rut = limpiarRut(v.facturaRut)
   if (rut && !/^[0-9]{12}$/.test(rut)) return { error: "El RUT de la factura tiene 12 dígitos" }
   if (v.facturaNombre.trim().length > 120) return { error: "El nombre de la factura tiene hasta 120 caracteres" }
   if (v.comprobante.trim().length > 50) return { error: "El número de comprobante tiene hasta 50 caracteres" }
+  if (v.identificador.trim().length > 120) return { error: "El identificador tiene hasta 120 caracteres" }
+  if (v.comentario.trim().length > 2000) return { error: "El comentario tiene hasta 2000 caracteres" }
   return {
     datos: {
+      ...(v.identificador.trim() ? { identificador: v.identificador.trim() } : {}),
+      ...(v.comentario.trim() ? { comentario: v.comentario.trim() } : {}),
       ...(v.pagadorId ? { pagador_id: v.pagadorId } : {}),
       ...(v.facturaNombre.trim() ? { factura_nombre: v.facturaNombre.trim() } : {}),
       ...(rut ? { factura_rut: rut } : {}),
       ...(v.comprobante.trim() ? { numero_comprobante: v.comprobante.trim() } : {}),
     },
   }
+}
+
+// ── Identificador y comentario ────────────────────────────────────────────────
+
+// El nombre propio del movimiento (el concepto del catálogo es más general). Sin él, el listado muestra el concepto.
+export function CampoIdentificador({ id, valor, onCambio }: { id: string; valor: string; onCambio: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={`${id}-identificador`}>Identificador <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+      <Input id={`${id}-identificador`} className={CAMPO} maxLength={120} placeholder="Ej: Venta terneras refugo"
+        value={valor} onChange={e => onCambio(e.target.value)} />
+    </div>
+  )
+}
+
+// Texto libre al final: no se ve en el listado, solo al abrir el movimiento
+export function CampoComentario({ id, valor, onCambio }: { id: string; valor: string; onCambio: (v: string) => void }) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={`${id}-comentario`}>Comentarios <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+      <textarea id={`${id}-comentario`} rows={3} maxLength={2000} className={TEXTAREA}
+        value={valor} onChange={e => onCambio(e.target.value)} />
+    </div>
+  )
 }
 
 // ── "Pagado por" / "Cobrado por" ──────────────────────────────────────────────

@@ -129,7 +129,7 @@ export default function InicioPage() {
           )}
 
           {/* Economía del ejercicio: solo quien puede ver la plata */}
-          {puedeOperar && estId && <BloqueEconomia estId={estId} />}
+          {estId && <BloqueEconomia estId={estId} />}
 
           {/* Stock del establecimiento */}
           <Card>

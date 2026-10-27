@@ -39,7 +39,9 @@ import type {
 } from "@/types/actividades"
 import { CampoTipoCambio } from "@/components/economia/CampoTipoCambio"
 import { tipoCambioVacio, type TipoCambioForm } from "@/components/economia/formato"
-import { CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm } from "@/components/economia/PagoYFactura"
+import {
+  CampoComentario, CampoIdentificador, CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm,
+} from "@/components/economia/PagoYFactura"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 type Rubro = Awaited<ReturnType<typeof getRubros>>[number]
@@ -547,6 +549,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                       <Input id="act-fecha-pago" type="date" className={CAMPO} value={fechaPago} onChange={e => setFechaPago(e.target.value)} />
                     </div>
                   </div>
+                  <CampoIdentificador id="act" valor={pagoFactura.identificador}
+                    onCambio={identificador => setPagoFactura(v => ({ ...v, identificador }))} />
                   <div className="space-y-1.5">
                     <Label htmlFor="act-rubro">Rubro</Label>
                     <select id="act-rubro" className={SELECT_NATIVO} value={rubroId} onChange={e => setRubroId(e.target.value)}>
@@ -557,6 +561,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                   <CampoPagador id="act" establecimientoId={datos.estId} ingreso={tipo === "venta"} valor={pagoFactura.pagadorId}
                     onCambio={pagadorId => setPagoFactura(v => ({ ...v, pagadorId }))} recordarUltimo />
                   <DatosFactura id="act" establecimientoId={datos.estId} valor={pagoFactura} onCambio={setPagoFactura} />
+                  <CampoComentario id="act" valor={pagoFactura.comentario} onCambio={comentario => setPagoFactura(v => ({ ...v, comentario }))} />
                 </CardContent>
               </Card>
             )}

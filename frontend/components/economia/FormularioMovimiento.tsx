@@ -16,7 +16,9 @@ import { CamposPrecio } from "@/components/economia/CamposPrecio"
 import { OpcionesConcepto } from "@/components/economia/OpcionesConcepto"
 import { RepartoTitulares } from "@/components/economia/RepartoTitulares"
 import { ElegirArchivosMovimiento, type ArchivoElegido } from "@/components/economia/ArchivosMovimiento"
-import { CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm } from "@/components/economia/PagoYFactura"
+import {
+  CampoComentario, CampoIdentificador, CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm,
+} from "@/components/economia/PagoYFactura"
 import {
   leerPrecio, leerTitulares, montoATexto, parsearMonto, precioVacio, tipoCambioATexto, type PrecioForm, type TitularForm,
 } from "@/components/economia/formato"
@@ -48,8 +50,10 @@ const precioDe = (m: Movimiento): PrecioForm => ({
   vencimiento: m.fecha_vencimiento ?? "",
 })
 
-// Quién pagó o cobró y los datos de factura de un movimiento existente
+// Quién pagó o cobró, los datos de factura, el identificador y el comentario de un movimiento existente
 const pagoFacturaDe = (m: Movimiento): PagoFacturaForm => ({
+  identificador: m.identificador ?? "",
+  comentario: m.comentario ?? "",
   pagadorId: m.pagador_id ?? "",
   facturaNombre: m.factura_nombre ?? "",
   facturaRut: m.factura_rut ?? "",
@@ -184,6 +188,8 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
         </div>
       )}
 
+      <CampoIdentificador id="mov" valor={pagoFactura.identificador} onCambio={identificador => setPagoFactura(v => ({ ...v, identificador }))} />
+
       <div className="space-y-1.5">
         <Label htmlFor="mov-concepto">Concepto</Label>
         <select id="mov-concepto" className={SELECT_NATIVO} value={conceptoId} onChange={e => setConceptoId(e.target.value)}>
@@ -239,6 +245,8 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
           <ElegirArchivosMovimiento elegidos={archivos} onCambio={setArchivos} disabled={enviando} />
         </div>
       )}
+
+      <CampoComentario id="mov" valor={pagoFactura.comentario} onCambio={comentario => setPagoFactura(v => ({ ...v, comentario }))} />
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
