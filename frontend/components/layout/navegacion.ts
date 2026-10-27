@@ -18,7 +18,7 @@ export interface ItemNav {
 export const NAV_MOVIL: ItemNav[] = [
   { href: "/inicio",     label: "Inicio",     icon: Home },
   { href: "/lotes",      label: "Lotes",      icon: Layers,       necesitaEstablecimiento: true },
-  { href: "/bitacora",   label: "Bitácora",   icon: NotebookPen,  necesitaEstablecimiento: true },
+  { href: "/potreros",   label: "Potreros",   icon: Grid3X3,      necesitaEstablecimiento: true },
   { href: "/calendario", label: "Calendario", icon: CalendarDays, necesitaEstablecimiento: true },
   { href: "/mas",        label: "Más",        icon: Menu },
 ]
@@ -29,10 +29,10 @@ export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/lotes",       label: "Lotes",       icon: Layers,        necesitaEstablecimiento: true },
   { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true },
   { href: "/actividades", label: "Actividades", icon: ClipboardList, necesitaEstablecimiento: true },
-  { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
+  { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true },
   { href: "/calendario",  label: "Calendario",  icon: CalendarDays,  necesitaEstablecimiento: true },
   { href: "/indicadores", label: "Indicadores", icon: TrendingUp,    necesitaEstablecimiento: true },
-  { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true },
+  { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
 ]
 
 // Lo que hay dentro de la pantalla Configuraciones (solo administrador)
