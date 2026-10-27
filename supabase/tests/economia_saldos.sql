@@ -1,11 +1,12 @@
-  -- Campo Digital v2 — Pruebas de economía: pagadores, saldos entre titulares, liquidaciones y datos de factura
+  -- Campo Digital v2 — Pruebas de economía: pagadores, saldos entre titulares, liquidaciones, datos de factura,
+  -- identificador y comentario
   --
   -- CÓMO CORRERLO
-  --   1. Con todas las migraciones aplicadas (hasta 20261027000200_factura_en_el_movimiento: la factura se escribe en
---      cada movimiento, sin catálogo de razones sociales).
+  --   1. Con todas las migraciones aplicadas (hasta 20261027000300_identificador_y_comentario: cada movimiento tiene
+  --      identificador y comentario opcionales; la factura se escribe en cada movimiento, sin catálogo).
   --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo (o node correr-pruebas.mjs saldos).
   --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ECONOMÍA (SALDOS): N OK, ...", que deshace todo.
-  --      El resultado esperado es "52 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+  --      El resultado esperado es "57 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
   --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
   --
   -- La sección 4 es el ejemplo del diseño (contexto/DISENO-ECONOMIA-SALDOS.md): al final, Juan le debe
@@ -308,7 +309,8 @@
 
   select pruebas.guardar('g1', $q$ select pruebas.mov(10, 'egreso', 'c_sanidad',
         pruebas.precio(1500, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'),
-          'factura_nombre', ' Padre ', 'factura_rut', '21.123456.0018', 'numero_comprobante', ' A-0001 ')),
+          'factura_nombre', ' Padre ', 'factura_rut', '21.123456.0018', 'numero_comprobante', ' A-0001 ',
+          'identificador', ' Vacunas aftosa otoño ', 'comentario', ' Se vacunaron las vaquillonas del Hospital ')),
         jsonb_build_array(pruebas.tit('t_hermanos', 1000), pruebas.tit('t_madre', 500))) $q$);
   select pruebas.guardar('i1', $q$ select pruebas.mov(8, 'ingreso', 'c_venta',
         pruebas.precio(400000, 'UYU', 40, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'))),
@@ -327,6 +329,12 @@
   select pruebas.espera_valor('M01 El gasto guardó quién pagó, a nombre de quién es la factura, el RUT (solo dígitos) y el comprobante (sin espacios)',
     $q$ select (pagador_id = pruebas.id('p_juan'))::text || '|' || factura_nombre || '|' || factura_rut || '|' || numero_comprobante
         from public.movimientos_economicos where id = pruebas.id('g1') $q$, 'true|Padre|211234560018|A-0001');
+  select pruebas.espera_valor('M01b Guardó el identificador y el comentario, sin espacios de más',
+    $q$ select identificador || '|' || comentario from public.movimientos_economicos where id = pruebas.id('g1') $q$,
+    'Vacunas aftosa otoño|Se vacunaron las vaquillonas del Hospital');
+  select pruebas.espera_valor('M01c Sin identificador ni comentario quedan vacíos (el listado muestra el texto del concepto)',
+    $q$ select coalesce(identificador, 'sin identificador') || '|' || coalesce(comentario, 'sin comentario')
+        from public.movimientos_economicos where id = pruebas.id('g3') $q$, 'sin identificador|sin comentario');
   select pruebas.espera_valor('M02 Queda como último pagador del operador (el último que usó: Juan tarjeta)',
     $q$ select (ultimo_pagador_id = pruebas.id('p_tarjeta'))::text from public.preferencias_economia
         where user_id = pruebas.id('u_operador') and establecimiento_id = pruebas.id('est_a') $q$, 'true');
@@ -338,6 +346,10 @@
     $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('factura_rut', '1234'))) $q$, '22023');
   select pruebas.espera_error('M05b Comprobante de más de 50 caracteres',
     $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('numero_comprobante', repeat('9', 51)))) $q$, '22023');
+  select pruebas.espera_error('M05c Identificador de más de 120 caracteres',
+    $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('identificador', repeat('x', 121)))) $q$, '22023');
+  select pruebas.espera_error('M05d Comentario de más de 2000 caracteres',
+    $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('comentario', repeat('x', 2001)))) $q$, '22023');
 
   -- ════════════════════════════════════════════════════════════════════════════
   -- 5. Liquidaciones
@@ -403,13 +415,16 @@
 
   select pruebas.espera_ok('E01 Editar el gasto sin datos de factura: se le borran la razón social y el comprobante',
     $q$ select public.editar_movimiento(pruebas.id('g1'), pruebas.d(10), 'egreso', pruebas.id('r_general'), pruebas.id('c_sanidad'),
-        pruebas.precio(1500, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'))), null, null,
+        pruebas.precio(1500, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'), 'identificador', '   ')), null, null,
         jsonb_build_array(pruebas.tit('t_hermanos', 1000), pruebas.tit('t_madre', 500))) $q$);
   select pruebas.espera_valor('E02 Sigue el pagador; sin factura ni comprobante; el saldo no cambia',
     $q$ select (m.pagador_id = pruebas.id('p_juan'))::text || '|' || coalesce(m.factura_nombre || m.factura_rut, 'sin factura') || '|'
             || coalesce(m.numero_comprobante, 'sin comprobante') || '|' || pruebas.saldos()
         from public.movimientos_economicos m where m.id = pruebas.id('g1') $q$,
     'true|sin factura|sin comprobante|Juan>Hermanos:5700.00 Juan>Madre:800.00');
+  select pruebas.espera_valor('E02b Al editar, el identificador en blanco y el comentario que no viene quedan vacíos',
+    $q$ select coalesce(identificador, 'sin identificador') || '|' || coalesce(comentario, 'sin comentario')
+        from public.movimientos_economicos where id = pruebas.id('g1') $q$, 'sin identificador|sin comentario');
 
   -- ════════════════════════════════════════════════════════════════════════════
   -- 8. Administrador: edita, da de baja y borra pagadores

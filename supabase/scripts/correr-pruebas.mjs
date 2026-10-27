@@ -35,7 +35,7 @@ const PRUEBAS = [
   ["etapa7b_economia.sql", 43],
   ["etapa8_tareas.sql", 44],
   ["potreros_estadias.sql", 66],
-  ["economia_saldos.sql", 52],
+  ["economia_saldos.sql", 57],
 ]
 // Auditoría: funciones de public (todas con ok = true) y filas de permisos de columna
 const AUDITORIA = { archivo: "auditoria_permisos.sql", funciones: 100, permisosColumna: 25 }
