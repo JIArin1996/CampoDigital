@@ -972,7 +972,15 @@ export type Database = {
           orden?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "concepto_grupos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conceptos: {
         Row: {
@@ -1008,7 +1016,22 @@ export type Database = {
           tipo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conceptos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conceptos_grupo_id_establecimiento_id_fkey"
+            columns: ["grupo_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "concepto_grupos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       especies: {
         Row: {
@@ -1120,6 +1143,108 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      liquidaciones: {
+        Row: {
+          a_pagador_id: string | null
+          a_titular_id: string | null
+          anulado_en: string | null
+          anulado_por: string | null
+          created_at: string
+          created_by: string | null
+          de_pagador_id: string | null
+          de_titular_id: string | null
+          establecimiento_id: string
+          fecha: string
+          id: string
+          moneda_original: string
+          monto_original: number
+          monto_usd: number | null
+          motivo_anulacion: string | null
+          observacion: string | null
+          tipo_cambio: number | null
+          tipo_cambio_fecha: string | null
+          tipo_cambio_fuente: string | null
+        }
+        Insert: {
+          a_pagador_id?: string | null
+          a_titular_id?: string | null
+          anulado_en?: string | null
+          anulado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          de_pagador_id?: string | null
+          de_titular_id?: string | null
+          establecimiento_id: string
+          fecha: string
+          id?: string
+          moneda_original: string
+          monto_original: number
+          monto_usd?: number | null
+          motivo_anulacion?: string | null
+          observacion?: string | null
+          tipo_cambio?: number | null
+          tipo_cambio_fecha?: string | null
+          tipo_cambio_fuente?: string | null
+        }
+        Update: {
+          a_pagador_id?: string | null
+          a_titular_id?: string | null
+          anulado_en?: string | null
+          anulado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          de_pagador_id?: string | null
+          de_titular_id?: string | null
+          establecimiento_id?: string
+          fecha?: string
+          id?: string
+          moneda_original?: string
+          monto_original?: number
+          monto_usd?: number | null
+          motivo_anulacion?: string | null
+          observacion?: string | null
+          tipo_cambio?: number | null
+          tipo_cambio_fecha?: string | null
+          tipo_cambio_fuente?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidaciones_a_pagador_id_establecimiento_id_fkey"
+            columns: ["a_pagador_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_a_titular_id_establecimiento_id_fkey"
+            columns: ["a_titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_de_pagador_id_establecimiento_id_fkey"
+            columns: ["de_pagador_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_de_titular_id_establecimiento_id_fkey"
+            columns: ["de_titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lote_archivos: {
         Row: {
@@ -1603,7 +1728,36 @@ export type Database = {
           tamano_bytes?: number
           tipo_mime?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimiento_archivos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimiento_archivos_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "movimientos_economicos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_archivos_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimientos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_archivos_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       movimiento_titulares: {
         Row: {
@@ -1624,7 +1778,43 @@ export type Database = {
           movimiento_id?: string
           titular_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimiento_titulares_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "movimientos_economicos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimientos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_titular_id_establecimiento_id_fkey"
+            columns: ["titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       movimientos_economicos: {
         Row: {
@@ -1640,6 +1830,7 @@ export type Database = {
           editado_por: string | null
           establecimiento_id: string
           estado: string
+          facturado_a_id: string | null
           fecha: string
           fecha_pago: string | null
           fecha_vencimiento: string | null
@@ -1649,7 +1840,9 @@ export type Database = {
           monto_original: number
           monto_usd: number | null
           motivo_anulacion: string | null
+          numero_comprobante: string | null
           origen: string
+          pagador_id: string | null
           rubro_id: string
           sentido: string
           tipo_cambio: number | null
@@ -1670,6 +1863,7 @@ export type Database = {
           editado_por?: string | null
           establecimiento_id: string
           estado: string
+          facturado_a_id?: string | null
           fecha: string
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
@@ -1679,7 +1873,9 @@ export type Database = {
           monto_original: number
           monto_usd?: number | null
           motivo_anulacion?: string | null
+          numero_comprobante?: string | null
           origen?: string
+          pagador_id?: string | null
           rubro_id: string
           sentido: string
           tipo_cambio?: number | null
@@ -1700,6 +1896,7 @@ export type Database = {
           editado_por?: string | null
           establecimiento_id?: string
           estado?: string
+          facturado_a_id?: string | null
           fecha?: string
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
@@ -1709,7 +1906,9 @@ export type Database = {
           monto_original?: number
           monto_usd?: number | null
           motivo_anulacion?: string | null
+          numero_comprobante?: string | null
           origen?: string
+          pagador_id?: string | null
           rubro_id?: string
           sentido?: string
           tipo_cambio?: number | null
@@ -1740,6 +1939,13 @@ export type Database = {
             referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "movimientos_economicos_concepto_fkey"
+            columns: ["concepto_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
@@ -1747,10 +1953,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimientos_economicos_facturado_fkey"
+            columns: ["facturado_a_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "razones_sociales"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "movimientos_economicos_lote_id_establecimiento_id_fkey"
             columns: ["lote_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_pagador_fkey"
+            columns: ["pagador_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
@@ -1870,6 +2090,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "establecimientos"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagadores: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          titular_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          titular_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          titular_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagadores_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagadores_titular_id_establecimiento_id_fkey"
+            columns: ["titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
           },
         ]
       }
@@ -2048,6 +2316,90 @@ export type Database = {
           },
         ]
       }
+      preferencias_economia: {
+        Row: {
+          establecimiento_id: string
+          ultimo_pagador_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          establecimiento_id: string
+          ultimo_pagador_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          establecimiento_id?: string
+          ultimo_pagador_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preferencias_economia_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preferencias_economia_ultimo_pagador_id_fkey"
+            columns: ["ultimo_pagador_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preferencias_economia_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      razones_sociales: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          rut: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          rut?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          rut?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "razones_sociales_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rubros: {
         Row: {
           activo: boolean
@@ -2207,7 +2559,15 @@ export type Database = {
           nombre?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "titulares_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -2513,7 +2873,29 @@ export type Database = {
           titular: string | null
           titular_id: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_concepto_fkey"
+            columns: ["concepto_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_rubro_id_establecimiento_id_fkey"
+            columns: ["rubro_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "rubros"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       v_resultado_rubro: {
         Row: {
@@ -2539,6 +2921,100 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rubros"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
+      v_saldos: {
+        Row: {
+          acreedor: string | null
+          acreedor_id: string | null
+          acreedor_tipo: string | null
+          deudor: string | null
+          deudor_id: string | null
+          deudor_tipo: string | null
+          establecimiento_id: string | null
+          monto_usd: number | null
+        }
+        Relationships: []
+      }
+      v_saldos_aportes: {
+        Row: {
+          acreedor_id: string | null
+          acreedor_tipo: string | null
+          descripcion: string | null
+          deudor_id: string | null
+          deudor_tipo: string | null
+          establecimiento_id: string | null
+          fecha: string | null
+          monto_usd: number | null
+          origen: string | null
+          origen_id: string | null
+          sentido: string | null
+        }
+        Relationships: []
+      }
+      v_saldos_pendientes: {
+        Row: {
+          actividad_id: string | null
+          concepto: string | null
+          establecimiento_id: string | null
+          falta_pagador: boolean | null
+          falta_reparto: boolean | null
+          fecha: string | null
+          id: string | null
+          monto_usd: number | null
+          sentido: string | null
+        }
+        Insert: {
+          actividad_id?: string | null
+          concepto?: string | null
+          establecimiento_id?: string | null
+          falta_pagador?: never
+          falta_reparto?: never
+          fecha?: string | null
+          id?: string | null
+          monto_usd?: number | null
+          sentido?: string | null
+        }
+        Update: {
+          actividad_id?: string | null
+          concepto?: string | null
+          establecimiento_id?: string | null
+          falta_pagador?: never
+          falta_reparto?: never
+          fecha?: string | null
+          id?: string | null
+          monto_usd?: number | null
+          sentido?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2687,9 +3163,21 @@ export type Database = {
         Args: { p_establecimiento_id: string }
         Returns: undefined
       }
+      _cargar_conceptos_base: {
+        Args: { p_establecimiento_id: string }
+        Returns: undefined
+      }
       _cerrar_si_vacio: {
         Args: { p_fecha: string; p_lote_id: string; p_motivo: string }
         Returns: boolean
+      }
+      _concepto_por_defecto: {
+        Args: {
+          p_especie_id: string
+          p_establecimiento_id: string
+          p_sentido: string
+        }
+        Returns: string
       }
       _entero_jsonb: {
         Args: { p_campo: string; p_valor: Json }
@@ -2703,11 +3191,33 @@ export type Database = {
         Args: { p_establecimiento_id: string; p_persona_id: string }
         Returns: undefined
       }
+      _fuente_tipo_cambio: {
+        Args: {
+          p_fecha_movimiento: string
+          p_moneda: string
+          p_precio: Json
+          p_tipo_cambio: number
+        }
+        Returns: Record<string, unknown>
+      }
       _guardar_lotes_bitacora: {
         Args: {
           p_entrada_id: string
           p_establecimiento_id: string
           p_lotes: string[]
+        }
+        Returns: undefined
+      }
+      _guardar_pago_y_factura: {
+        Args: { p_movimiento_id: string; p_precio: Json }
+        Returns: undefined
+      }
+      _guardar_titulares: {
+        Args: {
+          p_establecimiento_id: string
+          p_monto: number
+          p_movimiento_id: string
+          p_titulares: Json
         }
         Returns: undefined
       }
@@ -2720,6 +3230,10 @@ export type Database = {
           p_peso: string
         }
         Returns: string[]
+      }
+      _parte_de_saldo: {
+        Args: { p_establecimiento_id: string; p_id: string; p_tipo: string }
+        Returns: string
       }
       _precio_valido: {
         Args: { p_precio: Json }
@@ -2777,10 +3291,6 @@ export type Database = {
         Args: { p_categoria_id: string; p_lote_id: string }
         Returns: undefined
       }
-      adjuntar_archivo_movimiento: {
-        Args: { p_archivo_id: string; p_movimiento_id: string; p_nombre: string }
-        Returns: string
-      }
       adjuntar_archivo_lote: {
         Args: {
           p_archivo_id: string
@@ -2790,12 +3300,24 @@ export type Database = {
         }
         Returns: string
       }
+      adjuntar_archivo_movimiento: {
+        Args: {
+          p_archivo_id: string
+          p_movimiento_id: string
+          p_nombre: string
+        }
+        Returns: string
+      }
       anular_actividad: {
         Args: { p_actividad_id: string; p_motivo: string }
         Returns: undefined
       }
       anular_entrada_bitacora: {
         Args: { p_entrada_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      anular_liquidacion: {
+        Args: { p_id: string; p_motivo: string }
         Returns: undefined
       }
       anular_movimiento: {
@@ -2915,9 +3437,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      es_admin: { Args: never; Returns: boolean }
-      es_miembro: { Args: { p_est: string }; Returns: boolean }
-      fecha_hoy: { Args: never; Returns: string }
       editar_movimiento: {
         Args: {
           p_concepto_id: string
@@ -2932,6 +3451,9 @@ export type Database = {
         }
         Returns: undefined
       }
+      es_admin: { Args: never; Returns: boolean }
+      es_miembro: { Args: { p_est: string }; Returns: boolean }
+      fecha_hoy: { Args: never; Returns: string }
       guardar_forma_potrero: {
         Args: {
           p_actualizar_superficie?: boolean
@@ -3056,6 +3578,20 @@ export type Database = {
           p_lotes: string[]
           p_notas?: string
           p_persona_id?: string
+        }
+        Returns: string
+      }
+      registrar_liquidacion: {
+        Args: {
+          p_a_id: string
+          p_a_tipo: string
+          p_de_id: string
+          p_de_tipo: string
+          p_establecimiento_id: string
+          p_fecha: string
+          p_id: string
+          p_observacion?: string
+          p_precio: Json
         }
         Returns: string
       }
