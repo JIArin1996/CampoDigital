@@ -13,6 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DialogoAnular, DialogoPagar } from "@/components/economia/Dialogos"
 import { ListaMovimientos, type ParaAccion } from "@/components/economia/movimientos/ListaMovimientos"
+import { PestanaSaldos } from "@/components/economia/saldos/PestanaSaldos"
 import { COLOR_SENTIDO } from "@/components/economia/movimientos/DetalleMovimiento"
 import { etiquetaPeriodo, periodoActual, rangoPeriodo, usd, type Periodo } from "@/components/economia/formato"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
@@ -20,7 +21,7 @@ import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
 import type { Concepto, Pendiente, ResultadoDetalle, Rubro, SinPrecio, Titular } from "@/types/economia"
 
-type Pestana = "resultado" | "movimientos" | "pendientes" | "sin_precio"
+type Pestana = "resultado" | "movimientos" | "saldos" | "pendientes" | "sin_precio"
 
 interface Datos {
   clave: string
@@ -34,7 +35,7 @@ interface Datos {
 
 /**
  * Economía: resultado del ejercicio o año (devengado) por rubro, concepto, grupo o titular, movimientos (con filtros y período
- * propios), pendientes de cobro y pago, y compras o ventas sin precio. Consulta lo ve todo pero no carga, edita ni anula.
+ * propios), saldos entre titulares (con liquidaciones), pendientes de cobro y pago, y compras o ventas sin precio. Consulta lo ve todo pero no carga, edita ni anula.
  */
 export default function EconomiaPage() {
   // useSearchParams necesita Suspense
@@ -45,7 +46,7 @@ export default function EconomiaPage() {
   )
 }
 
-const PESTANAS: Pestana[] = ["resultado", "movimientos", "pendientes", "sin_precio"]
+const PESTANAS: Pestana[] = ["resultado", "movimientos", "saldos", "pendientes", "sin_precio"]
 
 function Economia() {
   const params = useSearchParams()
@@ -99,6 +100,7 @@ function Economia() {
   const pestanas: { id: Pestana; etiqueta: string; cuenta?: number }[] = [
     { id: "resultado", etiqueta: "Resultado" },
     { id: "movimientos", etiqueta: "Movimientos" },
+    { id: "saldos", etiqueta: "Saldos" },
     { id: "pendientes", etiqueta: "Pendientes", cuenta: listos?.pendientes.length },
     { id: "sin_precio", etiqueta: "Sin precio", cuenta: listos?.sinPrecio.length },
   ]
@@ -141,7 +143,7 @@ function Economia() {
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {!listos && !error ? <div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /> : listos && (
-        <div className={cn("space-y-4", pestana !== "movimientos" && "max-w-3xl")}>
+        <div className={cn("space-y-4", pestana !== "movimientos" && pestana !== "saldos" && "max-w-3xl")}>
           {/* Aviso: lo que el resultado no cuenta */}
           {listos.sinPrecio.length > 0 && pestana !== "sin_precio" && (
             <p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
@@ -158,6 +160,10 @@ function Economia() {
             <ListaMovimientos establecimientoId={establecimientoActivo.id} puedeOperar={puedeOperar} rubros={listos.rubros}
               conceptos={listos.conceptos} titulares={listos.titulares} version={version} onPagar={setAPagar} onAnular={setAAnular}
               onCambio={() => setVersion(v => v + 1)} />
+          )}
+          {pestana === "saldos" && (
+            <PestanaSaldos establecimientoId={establecimientoActivo.id} puedeOperar={puedeOperar} titulares={listos.titulares}
+              version={version} onCambio={() => setVersion(v => v + 1)} />
           )}
           {pestana === "pendientes" && <Pendientes pendientes={listos.pendientes} puedeOperar={puedeOperar} onPagar={setAPagar} />}
           {pestana === "sin_precio" && <ListaSinPrecio filas={listos.sinPrecio} puedeOperar={puedeOperar} />}

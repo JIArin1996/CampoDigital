@@ -2,8 +2,8 @@ import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
 import type { PrecioCarga } from '@/types/actividades'
 import type {
-  Concepto, GrupoConcepto, Movimiento, MovimientoTitular, Pagador, Pendiente, ResultadoDetalle, ResultadoRubroMes, Rubro, Sentido,
-  SinPrecio, Titular,
+  AporteSaldo, Concepto, GrupoConcepto, Liquidacion, Movimiento, MovimientoTitular, Pagador, Pendiente, PendienteSaldo, ResultadoDetalle,
+  ResultadoRubroMes, Rubro, Saldo, Sentido, SinPrecio, Titular, TipoParte,
 } from '@/types/economia'
 
 // La plata la leen los miembros, Consulta incluido (desde 20261027000100); escriben el administrador y el operador.
@@ -333,4 +333,93 @@ export async function borrarDeCatalogo(
     throw error
   }
   exigirFilas(data)
+}
+
+// ── Saldos entre titulares y liquidaciones ───────────────────────────────────
+// Los leen los miembros (Consulta incluido); las liquidaciones se registran y anulan con funciones.
+
+// Quién le debe a quién (un par por fila, ya compensado), de mayor a menor
+export async function getSaldos(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('v_saldos')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('monto_usd', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Saldo[]
+}
+
+// Todo lo que compone los saldos (la app arma el detalle de cada par), del más nuevo al más viejo
+export async function getAportesSaldos(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('v_saldos_aportes')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('fecha', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as AporteSaldo[]
+}
+
+// Movimientos pagados sin quién pagó o sin reparto (no entran en los saldos), de cualquier fecha
+export async function getPendientesSaldos(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('v_saldos_pendientes')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('fecha', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as PendienteSaldo[]
+}
+
+// Identificador de varios movimientos (el detalle de un saldo lo muestra en lugar del texto)
+export async function getIdentificadores(movimiento_ids: string[]) {
+  if (movimiento_ids.length === 0) return new Map<string, string>()
+  const { data, error } = await createClient()
+    .from('movimientos_economicos')
+    .select('id, identificador')
+    .in('id', movimiento_ids)
+    .not('identificador', 'is', null)
+  if (error) throw error
+  return new Map((data ?? []).map(m => [m.id, m.identificador as string]))
+}
+
+export async function getLiquidaciones(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('liquidaciones')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .order('fecha', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Liquidacion[]
+}
+
+// Idempotente por id (se genera al abrir el formulario)
+export async function registrarLiquidacion(l: {
+  id: string
+  establecimiento_id: string
+  fecha: string
+  de: { tipo: TipoParte; id: string }
+  a: { tipo: TipoParte; id: string }
+  precio: PrecioCarga
+  observacion?: string
+}) {
+  const { data, error } = await createClient().rpc('registrar_liquidacion', {
+    p_id: l.id,
+    p_establecimiento_id: l.establecimiento_id,
+    p_fecha: l.fecha,
+    p_de_tipo: l.de.tipo,
+    p_de_id: l.de.id,
+    p_a_tipo: l.a.tipo,
+    p_a_id: l.a.id,
+    p_precio: l.precio,
+    p_observacion: l.observacion || undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function anularLiquidacion(id: string, motivo: string) {
+  const { error } = await createClient().rpc('anular_liquidacion', { p_id: id, p_motivo: motivo })
+  if (error) throw error
 }
