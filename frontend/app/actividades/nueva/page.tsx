@@ -39,6 +39,7 @@ import type {
 } from "@/types/actividades"
 import { CampoTipoCambio } from "@/components/economia/CampoTipoCambio"
 import { tipoCambioVacio, type TipoCambioForm } from "@/components/economia/formato"
+import { CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm } from "@/components/economia/PagoYFactura"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 type Rubro = Awaited<ReturnType<typeof getRubros>>[number]
@@ -207,6 +208,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [estadoPago, setEstadoPago] = useState<EstadoPago>("pendiente")
   const [fechaPago, setFechaPago] = useState("")
   const [rubroId, setRubroId] = useState("")
+  const [pagoFactura, setPagoFactura] = useState<PagoFacturaForm>(pagoFacturaVacio)
 
   // Mortandad
   const [causa, setCausa] = useState("Desconocida")
@@ -258,7 +260,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const cabezasConPeso = conPeso.reduce((s, x) => s + x.cab, 0)
 
   const lotesCria = lotes.filter(l => l.id !== loteId && l.especie_id === lote?.especie_id)
-  const rubroPorDefecto = rubros.find(r => r.nombre.toLowerCase() === (especie?.nombre ?? "").toLowerCase())
+  // El rubro por defecto es el de la especie (el mismo que usa la base), no uno con el mismo nombre
+  const rubroPorDefecto = rubros.find(r => r.id === especie?.rubro_id)
   const sinFechaMinima = tipo === "compra" && destinoNuevo
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -314,6 +317,9 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       }
       if (fechaPago) precio.fecha_pago = fechaPago
       if (rubroId) precio.rubro_id = rubroId
+      const pago = leerPagoFactura(pagoFactura)
+      if ("error" in pago) return setError(pago.error)
+      Object.assign(precio, pago.datos)
     }
 
     // Parición
@@ -548,6 +554,9 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                       {rubros.filter(r => r.id !== rubroPorDefecto?.id).map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                     </select>
                   </div>
+                  <CampoPagador id="act" establecimientoId={datos.estId} ingreso={tipo === "venta"} valor={pagoFactura.pagadorId}
+                    onCambio={pagadorId => setPagoFactura(v => ({ ...v, pagadorId }))} recordarUltimo />
+                  <DatosFactura id="act" establecimientoId={datos.estId} valor={pagoFactura} onCambio={setPagoFactura} />
                 </CardContent>
               </Card>
             )}

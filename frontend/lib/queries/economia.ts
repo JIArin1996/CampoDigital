@@ -295,6 +295,34 @@ export async function actualizarPagador(id: string, cambios: { nombre?: string; 
   return exigirFilas(data) as Pagador
 }
 
+// El último pagador que usó quien está cargando, en este establecimiento (lo guarda la base al cargar)
+export async function getUltimoPagador(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('preferencias_economia')
+    .select('ultimo_pagador_id')
+    .eq('establecimiento_id', establecimiento_id)
+    .maybeSingle()
+  if (error) throw error
+  return data?.ultimo_pagador_id ?? null
+}
+
+// Nombres de factura ya usados (para sugerirlos al cargar), del más reciente al más viejo, con su último RUT
+export async function getNombresFactura(establecimiento_id: string) {
+  const { data, error } = await createClient()
+    .from('movimientos_economicos')
+    .select('factura_nombre, factura_rut')
+    .eq('establecimiento_id', establecimiento_id)
+    .not('factura_nombre', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (error) throw error
+  const vistos = new Map<string, string | null>()
+  for (const f of data ?? []) {
+    if (f.factura_nombre && !vistos.has(f.factura_nombre)) vistos.set(f.factura_nombre, f.factura_rut)
+  }
+  return [...vistos].map(([nombre, rut]) => ({ nombre, rut }))
+}
+
 // Borrar un elemento de un catálogo sin uso. Con uso, la base lo impide: el mensaje sugiere darlo de baja.
 export async function borrarDeCatalogo(
   tabla: 'conceptos' | 'concepto_grupos' | 'titulares' | 'pagadores', id: string, enUso: string,

@@ -215,12 +215,15 @@ export default function ActividadPage() {
         </section>
         )}
 
-        {/* Precio: solo para quien ve la economía (Consulta no ve plata) */}
-        {(a.tipo === "compra" || a.tipo === "venta") && puedeOperarEn(a.establecimiento_id) && (
+        {/* Precio: lo ven todos (Consulta, en modo lectura); cargarlo, quien puede cargar */}
+        {(a.tipo === "compra" || a.tipo === "venta") && (
           <Card>
             <CardHeader className="pb-1"><CardTitle className="text-base">Precio</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {!anulada && !movimientos.some(m => !m.anulado_en) && (
+              {!movimientos.some(m => !m.anulado_en) && !puedeOperarEn(a.establecimiento_id) && (
+                <p className="text-sm text-muted-foreground">Sin precio cargado.</p>
+              )}
+              {!anulada && !movimientos.some(m => !m.anulado_en) && puedeOperarEn(a.establecimiento_id) && (
                 <CargarPrecio actividadId={a.id} establecimientoId={a.establecimiento_id} fecha={a.fecha} venta={a.tipo === "venta"} rubros={ficha.rubros} onHecho={() => setVersion(v => v + 1)} />
               )}
               {movimientos.map(m => (

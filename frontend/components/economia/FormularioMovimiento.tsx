@@ -16,6 +16,7 @@ import { CamposPrecio } from "@/components/economia/CamposPrecio"
 import { OpcionesConcepto } from "@/components/economia/OpcionesConcepto"
 import { RepartoTitulares } from "@/components/economia/RepartoTitulares"
 import { ElegirArchivosMovimiento, type ArchivoElegido } from "@/components/economia/ArchivosMovimiento"
+import { CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm } from "@/components/economia/PagoYFactura"
 import {
   leerPrecio, leerTitulares, montoATexto, parsearMonto, precioVacio, tipoCambioATexto, type PrecioForm, type TitularForm,
 } from "@/components/economia/formato"
@@ -47,10 +48,19 @@ const precioDe = (m: Movimiento): PrecioForm => ({
   vencimiento: m.fecha_vencimiento ?? "",
 })
 
+// Quién pagó o cobró y los datos de factura de un movimiento existente
+const pagoFacturaDe = (m: Movimiento): PagoFacturaForm => ({
+  pagadorId: m.pagador_id ?? "",
+  facturaNombre: m.factura_nombre ?? "",
+  facturaRut: m.factura_rut ?? "",
+  comprobante: m.numero_comprobante ?? "",
+})
+
 /**
- * Formulario de un ingreso o gasto: carga nueva o edición (`inicial`). Concepto del catálogo
- * filtrado por el tipo, reparto entre titulares y, al cargar, archivos. Al editar uno que viene de una
- * compra o venta, la fecha, el tipo y el lote son los de la actividad.
+ * Formulario de un ingreso o gasto: carga nueva o edición (`inicial`). En orden: tipo, fecha, concepto
+ * (del catálogo, filtrado por el tipo), rubro, monto y moneda, titulares, "Pagado por" o "Cobrado por"
+ * (al cargar, el último que usó quien carga) y, plegados al final, los datos de factura. Al editar uno
+ * que viene de una compra o venta, la fecha, el tipo y el lote son los de la actividad.
  */
 export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCancelar }: {
   establecimientoId: string
@@ -73,6 +83,7 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
   const [precio, setPrecio] = useState<PrecioForm>(() => (m ? precioDe(m) : precioVacio()))
   const [titulares, setTitulares] = useState<TitularForm[]>(() =>
     (inicial?.titulares ?? []).map(t => ({ titularId: t.titular_id, monto: montoATexto(Number(t.monto)) })))
+  const [pagoFactura, setPagoFactura] = useState<PagoFacturaForm>(() => (m ? pagoFacturaDe(m) : pagoFacturaVacio()))
   const [archivos, setArchivos] = useState<ArchivoElegido[]>([])
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -116,10 +127,12 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
     if ("error" in leido) return setError(leido.error)
     const reparto = leerTitulares(titulares, leido.precio.monto)
     if ("error" in reparto) return setError(reparto.error)
+    const pago = leerPagoFactura(pagoFactura)
+    if ("error" in pago) return setError(pago.error)
     setEnviando(true)
     try {
       const datos = {
-        fecha, sentido, rubro_id: rubroId, concepto_id: conceptoId, precio: leido.precio,
+        fecha, sentido, rubro_id: rubroId, concepto_id: conceptoId, precio: { ...leido.precio, ...pago.datos },
         contraparte: contraparte.trim() || null, lote_id: loteId || null, titulares: reparto.titulares,
       }
       if (editando) {
@@ -164,27 +177,26 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        {!deActividad && (
-          <div className="space-y-1.5">
-            <Label htmlFor="mov-fecha">Fecha</Label>
-            <Input id="mov-fecha" type="date" max={hoyLocal()} className={CAMPO} value={fecha} onChange={e => setFecha(e.target.value)} />
-          </div>
-        )}
+      {!deActividad && (
         <div className="space-y-1.5">
-          <Label htmlFor="mov-rubro">Rubro</Label>
-          <select id="mov-rubro" className={SELECT_NATIVO} value={rubroId} onChange={e => setRubroId(e.target.value)}>
-            <option value="">Elegí</option>
-            {catalogos.rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-          </select>
+          <Label htmlFor="mov-fecha">Fecha</Label>
+          <Input id="mov-fecha" type="date" max={hoyLocal()} className={cn(CAMPO, "sm:max-w-56")} value={fecha} onChange={e => setFecha(e.target.value)} />
         </div>
-      </div>
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor="mov-concepto">Concepto</Label>
         <select id="mov-concepto" className={SELECT_NATIVO} value={conceptoId} onChange={e => setConceptoId(e.target.value)}>
           <option value="">Elegí</option>
           <OpcionesConcepto conceptos={catalogos.conceptos} grupos={catalogos.grupos} tipo={sentido} />
+        </select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="mov-rubro">Rubro</Label>
+        <select id="mov-rubro" className={SELECT_NATIVO} value={rubroId} onChange={e => setRubroId(e.target.value)}>
+          <option value="">Elegí</option>
+          {catalogos.rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
         </select>
       </div>
 
@@ -206,6 +218,9 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
         </div>
       )}
 
+      <CampoPagador id="mov" establecimientoId={establecimientoId} ingreso={ingreso} valor={pagoFactura.pagadorId}
+        onCambio={pagadorId => setPagoFactura(v => ({ ...v, pagadorId }))} actual={m?.pagador_id} recordarUltimo={!editando} />
+
       {!deActividad && (
         <div className="space-y-1.5">
           <Label htmlFor="mov-lote">Lote <span className="font-normal text-muted-foreground">(opcional)</span></Label>
@@ -215,6 +230,8 @@ export function FormularioMovimiento({ establecimientoId, inicial, onListo, onCa
           </select>
         </div>
       )}
+
+      <DatosFactura id="mov" establecimientoId={establecimientoId} valor={pagoFactura} onCambio={setPagoFactura} />
 
       {!editando && (
         <div className="space-y-1.5">
