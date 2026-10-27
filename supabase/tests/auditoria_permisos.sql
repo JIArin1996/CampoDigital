@@ -40,7 +40,7 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 2. Políticas fuera de regla
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (desde 20261025000200 y 20261027000100): exactamente estas 5 filas, las políticas de borrado de los
+-- ESPERADO (desde 20261025000200 y 20261027000100): exactamente estas 4 filas, las políticas de borrado de los
 -- catálogos de economía, solo para el administrador y solo si nadie los usa (las FK con restrict lo impiden):
 --
 --   tablename        | policyname              | cmd    | roles
@@ -48,7 +48,6 @@ order by 1, 2;
 --   concepto_grupos  | concepto_grupos_delete  | DELETE | {authenticated}
 --   conceptos        | conceptos_delete        | DELETE | {authenticated}
 --   pagadores        | pagadores_delete        | DELETE | {authenticated}
---   razones_sociales | razones_sociales_delete | DELETE | {authenticated}
 --   titulares        | titulares_delete        | DELETE | {authenticated}
 --
 -- Regla: ninguna otra política de delete (ni "ALL", que incluye delete) y todas solo para
@@ -69,14 +68,15 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Lista todo permiso de anon, authenticated o public que no sea "authenticated: select".
 --
--- ESPERADO (después de 20261027000100): exactamente estas 28 filas, todas de authenticated: 23 a nivel columna y 5 de
+-- ESPERADO (después de 20261027000200): exactamente estas 25 filas, todas de authenticated: 21 a nivel columna y 4 de
 -- tabla (el DELETE de los catálogos de economía, que las políticas limitan al administrador).
 -- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
 -- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
 -- dejó de ser editable y su lugar lo toma anios_nacimiento (la columna se borró en 20261020000500). archivos y lote_archivos: solo lectura.
 -- Desde 20261024000100, lotes.potrero_id tampoco: lo mantienen las estadías (lote_estadias, solo lectura), y
 -- potreros.forma se escribe solo con guardar_forma_potrero. Economía: concepto_grupos, conceptos y titulares (20261025000200)
--- y pagadores y razones_sociales (20261027000100) se editan directo, filtrados por las políticas; movimientos, reparto,
+-- y pagadores (20261027000100) se editan directo, filtrados por las políticas (razones_sociales se borró en 20261027000200:
+-- la factura se escribe en cada movimiento); movimientos, reparto,
 -- liquidaciones y preferencias_economia, solo por funciones.)
 -- Cualquier otra fila "tabla" (por ejemplo un insert sobre toda la tabla) o cualquier fila de anon o PUBLIC es un error.
 --
@@ -85,7 +85,6 @@ order by 1, 2;
 --   tabla   | authenticated | concepto_grupos     | DELETE  |
 --   tabla   | authenticated | conceptos           | DELETE  |
 --   tabla   | authenticated | pagadores           | DELETE  |
---   tabla   | authenticated | razones_sociales    | DELETE  |
 --   tabla   | authenticated | titulares           | DELETE  |
 --   columna | authenticated | concepto_grupos     | INSERT  | activo, establecimiento_id, nombre, orden
 --   columna | authenticated | concepto_grupos     | UPDATE  | activo, nombre, orden
@@ -93,8 +92,6 @@ order by 1, 2;
 --   columna | authenticated | conceptos           | UPDATE  | activo, grupo_id, nombre
 --   columna | authenticated | pagadores           | INSERT  | activo, establecimiento_id, nombre, titular_id
 --   columna | authenticated | pagadores           | UPDATE  | activo, nombre, titular_id
---   columna | authenticated | razones_sociales    | INSERT  | activo, establecimiento_id, nombre, rut
---   columna | authenticated | razones_sociales    | UPDATE  | activo, nombre, rut
 --   columna | authenticated | titulares           | INSERT  | activo, establecimiento_id, nombre
 --   columna | authenticated | titulares           | UPDATE  | activo, nombre
 --   (y las 13 de antes:)

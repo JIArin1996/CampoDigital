@@ -1,10 +1,11 @@
   -- Campo Digital v2 — Pruebas de economía: pagadores, saldos entre titulares, liquidaciones y datos de factura
   --
   -- CÓMO CORRERLO
-  --   1. Con todas las migraciones aplicadas (hasta 20261027000100_economia_saldos).
+  --   1. Con todas las migraciones aplicadas (hasta 20261027000200_factura_en_el_movimiento: la factura se escribe en
+--      cada movimiento, sin catálogo de razones sociales).
   --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo (o node correr-pruebas.mjs saldos).
   --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ECONOMÍA (SALDOS): N OK, ...", que deshace todo.
-  --      El resultado esperado es "51 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+  --      El resultado esperado es "52 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
   --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
   --
   -- La sección 4 es el ejemplo del diseño (contexto/DISENO-ECONOMIA-SALDOS.md): al final, Juan le debe
@@ -240,8 +241,8 @@
             and not has_table_privilege('authenticated', 'public.preferencias_economia', 'update')
             and not has_table_privilege('anon', 'public.pagadores', 'select')
             and not has_table_privilege('anon', 'public.liquidaciones', 'select'))::text || '|' || count(*)
-        from pg_class c where c.oid in ('public.pagadores'::regclass, 'public.razones_sociales'::regclass,
-                                        'public.liquidaciones'::regclass, 'public.preferencias_economia'::regclass) $q$, 'true|4');
+        from pg_class c where c.oid in ('public.pagadores'::regclass, 'public.liquidaciones'::regclass,
+                                        'public.preferencias_economia'::regclass) $q$, 'true|3');
   select pruebas.espera_valor('B02 Funciones nuevas: search_path fijo, nada para anon; registrar y anular liquidación security definer para authenticated; las internas para nadie',
     $q$ select count(*) filter (where coalesce('search_path=""' = any (p.proconfig), false) and not has_function_privilege('anon', p.oid, 'execute')
                 and has_function_privilege('authenticated', p.oid, 'execute') = (p.proname in ('registrar_liquidacion', 'anular_liquidacion'))
@@ -277,11 +278,11 @@
   select pruebas.guardar('t_x',        $q$ insert into public.titulares (establecimiento_id, nombre) values (pruebas.id('est_x'), 'Otro') returning id $q$);
   select pruebas.guardar('p_x',        $q$ insert into public.pagadores (establecimiento_id, nombre) values (pruebas.id('est_x'), 'Caja del otro campo') returning id $q$);
   select pruebas.guardar('p_baja',     $q$ insert into public.pagadores (establecimiento_id, nombre, activo) values (pruebas.id('est_a'), 'Cuenta vieja', false) returning id $q$);
-  select pruebas.espera_error('C01 Razón social con RUT mal formado',
-    $q$ insert into public.razones_sociales (establecimiento_id, nombre, rut) values (pruebas.id('est_a'), 'Mal', '1234') $q$, '23514');
+  select pruebas.espera_valor('C01 Ya no hay catálogo de razones sociales: la factura se escribe en cada movimiento',
+    $q$ select (to_regclass('public.razones_sociales') is null)::text $q$, 'true');
 
   -- ════════════════════════════════════════════════════════════════════════════
-  -- 3. Operador: crea pagadores y razones sociales, pero no los edita ni los borra
+  -- 3. Operador: crea pagadores, pero no los edita ni los borra
   -- ════════════════════════════════════════════════════════════════════════════
 
   select pruebas.como('u_operador');
@@ -289,15 +290,12 @@
         values (pruebas.id('est_a'), 'Juan', pruebas.id('t_juan')) returning id $q$);
   select pruebas.guardar('p_tarjeta', $q$ insert into public.pagadores (establecimiento_id, nombre, titular_id)
         values (pruebas.id('est_a'), 'Juan tarjeta', pruebas.id('t_juan')) returning id $q$);
-  select pruebas.guardar('rs_padre',  $q$ insert into public.razones_sociales (establecimiento_id, nombre, rut)
-        values (pruebas.id('est_a'), 'Padre', '211234560018') returning id $q$);
-  select pruebas.espera_valor('C02 El operador creó dos pagadores (los dos de Juan) y una razón social',
-    $q$ select (select count(*) from public.pagadores where establecimiento_id = pruebas.id('est_a') and titular_id = pruebas.id('t_juan')) || '|'
-            || (select count(*) from public.razones_sociales where establecimiento_id = pruebas.id('est_a')) $q$, '2|1');
+  select pruebas.espera_valor('C02 El operador creó dos pagadores, los dos de Juan',
+    $q$ select count(*)::text from public.pagadores where establecimiento_id = pruebas.id('est_a') and titular_id = pruebas.id('t_juan') $q$, '2');
   select pruebas.espera_filas('C03 El operador no edita un pagador: 0 filas',
     $q$ update public.pagadores set nombre = 'Juan editado' where id = pruebas.id('p_juan') $q$, 0);
-  select pruebas.espera_filas('C04 El operador no borra una razón social: 0 filas',
-    $q$ delete from public.razones_sociales where id = pruebas.id('rs_padre') $q$, 0);
+  select pruebas.espera_filas('C04 El operador no borra un pagador: 0 filas',
+    $q$ delete from public.pagadores where id = pruebas.id('p_tarjeta') $q$, 0);
 
   -- ════════════════════════════════════════════════════════════════════════════
   -- 4. El ejemplo del diseño (sección 4)
@@ -310,7 +308,7 @@
 
   select pruebas.guardar('g1', $q$ select pruebas.mov(10, 'egreso', 'c_sanidad',
         pruebas.precio(1500, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'),
-          'facturado_a_id', pruebas.id('rs_padre'), 'numero_comprobante', ' A-0001 ')),
+          'factura_nombre', ' Padre ', 'factura_rut', '21.123456.0018', 'numero_comprobante', ' A-0001 ')),
         jsonb_build_array(pruebas.tit('t_hermanos', 1000), pruebas.tit('t_madre', 500))) $q$);
   select pruebas.guardar('i1', $q$ select pruebas.mov(8, 'ingreso', 'c_venta',
         pruebas.precio(400000, 'UYU', 40, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'))),
@@ -326,9 +324,9 @@
   select pruebas.guardar('g6', $q$ select pruebas.mov(6, 'egreso', 'c_otros',
         pruebas.precio(70, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_tarjeta')))) $q$);
 
-  select pruebas.espera_valor('M01 El gasto guardó quién pagó, a nombre de quién es la factura y el comprobante (sin espacios)',
-    $q$ select (pagador_id = pruebas.id('p_juan'))::text || '|' || (facturado_a_id = pruebas.id('rs_padre'))::text || '|' || numero_comprobante
-        from public.movimientos_economicos where id = pruebas.id('g1') $q$, 'true|true|A-0001');
+  select pruebas.espera_valor('M01 El gasto guardó quién pagó, a nombre de quién es la factura, el RUT (solo dígitos) y el comprobante (sin espacios)',
+    $q$ select (pagador_id = pruebas.id('p_juan'))::text || '|' || factura_nombre || '|' || factura_rut || '|' || numero_comprobante
+        from public.movimientos_economicos where id = pruebas.id('g1') $q$, 'true|Padre|211234560018|A-0001');
   select pruebas.espera_valor('M02 Queda como último pagador del operador (el último que usó: Juan tarjeta)',
     $q$ select (ultimo_pagador_id = pruebas.id('p_tarjeta'))::text from public.preferencias_economia
         where user_id = pruebas.id('u_operador') and establecimiento_id = pruebas.id('est_a') $q$, 'true');
@@ -336,7 +334,9 @@
     $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_x')))) $q$, '22023');
   select pruebas.espera_error('M04 Pagador dado de baja',
     $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_baja')))) $q$, '22023');
-  select pruebas.espera_error('M05 Comprobante de más de 50 caracteres',
+  select pruebas.espera_error('M05 RUT de la factura mal formado (no tiene 12 dígitos)',
+    $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('factura_rut', '1234'))) $q$, '22023');
+  select pruebas.espera_error('M05b Comprobante de más de 50 caracteres',
     $q$ select pruebas.mov(1, 'egreso', 'c_otros', pruebas.precio(10, 'USD', null, 'pagado', jsonb_build_object('numero_comprobante', repeat('9', 51)))) $q$, '22023');
 
   -- ════════════════════════════════════════════════════════════════════════════
@@ -406,7 +406,7 @@
         pruebas.precio(1500, 'USD', null, 'pagado', jsonb_build_object('pagador_id', pruebas.id('p_juan'))), null, null,
         jsonb_build_array(pruebas.tit('t_hermanos', 1000), pruebas.tit('t_madre', 500))) $q$);
   select pruebas.espera_valor('E02 Sigue el pagador; sin factura ni comprobante; el saldo no cambia',
-    $q$ select (m.pagador_id = pruebas.id('p_juan'))::text || '|' || coalesce(m.facturado_a_id::text, 'sin factura') || '|'
+    $q$ select (m.pagador_id = pruebas.id('p_juan'))::text || '|' || coalesce(m.factura_nombre || m.factura_rut, 'sin factura') || '|'
             || coalesce(m.numero_comprobante, 'sin comprobante') || '|' || pruebas.saldos()
         from public.movimientos_economicos m where m.id = pruebas.id('g1') $q$,
     'true|sin factura|sin comprobante|Juan>Hermanos:5700.00 Juan>Madre:800.00');
