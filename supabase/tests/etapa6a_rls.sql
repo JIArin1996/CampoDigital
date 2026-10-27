@@ -666,11 +666,11 @@ select pruebas.espera_valor('A22 LS reabierto con sus 3 toros',
 
 select pruebas.como('u_consulta');
 
-select pruebas.espera_valor('Q01 Consulta lee actividades, la vista y las líneas; los movimientos no (desde 20261022000500: Consulta no ve plata)',
+select pruebas.espera_valor('Q01 Consulta lee actividades, la vista, las líneas y los movimientos (desde 20261027000100 ve la plata, en modo lectura)',
   $q$ select (select count(*) from public.actividades where establecimiento_id = pruebas.id('est_a')) || '|'
           || (select count(*) from public.v_actividades where establecimiento_id = pruebas.id('est_a')) || '|'
           || (select count(*) from public.actividad_lineas where actividad_id = pruebas.id('pe1')) || '|'
-          || (select count(*) from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a')) $q$, '12|12|2|0');
+          || (select count(*) from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a')) $q$, '12|12|2|3');
 select pruebas.espera_error('Q02 Consulta: registrar_pesada',
   $q$ select public.registrar_pesada(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 1, 300))) $q$, '42501');

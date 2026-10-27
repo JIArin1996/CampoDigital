@@ -40,8 +40,18 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 2. Políticas fuera de regla
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO: 0 filas.
--- Regla: ninguna política de delete (ni "ALL", que incluye delete) y todas solo para
+-- ESPERADO (desde 20261025000200 y 20261027000100): exactamente estas 5 filas, las políticas de borrado de los
+-- catálogos de economía, solo para el administrador y solo si nadie los usa (las FK con restrict lo impiden):
+--
+--   tablename        | policyname              | cmd    | roles
+--   -----------------+-------------------------+--------+-----------------
+--   concepto_grupos  | concepto_grupos_delete  | DELETE | {authenticated}
+--   conceptos        | conceptos_delete        | DELETE | {authenticated}
+--   pagadores        | pagadores_delete        | DELETE | {authenticated}
+--   razones_sociales | razones_sociales_delete | DELETE | {authenticated}
+--   titulares        | titulares_delete        | DELETE | {authenticated}
+--
+-- Regla: ninguna otra política de delete (ni "ALL", que incluye delete) y todas solo para
 -- authenticated (ninguna para anon ni public).
 
 select p.tablename, p.policyname, p.cmd, p.roles
@@ -59,14 +69,35 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Lista todo permiso de anon, authenticated o public que no sea "authenticated: select".
 --
--- ESPERADO (después de años de nacimiento y archivos): exactamente estas 13 filas, todas de authenticated y a nivel columna.
+-- ESPERADO (después de 20261027000100): exactamente estas 28 filas, todas de authenticated: 23 a nivel columna y 5 de
+-- tabla (el DELETE de los catálogos de economía, que las políticas limitan al administrador).
 -- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
 -- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
 -- dejó de ser editable y su lugar lo toma anios_nacimiento (la columna se borró en 20261020000500). archivos y lote_archivos: solo lectura.
 -- Desde 20261024000100, lotes.potrero_id tampoco: lo mantienen las estadías (lote_estadias, solo lectura), y
--- potreros.forma se escribe solo con guardar_forma_potrero.)
--- Cualquier fila "tabla" (por ejemplo un delete o un insert sobre toda la tabla) o
--- cualquier fila de anon o PUBLIC es un error.
+-- potreros.forma se escribe solo con guardar_forma_potrero. Economía: concepto_grupos, conceptos y titulares (20261025000200)
+-- y pagadores y razones_sociales (20261027000100) se editan directo, filtrados por las políticas; movimientos, reparto,
+-- liquidaciones y preferencias_economia, solo por funciones.)
+-- Cualquier otra fila "tabla" (por ejemplo un insert sobre toda la tabla) o cualquier fila de anon o PUBLIC es un error.
+--
+--   nivel   | grantee       | tabla               | permiso | columnas
+--   --------+---------------+---------------------+---------+------------------------------------------------
+--   tabla   | authenticated | concepto_grupos     | DELETE  |
+--   tabla   | authenticated | conceptos           | DELETE  |
+--   tabla   | authenticated | pagadores           | DELETE  |
+--   tabla   | authenticated | razones_sociales    | DELETE  |
+--   tabla   | authenticated | titulares           | DELETE  |
+--   columna | authenticated | concepto_grupos     | INSERT  | activo, establecimiento_id, nombre, orden
+--   columna | authenticated | concepto_grupos     | UPDATE  | activo, nombre, orden
+--   columna | authenticated | conceptos           | INSERT  | activo, establecimiento_id, grupo_id, nombre, tipo
+--   columna | authenticated | conceptos           | UPDATE  | activo, grupo_id, nombre
+--   columna | authenticated | pagadores           | INSERT  | activo, establecimiento_id, nombre, titular_id
+--   columna | authenticated | pagadores           | UPDATE  | activo, nombre, titular_id
+--   columna | authenticated | razones_sociales    | INSERT  | activo, establecimiento_id, nombre, rut
+--   columna | authenticated | razones_sociales    | UPDATE  | activo, nombre, rut
+--   columna | authenticated | titulares           | INSERT  | activo, establecimiento_id, nombre
+--   columna | authenticated | titulares           | UPDATE  | activo, nombre
+--   (y las 13 de antes:)
 --
 --   nivel   | grantee       | tabla               | permiso | columnas
 --   --------+---------------+---------------------+---------+------------------------------------------------
@@ -112,7 +143,8 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de las estadías de potrero, 20261024000100): 88 filas, todas con ok = true.
+-- ESPERADO (después de economía: saldos, 20261027000100): 100 filas, todas con ok = true.
+-- (+8 de 20261025000100 a 20261025000400 y +4 de 20261027000100.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -124,13 +156,19 @@ order by 1 desc, 2, 3, 4;
 --   _bloquear_lote_editable     | false            | false         | false | false
 --   _bloquear_lotes_actividad   | false            | false         | false | false
 --   _cabezas                    | false            | false         | false | false
+--   _cargar_conceptos_base      | false            | false         | false | false
 --   _cargar_catalogos_base      | false            | false         | false | false
 --   _cerrar_si_vacio            | false            | false         | false | false
+--   _concepto_por_defecto       | false            | false         | false | false
 --   _entero_jsonb               | false            | false         | false | false
 --   _exigir_categoria           | false            | false         | false | false
 --   _exigir_persona             | false            | false         | false | false
+--   _fuente_tipo_cambio         | false            | false         | false | false
+--   _guardar_pago_y_factura     | false            | false         | false | false
 --   _guardar_lotes_bitacora     | false            | false         | false | false
+--   _guardar_titulares          | false            | false         | false | false
 --   _insertar_lineas            | false            | false         | false | false
+--   _parte_de_saldo             | false            | false         | false | false
 --   _precio_valido              | false            | false         | false | false
 --   _registrar_movimiento       | false            | false         | false | false
 --   _sincronizar_potrero_lote   | false            | false         | false | false
@@ -143,8 +181,10 @@ order by 1 desc, 2, 3, 4;
 --   actividad_lotes_desde_actividad | true             | false         | false | false
 --   actividad_lotes_desde_paricion | true             | false         | false | false
 --   adjuntar_archivo_lote       | true             | true          | false | false
+--   adjuntar_archivo_movimiento | true             | true          | false | false
 --   anular_actividad            | true             | true          | false | false
 --   anular_entrada_bitacora     | true             | true          | false | false
+--   anular_liquidacion          | true             | true          | false | false
 --   anular_movimiento           | true             | true          | false | false
 --   asignar_rol                 | true             | true          | false | false
 --   bloquear_borrado            | false            | false         | false | false
@@ -161,6 +201,7 @@ order by 1 desc, 2, 3, 4;
 --   definir_admin               | true             | true          | false | false
 --   deshacer_cambio_potrero     | true             | true          | false | false
 --   dividir_lote                | true             | true          | false | false
+--   editar_movimiento           | true             | true          | false | false
 --   editar_entrada_bitacora     | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
@@ -175,11 +216,13 @@ order by 1 desc, 2, 3, 4;
 --   potreros_superpuestos       | false            | true          | false | false
 --   proteger_actividad          | false            | false         | false | false
 --   proteger_lote_archivo       | false            | false         | false | false
+--   proteger_movimiento_archivo | false            | false         | false | false
 --   proteger_potrero_ocupado    | false            | false         | false | false
 --   proteger_ultimo_admin       | false            | false         | false | false
 --   puede_operar                | true             | true          | false | false
 --   quitar_acceso               | true             | true          | false | false
 --   quitar_archivo_lote         | true             | true          | false | false
+--   quitar_archivo_movimiento   | true             | true          | false | false
 --   reabrir_lote                | true             | true          | false | false
 --   recategorizar_lote          | true             | true          | false | false
 --   registrar_ajuste            | true             | true          | false | false
@@ -187,6 +230,7 @@ order by 1 desc, 2, 3, 4;
 --   registrar_destete           | true             | true          | false | false
 --   registrar_diagnostico       | true             | true          | false | false
 --   registrar_esquila           | true             | true          | false | false
+--   registrar_liquidacion       | true             | true          | false | false
 --   registrar_mortandad         | true             | true          | false | false
 --   registrar_movimiento        | true             | true          | false | false
 --   registrar_paricion          | true             | true          | false | false
@@ -233,7 +277,8 @@ select
                                                                            'actividad_lotes_desde_paricion', 'validar_baja_categoria',
                                                                            'validar_anios_nacimiento', 'proteger_lote_archivo',
                                                                            'validar_estadia', 'sincronizar_potrero_lote', 'estadia_alta_lote',
-                                                                           'estadia_cambio_estado_lote', 'proteger_potrero_ocupado'))
+                                                                           'estadia_cambio_estado_lote', 'proteger_potrero_ocupado',
+                                                                           'proteger_movimiento_archivo'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -252,7 +297,9 @@ select
                                             'validar_baja_categoria',
                                             'adjuntar_archivo_lote', 'quitar_archivo_lote', 'restaurar_archivo_lote',
                                             'cambiar_potrero_lote', 'deshacer_cambio_potrero', 'guardar_forma_potrero',
-                                            'sincronizar_potrero_lote', 'estadia_alta_lote', 'estadia_cambio_estado_lote'))
+                                            'sincronizar_potrero_lote', 'estadia_alta_lote', 'estadia_cambio_estado_lote',
+                                            'adjuntar_archivo_movimiento', 'quitar_archivo_movimiento', 'editar_movimiento',
+                                            'registrar_liquidacion', 'anular_liquidacion'))
   ) as ok
 from f
 order by f.funcion;

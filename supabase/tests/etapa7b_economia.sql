@@ -219,8 +219,8 @@ grant execute on all functions in schema pruebas to authenticated, anon;
 -- 1. Base (postgres)
 -- ════════════════════════════════════════════════════════════════════════════
 
-select pruebas.espera_valor('B01 Lectura de movimientos: solo quien puede cargar (puede_operar)',
-  $q$ select (count(*) = 1 and bool_and(qual like '%puede_operar%'))::text from pg_policies
+select pruebas.espera_valor('B01 Lectura de movimientos: los miembros, Consulta incluido (es_miembro, desde 20261027000100)',
+  $q$ select (count(*) = 1 and bool_and(qual like '%es_miembro%'))::text from pg_policies
       where schemaname = 'public' and tablename = 'movimientos_economicos' and cmd = 'SELECT' $q$, 'true');
 select pruebas.espera_valor('B02 Funciones: las 4 públicas security definer para authenticated y no para anon; las 2 internas para nadie; search_path fijo',
   $q$ select count(*) filter (where coalesce('search_path=""' = any (p.proconfig), false) and not has_function_privilege('anon', p.oid, 'execute')
@@ -251,6 +251,9 @@ select pruebas.guardar('novillos',  $q$ select id from public.categorias_animale
 select pruebas.guardar('r_vacunos', $q$ select id from public.rubros where establecimiento_id = pruebas.id('est_a') and nombre = 'Vacunos' $q$);
 select pruebas.guardar('r_general', $q$ select id from public.rubros where establecimiento_id = pruebas.id('est_a') and nombre = 'General' $q$);
 select pruebas.guardar('r_x',       $q$ select id from public.rubros where establecimiento_id = pruebas.id('est_x') and nombre = 'General' $q$);
+-- Conceptos del catálogo base (desde 20261025000200 el movimiento manual lleva concepto_id)
+select pruebas.guardar('c_sueldos', $q$ select id from public.conceptos where establecimiento_id = pruebas.id('est_a') and nombre = 'Sueldos y cargas sociales' $q$);
+select pruebas.guardar('c_otros',   $q$ select id from public.conceptos where establecimiento_id = pruebas.id('est_a') and nombre = 'Otros gastos' $q$);
 
 select pruebas.espera_valor('C01 Un establecimiento nuevo nace con el rubro por defecto de cada especie',
   $q$ select (rubro_id = pruebas.id('r_vacunos'))::text from public.especies where id = pruebas.id('vacunos') $q$, 'true');
@@ -323,29 +326,29 @@ select pruebas.espera_valor('S02 Con el precio cargado, deja de figurar sin prec
 
 select set_config('test.m1', gen_random_uuid()::text, false);
 select pruebas.preparar('m1', $q$ select public.registrar_movimiento(pruebas.id('m1'), pruebas.id('est_a'), pruebas.d(10), 'egreso', pruebas.id('r_general'),
-      'Sueldos', pruebas.precio(2000, 'USD', null, 'pendiente')) $q$);
+      pruebas.id('c_sueldos'), pruebas.precio(2000, 'USD', null, 'pendiente')) $q$);
 select pruebas.espera_valor('M01 Gasto manual: Sueldos, 2.000 USD, pendiente, rubro General',
   $q$ select m.sentido || '|' || m.monto_usd || '|' || m.estado || '|' || m.origen || '|' || r.nombre
       from public.movimientos_economicos m join public.rubros r on r.id = m.rubro_id where m.id = pruebas.id('m1') $q$,
   'egreso|2000.00|pendiente|manual|General');
 select pruebas.espera_valor('M02 Idempotente',
-  $q$ select (public.registrar_movimiento(pruebas.id('m1'), pruebas.id('est_a'), pruebas.d(10), 'egreso', pruebas.id('r_general'), 'Sueldos',
+  $q$ select (public.registrar_movimiento(pruebas.id('m1'), pruebas.id('est_a'), pruebas.d(10), 'egreso', pruebas.id('r_general'), pruebas.id('c_sueldos'),
               pruebas.precio(2000, 'USD', null, 'pendiente')) = pruebas.id('m1'))::text
-          || '|' || (select count(*) from public.movimientos_economicos where concepto = 'Sueldos' and establecimiento_id = pruebas.id('est_a')) $q$, 'true|1');
+          || '|' || (select count(*) from public.movimientos_economicos where concepto_id = pruebas.id('c_sueldos') and establecimiento_id = pruebas.id('est_a')) $q$, 'true|1');
 select pruebas.espera_error('M03 Pesos sin tipo de cambio',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(100, 'UYU', null, 'pagado')) $q$, '22023');
 select pruebas.espera_error('M04 Monto cero',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(0, 'USD', null, 'pagado')) $q$, '22023');
 select pruebas.espera_error('M05 Rubro de otro establecimiento',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_x'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_x'), pruebas.id('c_otros'),
       pruebas.precio(100, 'USD', null, 'pagado')) $q$, '22023');
 select pruebas.espera_error('M06 Fecha futura',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(-1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(-1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(100, 'USD', null, 'pagado')) $q$, '22023');
 select pruebas.espera_error('M07 Pendiente con fecha de pago',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(100, 'USD', null, 'pendiente', pruebas.d(1))) $q$, '22023');
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -362,7 +365,7 @@ select pruebas.espera_error('K04 Fecha de pago anterior al movimiento',
   $q$ select public.marcar_pagado(pruebas.mov('v1'), pruebas.d(25)) $q$, '22023');
 
 select pruebas.guardar('m2', $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(8), 'egreso', pruebas.id('r_general'),
-      'Insumos', pruebas.precio(300, 'USD', null, 'pendiente')) $q$);
+      pruebas.id('c_otros'), pruebas.precio(300, 'USD', null, 'pendiente')) $q$);
 select pruebas.espera_ok('A01 Anular un movimiento manual',
   $q$ select public.anular_movimiento(pruebas.id('m2'), 'Cargado dos veces') $q$);
 select pruebas.espera_error('A02 Ya anulado',
@@ -393,27 +396,35 @@ select pruebas.espera_valor('R02 Pendientes: por cobrar v1, v2 y v3 (31.000); na
         where establecimiento_id = pruebas.id('est_a') group by sentido) x $q$, 'ingreso:3:31000.00');
 
 -- ════════════════════════════════════════════════════════════════════════════
--- 8. Permisos: Consulta no ve plata
+-- 8. Permisos: Consulta ve la plata en modo lectura (desde 20261027000100), sin escribir
 -- ════════════════════════════════════════════════════════════════════════════
 
-select pruebas.como('u_consulta');
-select pruebas.espera_valor('Q01 Consulta: movimientos, resultado, pendientes y sin precio vacíos',
-  $q$ select (select count(*) from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a')) || '|'
+-- Lo que ve el operador, para comparar
+select pruebas.guardar('vista_operador', $q$ select (select count(*) from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a')) || '|'
           || (select count(*) from public.v_resultado_rubro where establecimiento_id = pruebas.id('est_a')) || '|'
           || (select count(*) from public.v_movimientos_pendientes where establecimiento_id = pruebas.id('est_a')) || '|'
-          || (select count(*) from public.v_compraventas_sin_precio where establecimiento_id = pruebas.id('est_a')) $q$, '0|0|0|0');
-select pruebas.espera_valor('Q02 Consulta ve la venta, su contraparte y sus cabezas, pero no el precio',
+          || (select count(*) from public.v_compraventas_sin_precio where establecimiento_id = pruebas.id('est_a')) $q$);
+
+select pruebas.como('u_consulta');
+select pruebas.espera_valor('Q01 Consulta ve lo mismo que el operador: movimientos, resultado, pendientes y sin precio',
+  $q$ select ((select count(*) from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a')) > 0
+          and (select count(*) from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a')) || '|'
+          || (select count(*) from public.v_resultado_rubro where establecimiento_id = pruebas.id('est_a')) || '|'
+          || (select count(*) from public.v_movimientos_pendientes where establecimiento_id = pruebas.id('est_a')) || '|'
+          || (select count(*) from public.v_compraventas_sin_precio where establecimiento_id = pruebas.id('est_a'))
+          = current_setting('test.vista_operador'))::text $q$, 'true');
+select pruebas.espera_valor('Q02 Consulta ve la venta, su contraparte, sus cabezas y el precio',
   $q$ select coalesce(monto_usd::text, 'sin precio') || '|' || contraparte || '|' || cabezas from public.v_actividades where id = pruebas.id('v1') $q$,
-  'sin precio|Frigorífico (prueba)|5');
+  '15000.00|Frigorífico (prueba)|5');
 select pruebas.espera_error('Q03 Consulta no carga movimientos',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(100, 'USD', null, 'pagado')) $q$, '42501');
 select pruebas.espera_error('Q04 Consulta no marca pagado',
   $q$ select public.marcar_pagado(pruebas.id('pp1'), pruebas.d(1)) $q$, '42501');
 
 select pruebas.como('u_ajeno');
 select pruebas.espera_error('X01 Un operador de otro establecimiento no carga movimientos en Santa Remigia',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(100, 'USD', null, 'pagado')) $q$, '42501');
 select pruebas.espera_valor('X02 ...ni los ve',
   $q$ select count(*)::text from public.movimientos_economicos where establecimiento_id = pruebas.id('est_a') $q$, '0');
@@ -422,7 +433,7 @@ reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select pruebas.espera_error('N01 anon no carga movimientos',
-  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), 'X',
+  $q$ select public.registrar_movimiento(gen_random_uuid(), pruebas.id('est_a'), pruebas.d(1), 'egreso', pruebas.id('r_general'), pruebas.id('c_otros'),
       pruebas.precio(100, 'USD', null, 'pagado')) $q$, '42501');
 select pruebas.espera_error('N02 anon no lee el resultado',
   $q$ select count(*) from public.v_resultado_rubro $q$, '42501');

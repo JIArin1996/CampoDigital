@@ -35,9 +35,10 @@ const PRUEBAS = [
   ["etapa7b_economia.sql", 43],
   ["etapa8_tareas.sql", 44],
   ["potreros_estadias.sql", 66],
+  ["economia_saldos.sql", 51],
 ]
 // Auditoría: funciones de public (todas con ok = true) y filas de permisos de columna
-const AUDITORIA = { archivo: "auditoria_permisos.sql", funciones: 88, permisosColumna: 13 }
+const AUDITORIA = { archivo: "auditoria_permisos.sql", funciones: 100, permisosColumna: 28 }
 
 const url = process.env.SUPABASE_DB_URL
 if (!url) {
