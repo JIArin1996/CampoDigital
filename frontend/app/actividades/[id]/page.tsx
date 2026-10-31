@@ -15,6 +15,7 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArchivosDeActividad } from "@/components/actividades/ArchivosDeActividad"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
@@ -40,7 +41,7 @@ interface Ficha extends Detalle {
 
 export default function ActividadPage() {
   const { id } = useParams<{ id: string }>()
-  const { puedeOperarEn, cargando: cargandoCtx } = useEstablecimiento()
+  const { puedeOperarEn, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [ficha, setFicha] = useState<Ficha | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
@@ -243,6 +244,9 @@ export default function ActividadPage() {
             </CardContent>
           </Card>
         )}
+
+        <ArchivosDeActividad key={`${a.id}:${anulada}`} actividadId={a.id} establecimientoId={a.establecimiento_id}
+          puedeAdjuntar={puedeOperarEn(a.establecimiento_id) && !anulada} esAdmin={esAdmin} />
 
         {puedeAnular && (
           <div>

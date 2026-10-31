@@ -484,6 +484,47 @@ export type Database = {
           },
         ]
       }
+      actividad_archivos: {
+        Row: {
+          actividad_id: string
+          archivo_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          ocultado_en: string | null
+          ocultado_por: string | null
+          oculto: boolean
+        }
+        Insert: {
+          actividad_id: string
+          archivo_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+        }
+        Update: {
+          actividad_id?: string
+          archivo_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividad_archivos_archivo_id_establecimiento_id_fkey"
+            columns: ["archivo_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       actividad_lineas: {
         Row: {
           actividad_id: string
@@ -3349,6 +3390,10 @@ export type Database = {
         Args: { p_categoria_id: string; p_lote_id: string }
         Returns: undefined
       }
+      adjuntar_archivo_actividad: {
+        Args: { p_actividad_id: string; p_archivo_id: string; p_nombre: string }
+        Returns: string
+      }
       adjuntar_archivo_lote: {
         Args: {
           p_archivo_id: string
@@ -3553,6 +3598,10 @@ export type Database = {
       puede_operar: { Args: { p_est: string }; Returns: boolean }
       quitar_acceso: {
         Args: { p_establecimiento_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      quitar_archivo_actividad: {
+        Args: { p_actividad_id: string; p_archivo_id: string }
         Returns: undefined
       }
       quitar_archivo_lote: {

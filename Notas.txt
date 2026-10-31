@@ -1,0 +1,1 @@
+En historial de LOTES que tambien quede registrada las actividades que se realizan en cada uno.

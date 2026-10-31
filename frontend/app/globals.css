@@ -93,6 +93,22 @@
   --etiqueta-compra-texto: oklch(0.36 0.09 300);
   --etiqueta-tarea: oklch(0.95 0.04 175);
   --etiqueta-tarea-texto: oklch(0.35 0.07 185);
+  /* Familias de actividad (ícono y su círculo, ver components/actividades/actividad-iconos.ts).
+     Contraste trazo/fondo: 6,1 a 7,0:1 */
+  --actividad-manejo: oklch(0.451 0.111 149.8);            /* #196632 */
+  --actividad-manejo-fondo: oklch(0.951 0.026 150.8);      /* #e3f4e6 */
+  --actividad-sanidad: oklch(0.455 0.102 247.5);           /* #1d5a8c */
+  --actividad-sanidad-fondo: oklch(0.944 0.018 245.4);     /* #e3eef8 */
+  --actividad-reproduccion: oklch(0.46 0.148 303.4);       /* #6a3d9a */
+  --actividad-reproduccion-fondo: oklch(0.941 0.021 306.8); /* #efe8f7 */
+  --actividad-lana: oklch(0.451 0.098 64.6);               /* #7a4808 */
+  --actividad-lana-fondo: oklch(0.956 0.033 83.7);         /* #fbefd8 */
+  --actividad-comercio: oklch(0.443 0.071 198.9);          /* #0f5f62 */
+  --actividad-comercio-fondo: oklch(0.943 0.021 193.2);    /* #ddf1f0 */
+  --actividad-bajas: oklch(0.468 0.18 26.5);               /* #a8141a */
+  --actividad-bajas-fondo: oklch(0.94 0.024 17.6);         /* #fbe5e5 */
+  --actividad-otra: oklch(0.441 0.02 150.7);               /* #4b564d */
+  --actividad-otra-fondo: oklch(0.965 0.007 151.9);        /* #f0f5f1 */
 }
 
 @layer base {

@@ -8,7 +8,7 @@ import { quitarArchivoMovimiento, subirArchivoAMovimiento } from "@/lib/queries/
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button } from "@/components/ui/button"
 import { ElegirArchivo } from "@/components/lotes/ElegirArchivo"
-import { VisorArchivo } from "@/components/economia/VisorArchivo"
+import { VisorArchivo } from "@/components/shared/VisorArchivo"
 import { nuevoId } from "@/components/actividades/formato"
 import { ACEPTA, FORMATOS_PERMITIDOS, formatoTamano, validarArchivo } from "@/components/lotes/archivos"
 import type { ArchivoDeMovimiento } from "@/types/economia"
@@ -130,7 +130,7 @@ export function ArchivosDeMovimiento({ establecimientoId, movimientoId, archivos
             onChange={e => { const files = Array.from(e.target.files ?? []); e.target.value = ""; if (files.length) void subir(files) }} />
         </>
       )}
-      <VisorArchivo archivo={viendo} onCerrar={() => setViendo(null)} />
+      <VisorArchivo archivo={viendo && { ...viendo, bucket: "movimiento-archivos" }} onCerrar={() => setViendo(null)} />
     </div>
   )
 }

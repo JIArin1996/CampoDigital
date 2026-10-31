@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
-import { ordenarEspecies } from '@/components/lotes/agrupacion'
+import { ordenarEspecies, ordenarLotes } from '@/components/lotes/agrupacion'
 import type {
   CategoriaAnimal, ComposicionItem, Especie, EstadoLote, Lote, LoteEvento, StockEstablecimiento, StockLote,
   CambioEstadoLote, FilaLinaje,
@@ -39,6 +39,16 @@ export async function getCategorias(establecimiento_id: string, opciones: { incl
 
 // ── Lotes ────────────────────────────────────────────────────────────────────
 
+// Las especies de unos lotes (también las dadas de baja), para ordenarlos
+async function especiesDe(lotes: Lote[]) {
+  const ids = [...new Set(lotes.map(l => l.especie_id))]
+  if (ids.length === 0) return []
+  const { data, error } = await createClient().from('especies').select('id, grupo, nombre, created_at').in('id', ids)
+  if (error) throw error
+  return data as Pick<Especie, 'id' | 'grupo' | 'nombre' | 'created_at'>[]
+}
+
+// Ordenados por especie (vacunos, ovinos, equinos, las demás) y por nombre: ver ordenarLotes
 export async function getLotes(establecimiento_id: string, estado: EstadoLote = 'activo') {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -46,10 +56,10 @@ export async function getLotes(establecimiento_id: string, estado: EstadoLote = 
     .select('*')
     .eq('establecimiento_id', establecimiento_id)
     .eq('estado', estado)
-    .order('nombre')
 
   if (error) throw error
-  return data as Lote[]
+  const lotes = data as Lote[]
+  return ordenarLotes(lotes, await especiesDe(lotes))
 }
 
 // null si no existe o el usuario no es miembro (RLS)
@@ -65,12 +75,13 @@ export async function getLote(id: string) {
   return data as Lote | null
 }
 
-// Varios lotes por id (los que el RLS deja ver), ordenados por nombre
+// Varios lotes por id (los que el RLS deja ver), ordenados por especie y nombre
 export async function getLotesPorIds(ids: string[]) {
   if (ids.length === 0) return []
-  const { data, error } = await createClient().from('lotes').select('*').in('id', ids).order('nombre')
+  const { data, error } = await createClient().from('lotes').select('*').in('id', ids)
   if (error) throw error
-  return data as Lote[]
+  const lotes = data as Lote[]
+  return ordenarLotes(lotes, await especiesDe(lotes))
 }
 
 // Historial del lote, del más nuevo al más viejo
