@@ -111,6 +111,23 @@ export async function getEstadiasAbiertas(establecimiento_id: string) {
   return data as Estadia[]
 }
 
+// Desde cuándo descansa cada potrero: la última salida de un lote (potrero_id → aaaa-mm-dd).
+// Sirve para los potreros vacíos; uno que nunca tuvo animales no aparece.
+export async function getUltimasSalidas(establecimiento_id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('lote_estadias')
+    .select('potrero_id, fecha_salida')
+    .eq('establecimiento_id', establecimiento_id)
+    .not('fecha_salida', 'is', null)
+    .is('anulada_en', null)
+    .order('fecha_salida', { ascending: false })
+  if (error) throw error
+  const ultimas = new Map<string, string>()
+  for (const e of data ?? []) if (!ultimas.has(e.potrero_id)) ultimas.set(e.potrero_id, e.fecha_salida!)
+  return ultimas
+}
+
 // Por qué potreros pasó un lote, de la más vieja a la más nueva
 export async function getEstadiasLote(lote_id: string) {
   const supabase = createClient()

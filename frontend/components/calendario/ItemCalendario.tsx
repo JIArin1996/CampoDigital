@@ -2,13 +2,14 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Check, ChevronRight, Pencil, Repeat, RotateCcw, Syringe, UserRound, X } from "lucide-react"
+import { Check, ChevronRight, Pencil, Repeat, RotateCcw, Syringe, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { cambiarEstadoTarea } from "@/lib/queries/bitacora"
 import { avisarCambioTareas, marcarDosisDada } from "@/lib/queries/calendario"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { ChipResponsables } from "@/components/shared/Responsables"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { ETIQUETA_ESTADO_TAREA, fechaHora, mensajeTareaHecha, textoRepeticion, textoVencimiento } from "@/components/bitacora/formato"
 import { cn } from "@/lib/utils"
@@ -32,7 +33,6 @@ export function ItemCalendario({ fila, nombresLote, nombrePersona, puedeOperar, 
   const pendiente = fila.estado === "pendiente"
   const vencida = pendiente && fila.fecha < hoy
   const esDosis = fila.origen === "dosis"
-  const responsable = fila.persona_id ? nombrePersona(fila.persona_id) : undefined
 
   const ejecutar = async (accion: () => Promise<void>, ok: string) => {
     setTrabajando(true)
@@ -88,18 +88,14 @@ export function ItemCalendario({ fila, nombresLote, nombrePersona, puedeOperar, 
         )}
       </p>
 
-      {(fila.lotes.length > 0 || responsable) && (
+      {(fila.lotes.length > 0 || fila.responsables.length > 0) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {fila.lotes.map(id => (
             <Link key={id} href={`/lotes/${id}`} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium hover:bg-accent">
               {nombresLote.get(id) ?? "Lote"}
             </Link>
           ))}
-          {responsable && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-              <UserRound className="h-3 w-3" /> {responsable}
-            </span>
-          )}
+          <ChipResponsables ids={fila.responsables} nombre={nombrePersona} />
         </div>
       )}
 

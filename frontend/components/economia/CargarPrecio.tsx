@@ -11,6 +11,9 @@ import { CamposPrecio } from "@/components/economia/CamposPrecio"
 import { OpcionesConcepto } from "@/components/economia/OpcionesConcepto"
 import { RepartoTitulares } from "@/components/economia/RepartoTitulares"
 import { leerPrecio, leerTitulares, parsearMonto, precioVacio, type PrecioForm, type TitularForm } from "@/components/economia/formato"
+import {
+  CampoComentario, CampoIdentificador, CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm,
+} from "@/components/economia/PagoYFactura"
 import { nuevoId } from "@/components/actividades/formato"
 import { BOTON, SELECT_NATIVO } from "@/components/shared/estilos"
 import type { Concepto, GrupoConcepto, Titular } from "@/types/economia"
@@ -34,6 +37,7 @@ export function CargarPrecio({ actividadId, establecimientoId, fecha, venta, rub
   const [rubroId, setRubroId] = useState("")
   const [conceptoId, setConceptoId] = useState("")
   const [titulares, setTitulares] = useState<TitularForm[]>([])
+  const [pagoFactura, setPagoFactura] = useState<PagoFacturaForm>(pagoFacturaVacio)
   const [catalogos, setCatalogos] = useState<{ conceptos: Concepto[]; grupos: GrupoConcepto[]; titulares: Titular[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -64,10 +68,13 @@ export function CargarPrecio({ actividadId, establecimientoId, fecha, venta, rub
     if ("error" in leido) return setError(leido.error)
     const reparto = leerTitulares(titulares, leido.precio.monto)
     if ("error" in reparto) return setError(reparto.error)
+    const pago = leerPagoFactura(pagoFactura)
+    if ("error" in pago) return setError(pago.error)
     setEnviando(true)
     try {
       const precioCompleto = {
         ...leido.precio,
+        ...pago.datos,
         ...(conceptoId ? { concepto_id: conceptoId } : {}),
         ...(reparto.titulares.length > 0 ? { titulares: reparto.titulares } : {}),
       }
@@ -90,6 +97,7 @@ export function CargarPrecio({ actividadId, establecimientoId, fecha, venta, rub
           {rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
         </select>
       </div>
+      <CampoIdentificador id="precio" valor={pagoFactura.identificador} onCambio={identificador => setPagoFactura(v => ({ ...v, identificador }))} />
       <div className="space-y-1.5">
         <Label htmlFor="precio-concepto">Concepto</Label>
         <select id="precio-concepto" className={SELECT_NATIVO} value={conceptoId} onChange={e => setConceptoId(e.target.value)}>
@@ -104,6 +112,10 @@ export function CargarPrecio({ actividadId, establecimientoId, fecha, venta, rub
             total={parsearMonto(precio.monto)} moneda={precio.moneda} disabled={enviando} />
         </div>
       )}
+      <CampoPagador id="precio" establecimientoId={establecimientoId} ingreso={venta} valor={pagoFactura.pagadorId}
+        onCambio={pagadorId => setPagoFactura(v => ({ ...v, pagadorId }))} recordarUltimo />
+      <DatosFactura id="precio" establecimientoId={establecimientoId} valor={pagoFactura} onCambio={setPagoFactura} />
+      <CampoComentario id="precio" valor={pagoFactura.comentario} onCambio={comentario => setPagoFactura(v => ({ ...v, comentario }))} />
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button type="button" className={BOTON} disabled={enviando} onClick={() => void guardar()}>{enviando ? "Guardando..." : "Guardar precio"}</Button>

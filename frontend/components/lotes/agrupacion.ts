@@ -23,6 +23,20 @@ export function ordenarEspecies<T extends Pick<Especie, "grupo" | "nombre" | "cr
     || a.nombre.localeCompare(b.nombre, "es"))
 }
 
+// ── Lotes: orden único en todo el sistema ──
+// Por especie (el orden de arriba: vacunos, ovinos, equinos y las demás) y, dentro de cada especie,
+// por nombre. getLotes y getLotesPorIds ya devuelven este orden, así que toda lista o selector lo hereda.
+
+export function ordenarLotes<T extends { especie_id: string; nombre: string }>(
+  lotes: T[],
+  especies: Pick<Especie, "id" | "grupo" | "nombre" | "created_at">[],
+): T[] {
+  const posicion = new Map(ordenarEspecies(especies).map((e, i) => [e.id, i]))
+  return [...lotes].sort((a, b) =>
+    (posicion.get(a.especie_id) ?? Infinity) - (posicion.get(b.especie_id) ?? Infinity)
+    || a.nombre.localeCompare(b.nombre, "es", { numeric: true }))
+}
+
 // ── Color de la especie ──
 // Cada especie puede tener su color (especies.color, #rrggbb). Vacío = el del grupo.
 // Los del grupo son los de siempre: bovino = el verde de la marca (--primary), ovino ámbar, otro gris pizarra.

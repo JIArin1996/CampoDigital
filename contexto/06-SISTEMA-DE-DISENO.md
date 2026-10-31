@@ -65,7 +65,7 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 
 - **Barra inferior** [Decidido]: Inicio, Lotes, Bitácora, Calendario y Más. Son las cuatro prioridades del enfoque a un toque.
 - **Más**: atajos a lo que no entra en la barra (Economía, Actividades, Indicadores y Potreros, según el rol), el botón **⚙ Configuraciones** (solo administrador), Mi perfil y Salir.
-- **Configuraciones** (solo administrador): pantalla aparte con Especies, Rubros, Establecimientos y Usuarios. Potreros salió de acá (2026-10-23): está en el menú para todos los roles.
+- **Configuraciones** (solo administrador): pantalla aparte con Especies, **Economía** (Rubros, Conceptos, Titulares y Pagadores, en pestañas; 2026-10-27), Establecimientos y Usuarios. Potreros salió de acá (2026-10-23): está en el menú para todos los roles.
 - **Botón "+"** [Decidido]: carga rápida desde cualquier pantalla (nota de bitácora, actividad, nuevo lote, tarea). Solo para administrador u operador; no aparece dentro de formularios. Las opciones de etapas futuras se muestran como "Próximamente".
 - Respeta la barra de gestos del teléfono (`env(safe-area-inset-bottom)`).
 
@@ -76,6 +76,8 @@ Para selects y campos sueltos se usan las clases de `components/shared/estilos.t
 ## 6. Patrones
 
 - **Listas**: tarjetas con borde (`rounded-lg border bg-card`), toda la tarjeta es tocable cuando lleva a una ficha, con `ChevronRight` al final.
+- **Tablas con muchas columnas**: `TablaResponsiva` (`components/shared`): tabla en la computadora y una tarjeta de dos renglones por fila en el celular, toda tocable (44 px). Los montos a la derecha, con `tabular-nums`; ingresos en verde y egresos en rojo. La usa Economía > Movimientos (2026-10-27).
+- **Filtros en el celular**: un botón "Filtros (N)" que abre una hoja desde abajo, y lo filtrado como chips que se sacan con ✕; en la computadora, los mismos filtros en una fila. Si conviene recargar o compartir, van en la URL (Economía > Movimientos).
 - **Vacío**: borde punteado, ícono, una frase y, si corresponde, la acción para empezar.
 - **Cargando**: bloques `bg-muted animate-pulse` del tamaño aproximado del contenido.
 - **Próximamente**: componente `Proximamente` con la etapa en que llega.

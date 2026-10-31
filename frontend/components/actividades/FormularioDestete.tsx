@@ -17,13 +17,13 @@ import { DESCRIPCION_ACTIVIDAD, nuevoId } from "@/components/actividades/formato
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { normalizarAnios } from "@/components/lotes/anios"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
+import { SelectorResponsables, type PersonaResponsable } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Lote, StockLote } from "@/types/lotes"
 import type { DestinoDestete, OrigenDestete } from "@/types/actividades"
 
 type Historial = Awaited<ReturnType<typeof getHistorialCria>>
-type Persona = { id: string; nombre: string; activo: boolean }
 
 interface DestinoForm {
   clave: string
@@ -54,7 +54,7 @@ export function FormularioDestete({ loteInicial, datos }: {
     categorias: CategoriaAnimal[]
     stock: StockLote[]
     potreros: Potrero[]
-    personas: Persona[]
+    personas: PersonaResponsable[]
   }
 }) {
   const { estId, lotes, categorias, stock, potreros, personas } = datos
@@ -71,7 +71,7 @@ export function FormularioDestete({ loteInicial, datos }: {
   const [machos, setMachos] = useState("")
   const [hembras, setHembras] = useState("")
   const [destinosEditados, setDestinosEditados] = useState<DestinoForm[] | null>(null)       // null: los sugeridos
-  const [personaId, setPersonaId] = useState("")
+  const [responsables, setResponsables] = useState<string[]>([])
   const [notas, setNotas] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -271,7 +271,7 @@ export function FormularioDestete({ loteInicial, datos }: {
     setEnviando(true)
     try {
       await registrarDestete({ id, establecimiento_id: estId, fecha, origenes, destinos: lista,
-        persona_id: personaId || null, notas: notas.trim() || null })
+        responsables, notas: notas.trim() || null })
       const roles = await getLotesConRol(id)
       const nuevos = await getLotesPorIds(roles.filter(r => r.rol === "destino").map(r => r.lote_id))
       toast.success("Destete registrado")
@@ -482,13 +482,7 @@ export function FormularioDestete({ loteInicial, datos }: {
           </fieldset>
         )}
 
-        <div className="space-y-1.5">
-          <Label htmlFor="destete-persona">Responsable</Label>
-          <select id="destete-persona" className={SELECT_NATIVO} value={personaId} onChange={e => setPersonaId(e.target.value)}>
-            <option value="">Sin indicar</option>
-            {personas.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
+        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} />
         <div className="space-y-1.5">
           <Label htmlFor="destete-notas">Notas</Label>
           <textarea id="destete-notas" rows={2} className={TEXTAREA} value={notas} onChange={e => setNotas(e.target.value)} />

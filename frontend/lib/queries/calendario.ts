@@ -39,7 +39,7 @@ function aFilas(data: Tables<'v_calendario'>[]): FilaCalendario[] {
     orden: f.orden,
     fecha: f.fecha!,
     texto: f.texto ?? '',
-    persona_id: f.persona_id,
+    responsables: f.responsables ?? [],
     estado: f.estado as EstadoTarea,
     repetir_cada_dias: f.repetir_cada_dias,
     lotes: f.lotes ?? [],
@@ -47,8 +47,8 @@ function aFilas(data: Tables<'v_calendario'>[]): FilaCalendario[] {
   }))
 }
 
-// Vencidas que le tocan a una persona: las suyas y las sin responsable (las dosis no tienen).
-// Sin persona (usuario sin ficha en este establecimiento): solo las sin responsable.
+// Vencidas que le tocan a una persona: las que la incluyen entre sus responsables y las sin responsable (las
+// dosis no tienen). Sin persona (usuario sin ficha en este establecimiento): solo las sin responsable.
 export async function contarVencidas(establecimiento_id: string, persona_id: string | null, hoy: string) {
   const supabase = createClient()
   const { count, error } = await supabase
@@ -57,7 +57,7 @@ export async function contarVencidas(establecimiento_id: string, persona_id: str
     .eq('establecimiento_id', establecimiento_id)
     .eq('estado', 'pendiente')
     .lt('fecha', hoy)
-    .or(persona_id ? `persona_id.is.null,persona_id.eq.${persona_id}` : 'persona_id.is.null')
+    .or(persona_id ? `responsables.eq.{},responsables.cs.{${persona_id}}` : 'responsables.eq.{}')
   if (error) throw error
   return count ?? 0
 }

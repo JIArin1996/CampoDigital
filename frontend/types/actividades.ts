@@ -86,6 +86,12 @@ export type PrecioCarga = {
   rubro_id?: string          // por defecto, el rubro con el nombre de la especie del lote
   concepto_id?: string       // por defecto, "Compra de ganado" o "Venta de ganado vacuno/ovino"
   titulares?: { titular_id: string; monto: number }[]   // reparto del monto entre titulares (suma = monto)
+  pagador_id?: string        // de qué bolsillo salió o a cuál entró la plata (para los saldos)
+  factura_nombre?: string    // a nombre de quién está la factura (dato del comprobante)
+  factura_rut?: string       // 12 dígitos
+  numero_comprobante?: string
+  identificador?: string     // nombre propio del movimiento (ej. "Venta terneras refugo"); lo que más se ve en el listado
+  comentario?: string        // solo se ve en el detalle
 }
 
 // Destete: lo que sale de cada origen (solo cría al pie) y lo que entra a cada lote nuevo (ya sexado)

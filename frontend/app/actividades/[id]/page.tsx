@@ -15,6 +15,7 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArchivosDeActividad } from "@/components/actividades/ArchivosDeActividad"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
@@ -22,6 +23,7 @@ import { CargarPrecio } from "@/components/economia/CargarPrecio"
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, kg, porcentaje, usd } from "@/components/actividades/formato"
 import { fechaCorta } from "@/components/lotes/formato"
 import { BOTON, TEXTAREA } from "@/components/shared/estilos"
+import { textoResponsables } from "@/components/shared/Responsables"
 import type { CategoriaAnimal, Lote } from "@/types/lotes"
 
 type Detalle = NonNullable<Awaited<ReturnType<typeof getActividad>>>
@@ -39,7 +41,7 @@ interface Ficha extends Detalle {
 
 export default function ActividadPage() {
   const { id } = useParams<{ id: string }>()
-  const { puedeOperarEn, cargando: cargandoCtx } = useEstablecimiento()
+  const { puedeOperarEn, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [ficha, setFicha] = useState<Ficha | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
@@ -84,7 +86,7 @@ export default function ActividadPage() {
   const anulada = !!a.anulada_en
   const puedeAnular = puedeOperarEn(a.establecimiento_id) && !anulada
   const nombreCategoria = (catId: string) => ficha.categorias.find(c => c.id === catId)?.nombre ?? "—"
-  const persona = ficha.personas.find(p => p.id === a.persona_id)
+  const responsables = textoResponsables(a.responsables ?? [], id => ficha.personas.find(p => p.id === id)?.nombre, Infinity)
   const rubro = (rubroId: string) => ficha.rubros.find(r => r.id === rubroId)?.nombre ?? "—"
   const fila = (etiqueta: string, valor: React.ReactNode) => (
     <div className="flex justify-between gap-4 py-1.5">
@@ -119,7 +121,7 @@ export default function ActividadPage() {
           <h1 className={`text-2xl font-bold ${anulada ? "line-through text-muted-foreground" : ""}`}>{titulo}</h1>
           {anulada && <Badge variant="secondary">anulada</Badge>}
         </div>
-        <p className="text-sm text-muted-foreground mt-1">{fechaCorta(a.fecha)}{persona ? ` · ${persona.nombre}` : ""}</p>
+        <p className="text-sm text-muted-foreground mt-1">{fechaCorta(a.fecha)}{responsables ? ` · ${responsables}` : ""}</p>
         {anulada && a.motivo_anulacion && (
           <p className="text-sm mt-2">Motivo de la anulación: {a.motivo_anulacion}</p>
         )}
@@ -215,12 +217,15 @@ export default function ActividadPage() {
         </section>
         )}
 
-        {/* Precio: solo para quien ve la economía (Consulta no ve plata) */}
-        {(a.tipo === "compra" || a.tipo === "venta") && puedeOperarEn(a.establecimiento_id) && (
+        {/* Precio: lo ven todos (Consulta, en modo lectura); cargarlo, quien puede cargar */}
+        {(a.tipo === "compra" || a.tipo === "venta") && (
           <Card>
             <CardHeader className="pb-1"><CardTitle className="text-base">Precio</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {!anulada && !movimientos.some(m => !m.anulado_en) && (
+              {!movimientos.some(m => !m.anulado_en) && !puedeOperarEn(a.establecimiento_id) && (
+                <p className="text-sm text-muted-foreground">Sin precio cargado.</p>
+              )}
+              {!anulada && !movimientos.some(m => !m.anulado_en) && puedeOperarEn(a.establecimiento_id) && (
                 <CargarPrecio actividadId={a.id} establecimientoId={a.establecimiento_id} fecha={a.fecha} venta={a.tipo === "venta"} rubros={ficha.rubros} onHecho={() => setVersion(v => v + 1)} />
               )}
               {movimientos.map(m => (
@@ -239,6 +244,9 @@ export default function ActividadPage() {
             </CardContent>
           </Card>
         )}
+
+        <ArchivosDeActividad key={`${a.id}:${anulada}`} actividadId={a.id} establecimientoId={a.establecimiento_id}
+          puedeAdjuntar={puedeOperarEn(a.establecimiento_id) && !anulada} esAdmin={esAdmin} />
 
         {puedeAnular && (
           <div>

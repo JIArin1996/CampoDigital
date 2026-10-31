@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCategorias, getEspecies, getLotes, getStockLotes } from "@/lib/queries/lotes"
 import {
-  desactivarPotrero, getEstadiasAbiertas, getFormasPotreros, getPotreros, reactivarPotrero, type FormaPotrero,
+  desactivarPotrero, getEstadiasAbiertas, getFormasPotreros, getPotreros, getUltimasSalidas, reactivarPotrero, type FormaPotrero,
 } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
@@ -33,6 +33,7 @@ interface Datos {
   estadias: Map<string, Estadia>
   ocupacion: Map<string, LoteEnPotrero[]>
   formas: Map<string, FormaPotrero>
+  salidas: Map<string, string>                 // última salida de cada potrero (desde cuándo descansa)
 }
 
 function vistaGuardada(): Vista | null {
@@ -70,14 +71,16 @@ export default function PotrerosPage() {
       getEspecies(estId),
       getCategorias(estId, { incluirInactivas: true }),
       getFormasPotreros(estId),
+      getUltimasSalidas(estId),
     ])
-      .then(([potreros, lotes, stock, abiertas, especies, categorias, formas]) => {
+      .then(([potreros, lotes, stock, abiertas, especies, categorias, formas, salidas]) => {
         if (!vigente) return
         const estadias = new Map(abiertas.map(e => [e.lote_id, e]))
         setDatos({
           estId, potreros, lotes, estadias,
           ocupacion: armarOcupacion(lotes, stock, estadias, especies, categorias),
           formas: new Map(formas.map(f => [f.id, f])),
+          salidas,
         })
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudieron cargar los potreros")) })
@@ -177,7 +180,7 @@ export default function PotrerosPage() {
 
       {vistaActual === "mapa" ? (
         <VistaMapa establecimientoId={establecimientoActivo.id} potreros={activos} formas={listos.formas} ocupacion={listos.ocupacion}
-          puedeOperar={puedeOperar} acciones={acciones} onCambio={recargar} />
+          salidas={listos.salidas} puedeOperar={puedeOperar} acciones={acciones} onCambio={recargar} />
       ) : (
         <ListaPotreros potreros={listos.potreros} ocupacion={listos.ocupacion} puedeOperar={puedeOperar} acciones={acciones} />
       )}

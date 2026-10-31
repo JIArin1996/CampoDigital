@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import {
-  DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, ICONO_ACTIVIDAD, MODALIDADES, TIPOS_6A, TIPOS_6B1,
+  DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, MODALIDADES, TIPOS_6A, TIPOS_6B1,
   errorKg, esTipo6a, esTipoCargable, nuevoId,
 } from "@/components/actividades/formato"
 import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
@@ -31,6 +31,7 @@ import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import { SelectorAnios } from "@/components/lotes/SelectorAnios"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
 import { hoyLocal } from "@/components/lotes/formato"
+import { SelectorResponsables } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, Lote, StockLote } from "@/types/lotes"
@@ -38,7 +39,13 @@ import type {
   Carencia, EstadoPago, LineaCarga, LoteNuevoCarga, Modalidad, Moneda, PrecioCarga, TipoActividad6a, TipoCargable,
 } from "@/types/actividades"
 import { CampoTipoCambio } from "@/components/economia/CampoTipoCambio"
+import { ACTIVIDAD, coloresActividad } from "@/components/actividades/actividad-iconos"
+import { ElegirArchivosMovimiento, type ArchivoElegido } from "@/components/economia/ArchivosMovimiento"
+import { subirArchivoAActividad } from "@/lib/queries/archivos"
 import { tipoCambioVacio, type TipoCambioForm } from "@/components/economia/formato"
+import {
+  CampoComentario, CampoIdentificador, CampoPagador, DatosFactura, leerPagoFactura, pagoFacturaVacio, type PagoFacturaForm,
+} from "@/components/economia/PagoYFactura"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 type Rubro = Awaited<ReturnType<typeof getRubros>>[number]
@@ -110,12 +117,12 @@ function NuevaActividad() {
   // Sin tipo: elegir qué se carga
   if (!esTipoCargable(tipoParam)) {
     const opcion = (t: TipoCargable) => {
-      const Icono = ICONO_ACTIVIDAD[t]
+      const Icono = ACTIVIDAD[t].icono
       const href = `/actividades/nueva?tipo=${t}${loteParam ? `&lote=${loteParam}` : ""}`
       return (
         <li key={t}>
           <Link href={href} className="flex items-center gap-3 rounded-lg border bg-card px-3 py-3 hover:bg-muted active:bg-muted">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
+            <span style={coloresActividad(t)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--f)] text-[var(--c)]">
               <Icono className="h-5 w-5" />
             </span>
             <span className="min-w-0">
@@ -182,11 +189,12 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
 
   // Id de la actividad: se genera una vez al abrir el formulario y se reusa en los reintentos
   const [id] = useState(nuevoId)
+  const [archivos, setArchivos] = useState<ArchivoElegido[]>([])   // pesada: planilla de la balanza, fotos
   const [fecha, setFecha] = useState(hoyLocal())
   const [loteId, setLoteId] = useState(lotes.some(l => l.id === loteInicial) ? loteInicial : "")
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [pesos, setPesos] = useState<Record<string, string>>({})
-  const [personaId, setPersonaId] = useState("")
+  const [responsables, setResponsables] = useState<string[]>([])
   const [notas, setNotas] = useState("")
 
   // Compra: lote existente o nuevo
@@ -207,6 +215,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
   const [estadoPago, setEstadoPago] = useState<EstadoPago>("pendiente")
   const [fechaPago, setFechaPago] = useState("")
   const [rubroId, setRubroId] = useState("")
+  const [pagoFactura, setPagoFactura] = useState<PagoFacturaForm>(pagoFacturaVacio)
 
   // Mortandad
   const [causa, setCausa] = useState("Desconocida")
@@ -249,16 +258,27 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
     .filter(c => !conStock || hay(c.id) > 0)
     .filter(c => tipo !== "paricion" || c.cria_al_pie)
   const llevaPeso = tipo === "pesada" || tipo === "compra" || tipo === "venta"
+  // En la pesada se carga el peso PROMEDIO por categoría y el total sale de promedio × cabezas;
+  // en la compra y la venta, el peso vivo total (opcional)
+  const conPromedio = tipo === "pesada"
   const total = categoriasForm.reduce((s, c) => s + (Number(cantidades[c.id]) || 0), 0)
+  // Peso vivo total de una categoría (kg, con dos decimales como lo guarda la base); null si falta algo
+  const totalDe = (catId: string) => {
+    const cab = Number(cantidades[catId]) || 0
+    const kg = leer(pesos[catId] ?? "")
+    if (!cab || kg === null || !(kg > 0)) return null
+    return conPromedio ? Math.round(kg * cab * 100) / 100 : kg
+  }
   // Peso promedio en vivo: solo con las categorías que tienen cabezas y peso
   const conPeso = categoriasForm
-    .map(c => ({ cab: Number(cantidades[c.id]) || 0, kg: leer(pesos[c.id] ?? "") }))
+    .map(c => ({ cab: Number(cantidades[c.id]) || 0, kg: totalDe(c.id) }))
     .filter((x): x is { cab: number; kg: number } => x.cab > 0 && x.kg !== null && x.kg > 0)
   const pesoTotal = conPeso.reduce((s, x) => s + x.kg, 0)
   const cabezasConPeso = conPeso.reduce((s, x) => s + x.cab, 0)
 
   const lotesCria = lotes.filter(l => l.id !== loteId && l.especie_id === lote?.especie_id)
-  const rubroPorDefecto = rubros.find(r => r.nombre.toLowerCase() === (especie?.nombre ?? "").toLowerCase())
+  // El rubro por defecto es el de la especie (el mismo que usa la base), no uno con el mismo nombre
+  const rubroPorDefecto = rubros.find(r => r.id === especie?.rubro_id)
   const sinFechaMinima = tipo === "compra" && destinoNuevo
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -285,11 +305,11 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       const linea: LineaCarga = { categoria_id: c.id, cabezas: cab }
       const peso = llevaPeso ? leer(pesos[c.id] ?? "") : null
       if (peso !== null) {
-        const errorPeso = errorKg(pesos[c.id] ?? "", `El peso vivo de ${c.nombre.toLowerCase()}`)
+        const errorPeso = errorKg(pesos[c.id] ?? "", conPromedio ? `El peso promedio de ${c.nombre.toLowerCase()}` : `El peso vivo de ${c.nombre.toLowerCase()}`)
         if (errorPeso) return setError(errorPeso)
-        linea.peso_vivo_total_kg = peso
+        linea.peso_vivo_total_kg = totalDe(c.id)!
       } else if (tipo === "pesada") {
-        return setError(`Falta el peso vivo total de ${c.nombre.toLowerCase()}`)
+        return setError(`Falta el peso promedio de ${c.nombre.toLowerCase()}`)
       }
       lineas.push(linea)
     }
@@ -314,6 +334,9 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       }
       if (fechaPago) precio.fecha_pago = fechaPago
       if (rubroId) precio.rubro_id = rubroId
+      const pago = leerPagoFactura(pagoFactura)
+      if ("error" in pago) return setError(pago.error)
+      Object.assign(precio, pago.datos)
     }
 
     // Parición
@@ -330,7 +353,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
       }
     }
 
-    const comunes = { id, fecha, lineas, persona_id: personaId || null, notas: notas.trim() || null }
+    const comunes = { id, fecha, lineas, responsables, notas: notas.trim() || null }
     const compraventa = { modalidad, contraparte: contraparte.trim() || null, kg_gancho: gancho, precio }
 
     setEnviando(true)
@@ -359,7 +382,17 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
           lote_cria_nuevo: criaNuevo,
         })
       }
+      // Los archivos, después: si alguno falla, la actividad ya quedó y se adjunta desde su ficha
+      const fallidos: string[] = []
+      for (const a of archivos) {
+        try {
+          await subirArchivoAActividad(datos.estId, id, a)
+        } catch {
+          fallidos.push(a.file.name)
+        }
+      }
       toast.success(`${ETIQUETA_ACTIVIDAD[tipo]} registrada`)
+      if (fallidos.length > 0) toast.error(`No se pudo subir ${fallidos.join(", ")}: adjuntalo desde la ficha de la actividad`)
       router.push(`/actividades/${id}`)
     } catch (err) {
       // El id se conserva: si el envío llegó a guardarse, reintentar no lo duplica
@@ -440,7 +473,7 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
         {especieId && (
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium mb-1">
-              {tipo === "paricion" ? "Crías vivas" : "Cabezas"}{llevaPeso && (tipo === "pesada" ? " y peso vivo total" : " y peso vivo total (opcional)")}
+              {tipo === "paricion" ? "Crías vivas" : "Cabezas"}{llevaPeso && (conPromedio ? " y peso promedio (kg por cabeza)" : " y peso vivo total (opcional)")}
             </legend>
             {categoriasForm.length === 0 ? (
               <p className="text-sm text-muted-foreground">El lote no tiene animales.</p>
@@ -451,12 +484,16 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                     <span className="min-w-0 flex-1">
                       <span className="block text-base md:text-sm">{c.nombre}</span>
                       {conStock && <span className="block text-xs text-muted-foreground">Hay {hay(c.id)}</span>}
+                      {conPromedio && totalDe(c.id) !== null && (
+                        <span className="block text-xs text-muted-foreground tabular-nums">= {totalDe(c.id)!.toLocaleString("es-UY")} kg en total</span>
+                      )}
                     </span>
                     <Input aria-label={`Cabezas de ${c.nombre}`} type="number" inputMode="numeric" min="0" step="1" placeholder="0"
                       className={`${CAMPO} w-20 text-right tabular-nums`}
                       value={cantidades[c.id] ?? ""} onChange={e => setCantidades({ ...cantidades, [c.id]: e.target.value })} />
                     {llevaPeso && (
-                      <Input aria-label={`Peso vivo total de ${c.nombre} (kg)`} type="text" inputMode="decimal" placeholder="kg"
+                      <Input aria-label={conPromedio ? `Peso promedio de ${c.nombre} (kg por cabeza)` : `Peso vivo total de ${c.nombre} (kg)`}
+                        type="text" inputMode="decimal" placeholder={conPromedio ? "kg prom." : "kg"}
                         className={`${CAMPO} w-24 text-right tabular-nums`}
                         value={pesos[c.id] ?? ""} onChange={e => setPesos({ ...pesos, [c.id]: e.target.value })} />
                     )}
@@ -464,13 +501,29 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                 ))}
                 <div className="flex items-center justify-between gap-2 px-3 py-3 bg-muted/30">
                   <span className="font-semibold">Total</span>
-                  <span className="text-lg font-bold tabular-nums">
-                    {total}{llevaPeso && pesoTotal > 0 ? ` · ${pesoTotal.toLocaleString("es-UY")} kg` : ""}
-                  </span>
+                  {conPromedio ? (
+                    // Pesada: cantidad y peso promedio del lote, alineados con sus columnas
+                    <span className="flex items-center gap-2">
+                      <span className="w-20 text-right text-lg font-bold tabular-nums">{total}</span>
+                      <span className="w-24 text-right text-lg font-bold tabular-nums">
+                        {cabezasConPeso > 0 ? `${(pesoTotal / cabezasConPeso).toLocaleString("es-UY", { maximumFractionDigits: 2 })} kg` : "—"}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-lg font-bold tabular-nums">
+                      {total}{llevaPeso && pesoTotal > 0 ? ` · ${pesoTotal.toLocaleString("es-UY")} kg` : ""}
+                    </span>
+                  )}
                 </div>
               </div>
             )}
-            {llevaPeso && cabezasConPeso > 0 && (
+            {conPromedio && cabezasConPeso > 0 && (
+              <p className="text-xs text-muted-foreground tabular-nums">
+                Peso promedio del lote: {(pesoTotal / cabezasConPeso).toLocaleString("es-UY", { maximumFractionDigits: 2 })} kg por cabeza
+                · {pesoTotal.toLocaleString("es-UY")} kg en total{cabezasConPeso < total ? ` (de ${cabezasConPeso} cabezas con peso)` : ""}
+              </p>
+            )}
+            {!conPromedio && llevaPeso && cabezasConPeso > 0 && (
               <p className="text-xs text-muted-foreground">
                 Peso promedio: {(pesoTotal / cabezasConPeso).toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg por cabeza
               </p>
@@ -541,6 +594,8 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                       <Input id="act-fecha-pago" type="date" className={CAMPO} value={fechaPago} onChange={e => setFechaPago(e.target.value)} />
                     </div>
                   </div>
+                  <CampoIdentificador id="act" valor={pagoFactura.identificador}
+                    onCambio={identificador => setPagoFactura(v => ({ ...v, identificador }))} />
                   <div className="space-y-1.5">
                     <Label htmlFor="act-rubro">Rubro</Label>
                     <select id="act-rubro" className={SELECT_NATIVO} value={rubroId} onChange={e => setRubroId(e.target.value)}>
@@ -548,6 +603,10 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
                       {rubros.filter(r => r.id !== rubroPorDefecto?.id).map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                     </select>
                   </div>
+                  <CampoPagador id="act" establecimientoId={datos.estId} ingreso={tipo === "venta"} valor={pagoFactura.pagadorId}
+                    onCambio={pagadorId => setPagoFactura(v => ({ ...v, pagadorId }))} recordarUltimo />
+                  <DatosFactura id="act" establecimientoId={datos.estId} valor={pagoFactura} onCambio={setPagoFactura} />
+                  <CampoComentario id="act" valor={pagoFactura.comentario} onCambio={comentario => setPagoFactura(v => ({ ...v, comentario }))} />
                 </CardContent>
               </Card>
             )}
@@ -611,14 +670,15 @@ function Formulario({ tipo, loteInicial, datos }: { tipo: TipoActividad6a; loteI
           </>
         )}
 
+        {tipo === "pesada" && (
+          <div className="space-y-1.5">
+            <Label>Archivos <span className="font-normal text-muted-foreground">(opcional: planilla de la balanza, fotos)</span></Label>
+            <ElegirArchivosMovimiento elegidos={archivos} onCambio={setArchivos} disabled={enviando} />
+          </div>
+        )}
+
         {/* Comunes */}
-        <div className="space-y-1.5">
-          <Label htmlFor="act-persona">Responsable</Label>
-          <select id="act-persona" className={SELECT_NATIVO} value={personaId} onChange={e => setPersonaId(e.target.value)}>
-            <option value="">Sin indicar</option>
-            {personas.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
+        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} />
         <div className="space-y-1.5">
           <Label htmlFor="act-notas">Notas</Label>
           <textarea id="act-notas" rows={2} className={TEXTAREA} value={notas} onChange={e => setNotas(e.target.value)} />

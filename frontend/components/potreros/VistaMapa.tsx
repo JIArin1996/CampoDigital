@@ -6,10 +6,12 @@ import { Expand, FileUp, PencilOff, Scan, Shrink } from "lucide-react"
 import { toast } from "sonner"
 
 import { PanelPotrero } from "@/components/potreros/PanelPotrero"
+import { ResumenEstablecimiento } from "@/components/potreros/ResumenEstablecimiento"
 import { BarraDibujo } from "@/components/potreros/BarraDibujo"
 import { ImportarFormas } from "@/components/potreros/ImportarFormas"
 import { CAPAS, CAPA_POR_DEFECTO, type IdCapa } from "@/components/potreros/mapa/capas"
 import { LEYENDAS, MODOS, categoriaDe, coloresPorPotrero, type ModoColor } from "@/components/potreros/mapa/colores"
+import { textoCabezas } from "@/components/potreros/mapa/etiquetas"
 import { numero, type AccionesPotrero, type LoteEnPotrero } from "@/components/potreros/ocupacion"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { Button } from "@/components/ui/button"
@@ -63,11 +65,12 @@ function guardar(clave: string, valor: string) {
  * la computadora). Los potreros sin forma se listan aparte. Administrador y operador dibujan, editan,
  * borran e importan formas; se avisa (sin bloquear) si dos potreros se superponen.
  */
-export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, puedeOperar, acciones, onCambio }: {
+export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, salidas, puedeOperar, acciones, onCambio }: {
   establecimientoId: string
   potreros: Potrero[]                       // los activos
   formas: Map<string, FormaPotrero>
   ocupacion: Map<string, LoteEnPotrero[]>
+  salidas: Map<string, string>              // última salida de cada potrero (desde cuándo descansa)
   puedeOperar: boolean
   acciones: AccionesPotrero
   onCambio: () => void                      // recargar después de guardar
@@ -84,6 +87,8 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
   const [formaEditada, setFormaEditada] = useState<GeoJSON.MultiPolygon | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [importando, setImportando] = useState(false)
+  // Los que a este zoom quedaron como círculo numerado en el mapa (no entró ni el nombre)
+  const [numerados, setNumerados] = useState<{ id: string; numero: number }[]>([])
 
   // Escape sale de la pantalla completa
   useEffect(() => {
@@ -156,8 +161,9 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
         const f = formas.get(p.id)!
         const lotes = ocupacion.get(p.id) ?? []
         const cat = modo === "potrero" ? { color: propios.get(p.id)!, punteado: false } : categoriaDe(modo, p, lotes.length > 0)
+        const cabezas = lotes.reduce((s, l) => s + l.cabezas, 0)
         return {
-          id: p.id, nombre: p.nombre, lineas: lineasEtiqueta(modo, p, f.area_ha, lotes), prioridad: f.area_ha,
+          id: p.id, nombre: p.nombre, lineas: lineasEtiqueta(modo, p, f.area_ha, lotes), resumen: textoCabezas(cabezas), cabezas,
           forma: f.forma, etiqueta: f.etiqueta, color: cat.color, punteado: cat.punteado,
         }
       })
@@ -172,13 +178,15 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
       onReiniciar={() => { setEdicion({ id: dibujando.id, inicial: null }); setFormaEditada(null) }}
       onCancelar={() => setEdicion(null)} />
   ) : elegido && (
-    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} lotes={ocupacion.get(elegido.id) ?? []}
+    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} ultimaSalida={salidas.get(elegido.id) ?? null}
+      lotes={ocupacion.get(elegido.id) ?? []}
       puedeOperar={puedeOperar} acciones={acciones} onCerrar={() => setSeleccionado(null)}
       onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)} />
   )
   // En el celular: el mismo panel, resumido hasta que se toque "Ver detalle"
   const panelMovil = dibujando ? panel : elegido && (
-    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} lotes={ocupacion.get(elegido.id) ?? []}
+    <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} ultimaSalida={salidas.get(elegido.id) ?? null}
+      lotes={ocupacion.get(elegido.id) ?? []}
       puedeOperar={puedeOperar} acciones={acciones} onCerrar={() => setSeleccionado(null)}
       onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)}
       resumido={!detalle} onVerDetalle={() => setDetalle(true)} />
@@ -209,6 +217,29 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
         </li>
       ))}
     </ul>
+  )
+
+  // Sin potrero elegido: el resumen de todo el establecimiento
+  const resumen = (
+    <ResumenEstablecimiento potreros={potreros} formas={formas} ocupacion={ocupacion} salidas={salidas}
+      onSeleccionar={id => { if (!edicion) setSeleccionado(id) }} />
+  )
+
+  const listaNumerados = numerados.length > 0 && (
+    <div className="text-sm">
+      <p className="text-muted-foreground">Sin lugar para el nombre a este zoom (acercate o tocá uno):</p>
+      <ol className="mt-1 flex flex-wrap gap-1.5">
+        {numerados.map(n => (
+          <li key={n.id}>
+            <button type="button" onClick={() => { if (!edicion) setSeleccionado(n.id) }}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-muted pl-1.5 pr-3 font-medium hover:bg-accent md:min-h-9">
+              <span aria-hidden className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">{n.numero}</span>
+              {nombre(n.id)}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 
   return (
@@ -243,7 +274,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
           completa ? "fixed inset-0 z-50" : "relative h-[60vh] rounded-lg border lg:h-[70vh]")}>
           <MapaLeaflet capa={capa} poligonos={poligonos} seleccionado={seleccionado} encuadre={encuadre}
             onSeleccionar={id => { if (!edicion) setSeleccionado(id) }}
-            edicion={edicion} onFormaEditada={setFormaEditada} />
+            edicion={edicion} onFormaEditada={setFormaEditada} onNumerados={setNumerados} />
           <div className="absolute right-2 top-[calc(0.5rem+env(safe-area-inset-top))] z-[1000] flex flex-col gap-2">
             <Button variant="secondary" size="icon" className="h-11 w-11 shadow"
               aria-label={completa ? "Salir de la pantalla completa" : "Ver en pantalla completa"}
@@ -266,8 +297,9 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
             <>
               {/* Leyenda abajo a la izquierda; el panel del potrero, abajo (celular) o al costado (computadora) */}
               {!panel && (
-                <div className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-2 z-[1000] max-w-[calc(100%-1rem)] rounded-lg bg-background/90 px-3 py-2 shadow">
+                <div className="absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-2 z-[1000] max-h-[40vh] max-w-[calc(100%-1rem)] space-y-2 overflow-y-auto rounded-lg bg-background/90 px-3 py-2 shadow">
                   {leyenda}
+                  {listaNumerados}
                 </div>
               )}
               {panelMovil && (
@@ -285,12 +317,16 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, pued
           )}
         </div>
         <aside className="hidden lg:block rounded-lg border bg-card p-4 lg:h-[70vh] lg:overflow-y-auto">
-          {panel ?? <p className="text-sm text-muted-foreground">Tocá un potrero en el mapa para ver qué tiene.</p>}
+          {panel || resumen}
         </aside>
       </div>
 
+      {/* Celular y tableta: el resumen debajo del mapa mientras no se elige un potrero */}
+      {!panel && <section className="rounded-lg border bg-card p-4 lg:hidden">{resumen}</section>}
+
       {/* Leyenda (siempre: el color nunca va solo) */}
       {leyenda}
+      {listaNumerados}
 
       {/* Sin dibujar */}
       {sinDibujar.length > 0 && (

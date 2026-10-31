@@ -1,22 +1,24 @@
 "use client"
 
 import Link from "next/link"
-import { AlertTriangle, ChevronDown, Droplets, Edit2, History, LogIn, PenLine, RotateCcw, Ruler, TreePine, Trash2, Umbrella, X } from "lucide-react"
+import { AlertTriangle, ChevronDown, Clock, Droplets, Edit2, History, LogIn, PenLine, RotateCcw, Ruler, TreePine, Trash2, Umbrella, X } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { numero, type AccionesPotrero, type LoteEnPotrero } from "@/components/potreros/ocupacion"
+import { diasDesde, numero, textoDias, totales, type AccionesPotrero, type LoteEnPotrero } from "@/components/potreros/ocupacion"
+import { fechaCorta } from "@/components/lotes/formato"
 import type { Potrero } from "@/types/database"
 
 /**
- * Todo lo de un potrero: datos (con sombra y observaciones), área dibujada, lotes adentro con especie,
- * categorías y cabezas, total, cabezas por hectárea y las acciones según el rol.
+ * Todo lo de un potrero: datos (con sombra y observaciones), superficie (la del dibujo), lotes adentro con especie,
+ * categorías, cabezas y días en el potrero, dotación en UG/ha (o los días de descanso si está vacío) y las acciones según el rol.
  * En el mapa: panel al costado (escritorio) o desde abajo (celular). En el celular arranca resumido (nombre,
  * superficie, animales y acciones) para no tapar el mapa; "Ver detalle" lo despliega.
  */
-export function PanelPotrero({ potrero, areaDibujada, lotes, puedeOperar, acciones, onCerrar, onDibujar, onBorrarForma, resumido = false, onVerDetalle }: {
+export function PanelPotrero({ potrero, areaDibujada, ultimaSalida, lotes, puedeOperar, acciones, onCerrar, onDibujar, onBorrarForma, resumido = false, onVerDetalle }: {
   potrero: Potrero
   areaDibujada: number | null       // hectáreas de la forma dibujada (null: sin dibujar)
+  ultimaSalida: string | null       // última salida de un lote (desde cuándo descansa si está vacío)
   lotes: LoteEnPotrero[]
   puedeOperar: boolean
   acciones: AccionesPotrero
@@ -26,11 +28,12 @@ export function PanelPotrero({ potrero, areaDibujada, lotes, puedeOperar, accion
   resumido?: boolean
   onVerDetalle?: () => void
 }) {
-  const superficie = Number(potrero.superficie)
-  const cabezas = lotes.reduce((s, l) => s + l.cabezas, 0)
+  // La superficie es la del polígono; sin dibujar, la cargada
+  const superficie = areaDibujada ?? Number(potrero.superficie)
+  const { cabezas, ug, sinUg } = totales(lotes)
+  const dotacion = superficie > 0 ? `${numero(ug / superficie, 2)} UG/ha` : null
   const inactivo = potrero.estado === "inactivo"
-  // Aviso si la forma dibujada difiere más de 10 % de la superficie cargada
-  const diferencia = areaDibujada && superficie > 0 ? (areaDibujada - superficie) / superficie : 0
+  const descanso = ultimaSalida ? `Descanso: ${textoDias(diasDesde(ultimaSalida))}` : "Sin animales registrados"
 
   return (
     <div className="space-y-4">
@@ -51,10 +54,10 @@ export function PanelPotrero({ potrero, areaDibujada, lotes, puedeOperar, accion
       {resumido && (
         <p className="text-sm">
           <span className="font-medium">{numero(superficie, 2)} ha</span>
-          {!inactivo && (lotes.length === 0 ? <span className="text-muted-foreground"> · vacío</span> : (
+          {!inactivo && (lotes.length === 0 ? <span className="text-muted-foreground"> · vacío · {descanso.toLowerCase()}</span> : (
             <>
               {" · "}<span className="font-semibold tabular-nums">{cabezas}</span> {cabezas === 1 ? "animal" : "animales"}
-              {superficie > 0 && <span className="text-muted-foreground"> · {numero(cabezas / superficie, 2)} cab/ha</span>}
+              {dotacion && <span className="text-muted-foreground"> · {dotacion}</span>}
               <span className="text-muted-foreground"> · {lotes.length === 1 ? "1 lote" : `${lotes.length} lotes`}</span>
             </>
           ))}
@@ -67,11 +70,10 @@ export function PanelPotrero({ potrero, areaDibujada, lotes, puedeOperar, accion
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="flex items-center gap-1 text-muted-foreground"><Ruler className="h-3.5 w-3.5" /> Superficie</dt>
-              <dd className="font-medium">{numero(superficie, 2)} ha</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Dibujado</dt>
-              <dd className="font-medium">{areaDibujada ? `${numero(areaDibujada, 2)} ha` : "Sin dibujar"}</dd>
+              <dd className="font-medium">
+                {numero(superficie, 2)} ha
+                {areaDibujada === null && <span className="font-normal text-muted-foreground"> (sin dibujar)</span>}
+              </dd>
             </div>
             <div>
               <dt className="flex items-center gap-1 text-muted-foreground"><TreePine className="h-3.5 w-3.5" /> Pastura</dt>
@@ -85,12 +87,6 @@ export function PanelPotrero({ potrero, areaDibujada, lotes, puedeOperar, accion
               </dd>
             </div>
           </dl>
-          {Math.abs(diferencia) > 0.1 && (
-            <p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              La forma dibujada mide {numero(Math.abs(diferencia) * 100, 0)} % {diferencia > 0 ? "más" : "menos"} que la superficie cargada.
-            </p>
-          )}
           {potrero.observaciones && <p className="text-sm text-muted-foreground">{potrero.observaciones}</p>}
 
           {/* Lotes adentro */}
@@ -100,21 +96,38 @@ export function PanelPotrero({ potrero, areaDibujada, lotes, puedeOperar, accion
                 {lotes.length === 0 ? "Vacío" : (
                   <>
                     <span className="tabular-nums">{cabezas}</span> {cabezas === 1 ? "cabeza" : "cabezas"}
-                    {superficie > 0 && <span className="font-normal text-muted-foreground"> · {numero(cabezas / superficie, 2)} cab/ha</span>}
+                    <span className="font-normal text-muted-foreground"> · {numero(ug, 1)} UG</span>
+                    {dotacion && <span className="font-normal text-muted-foreground"> · {dotacion}</span>}
                   </>
                 )}
               </h3>
+              {lotes.length === 0 && (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" /> {descanso}{ultimaSalida && ` (desde el ${fechaCorta(ultimaSalida)})`}
+                </p>
+              )}
+              {sinUg.length > 0 && (
+                <p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  Sin equivalencia en UG: {sinUg.join(", ")} (no suman).
+                </p>
+              )}
               {lotes.length > 0 && (
                 <ul className="divide-y rounded-lg border">
-                  {lotes.map(({ lote, especie, cabezas: c, categorias }) => (
+                  {lotes.map(({ lote, especie, cabezas: c, ug: u, categorias, desde }) => (
                     <li key={lote.id} className="px-3 py-2">
                       <div className="flex items-center justify-between gap-3">
                         <Link href={`/lotes/${lote.id}`} className="font-medium text-primary truncate">{lote.nombre}</Link>
-                        <span className="shrink-0 text-sm tabular-nums">{c} cab.</span>
+                        <span className="shrink-0 text-sm tabular-nums">{c} cab. · {numero(u, 1)} UG</span>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {[especie, categorias.map(x => `${x.nombre} ${x.cabezas}`).join(" · ")].filter(Boolean).join(": ")}
                       </p>
+                      {desde && (
+                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5" /> Lleva {textoDias(diasDesde(desde))} (desde el {fechaCorta(desde)})
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>

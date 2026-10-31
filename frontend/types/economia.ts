@@ -39,6 +39,9 @@ export type GrupoConcepto = Tables<'concepto_grupos'>
 export type Concepto = Omit<Tables<'conceptos'>, 'tipo'> & { tipo: Sentido }
 export type Titular = Tables<'titulares'>
 
+// Quién puso o recibió la plata ("Pagado por" / "Cobrado por"); puede ser de un titular
+export type Pagador = Tables<'pagadores'>
+
 // Resultado por mes, sentido, rubro, concepto, grupo y titular (la app suma por la dimensión elegida).
 // Sin concepto, sin grupo o sin titular: null.
 export type ResultadoDetalle = Omit<SinNulos<Tables<'v_resultado_detalle'>>,
@@ -57,3 +60,30 @@ export type ArchivoDeMovimiento = Tables<'movimiento_archivos'>
 
 // Parte de un movimiento que va a un titular (en la moneda del movimiento)
 export type MovimientoTitular = Tables<'movimiento_titulares'>
+
+// ── Saldos entre titulares (en dólares) ──
+// Una parte es un titular o un pagador sin titular (un pagador de un titular cuenta como ese titular)
+export type TipoParte = 'titular' | 'pagador'
+
+// Lo que una parte le debe a otra, ya compensado por par
+export type Saldo = Omit<SinNulos<Tables<'v_saldos'>>, 'deudor_tipo' | 'acreedor_tipo'> & {
+  deudor_tipo: TipoParte
+  acreedor_tipo: TipoParte
+}
+
+// Cada deuda que compone los saldos: la parte de un movimiento pagado, o una liquidación
+export type AporteSaldo = Omit<SinNulos<Tables<'v_saldos_aportes'>>, 'origen' | 'sentido' | 'deudor_tipo' | 'acreedor_tipo'> & {
+  origen: 'movimiento' | 'liquidacion'
+  sentido: Sentido | null      // null en una liquidación
+  deudor_tipo: TipoParte
+  acreedor_tipo: TipoParte
+}
+
+// Movimientos pagados que no entran en los saldos: les falta quién pagó o cobró, o el reparto
+export type PendienteSaldo = Omit<SinNulos<Tables<'v_saldos_pendientes'>>, 'sentido' | 'actividad_id'> & {
+  sentido: Sentido
+  actividad_id: string | null
+}
+
+// "De" le pasó plata "a" (achica lo que "de" le debe a "a"). No se editan: se anulan.
+export type Liquidacion = Omit<Tables<'liquidaciones'>, 'moneda_original'> & { moneda_original: Moneda }

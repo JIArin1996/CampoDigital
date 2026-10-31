@@ -2,56 +2,40 @@
 
 import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
-import { AlertTriangle, Pencil, Plus } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { AlertTriangle, Plus } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import {
-  getConceptos, getMovimientos, getPendientes, getResultadoDetalle, getRubrosTodos, getSinPrecio, getTitulares,
-  getTitularesDeMovimientos,
-} from "@/lib/queries/economia"
-import { getArchivosMovimientos } from "@/lib/queries/archivos"
+import { getConceptos, getPendientes, getResultadoDetalle, getRubrosTodos, getSinPrecio, getTitulares } from "@/lib/queries/economia"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DialogoAnular, DialogoPagar } from "@/components/economia/Dialogos"
-import { ArchivosDeMovimiento } from "@/components/economia/ArchivosMovimiento"
-import { etiquetaPeriodo, montoOriginal, periodoActual, rangoPeriodo, usd, type Periodo } from "@/components/economia/formato"
+import { ListaMovimientos, type ParaAccion } from "@/components/economia/movimientos/ListaMovimientos"
+import { PestanaSaldos } from "@/components/economia/saldos/PestanaSaldos"
+import { COLOR_SENTIDO } from "@/components/economia/movimientos/DetalleMovimiento"
+import { etiquetaPeriodo, periodoActual, rangoPeriodo, usd, type Periodo } from "@/components/economia/formato"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
-import type {
-  ArchivoDeMovimiento, Concepto, Movimiento, MovimientoTitular, Pendiente, ResultadoDetalle, Rubro, SinPrecio, Titular,
-} from "@/types/economia"
+import type { Concepto, Pendiente, ResultadoDetalle, Rubro, SinPrecio, Titular } from "@/types/economia"
 
-type Pestana = "resultado" | "movimientos" | "pendientes" | "sin_precio"
+type Pestana = "resultado" | "movimientos" | "saldos" | "pendientes" | "sin_precio"
 
 interface Datos {
   clave: string
   resultado: ResultadoDetalle[]
-  movimientos: Movimiento[]
   pendientes: Pendiente[]
   sinPrecio: SinPrecio[]
   rubros: Rubro[]
   conceptos: Concepto[]
   titulares: Titular[]
-  archivos: ArchivoDeMovimiento[]
-  reparto: MovimientoTitular[]
 }
 
-type ParaAccion = { id: string; concepto: string; sentido: "ingreso" | "egreso"; fecha: string }
-
-// Ingresos en verde, gastos en rojo
-const COLOR_SENTIDO = {
-  ingreso: "text-emerald-700 dark:text-emerald-400",
-  egreso: "text-red-700 dark:text-red-400",
-} as const
-
 /**
- * Economía: resultado del período (devengado) por rubro, concepto, grupo o titular, movimientos (con sus archivos), pendientes de cobro y pago,
- * y compras o ventas sin precio. Solo para quien puede cargar (Consulta no ve plata).
+ * Economía: resultado del ejercicio o año (devengado) por rubro, concepto, grupo o titular, movimientos (con filtros y período
+ * propios), saldos entre titulares (con liquidaciones), pendientes de cobro y pago, y compras o ventas sin precio. Consulta lo ve todo pero no carga, edita ni anula.
  */
 export default function EconomiaPage() {
   // useSearchParams necesita Suspense
@@ -62,17 +46,23 @@ export default function EconomiaPage() {
   )
 }
 
-const PESTANAS: Pestana[] = ["resultado", "movimientos", "pendientes", "sin_precio"]
+const PESTANAS: Pestana[] = ["resultado", "movimientos", "saldos", "pendientes", "sin_precio"]
 
 function Economia() {
   const params = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const { establecimientoActivo, puedeOperar, cargando } = useEstablecimiento()
   const estId = establecimientoActivo?.id
   const [periodo, setPeriodo] = useState<Periodo>(periodoActual)
-  const [pestana, setPestana] = useState<Pestana>(() => {
-    const p = params.get("pestana") as Pestana | null   // ?pestana=movimientos al volver de cargar o editar
-    return p && PESTANAS.includes(p) ? p : "resultado"
-  })
+  // La pestaña va en la URL (?pestana=movimientos al volver de cargar o editar), junto con los filtros de Movimientos
+  const elegida = params.get("pestana") as Pestana | null
+  const pestana: Pestana = elegida && PESTANAS.includes(elegida) ? elegida : "resultado"
+  const setPestana = (id: Pestana) => {
+    const p = new URLSearchParams(params.toString())
+    p.set("pestana", id)
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false })
+  }
   const [version, setVersion] = useState(0)
   const [datos, setDatos] = useState<Datos | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -83,28 +73,21 @@ function Economia() {
   const clave = `${estId}:${desde}:${version}`
 
   useEffect(() => {
-    if (!estId || !puedeOperar) return
+    if (!estId) return
     let vigente = true
     Promise.all([
-      getResultadoDetalle(estId, desde, hasta), getMovimientos(estId, desde, hasta), getPendientes(estId), getSinPrecio(estId),
+      getResultadoDetalle(estId, desde, hasta), getPendientes(estId), getSinPrecio(estId),
       getRubrosTodos(estId), getConceptos(estId), getTitulares(estId),
     ])
-      .then(async ([resultado, movimientos, pendientes, sinPrecio, rubros, conceptos, titulares]) => {
-        const ids = movimientos.map(m => m.id)
-        const [archivos, reparto] = await Promise.all([getArchivosMovimientos(ids), getTitularesDeMovimientos(ids)])
-        if (vigente) setDatos({
-          clave: `${estId}:${desde}:${version}`, resultado, movimientos, pendientes, sinPrecio, rubros, conceptos, titulares, archivos, reparto,
-        })
+      .then(([resultado, pendientes, sinPrecio, rubros, conceptos, titulares]) => {
+        if (vigente) setDatos({ clave: `${estId}:${desde}:${version}`, resultado, pendientes, sinPrecio, rubros, conceptos, titulares })
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar la economía")) })
     return () => { vigente = false }
-  }, [estId, puedeOperar, desde, hasta, version])
+  }, [estId, desde, hasta, version])
 
   if (cargando) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
   if (!establecimientoActivo) return <PageContainer><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
-  if (!puedeOperar) {
-    return <PageContainer><p className="text-muted-foreground">La economía la ven el administrador y los operadores.</p></PageContainer>
-  }
 
   const listos = datos?.clave === clave ? datos : null
   const recargar = () => { setAPagar(null); setAAnular(null); setVersion(v => v + 1) }
@@ -117,6 +100,7 @@ function Economia() {
   const pestanas: { id: Pestana; etiqueta: string; cuenta?: number }[] = [
     { id: "resultado", etiqueta: "Resultado" },
     { id: "movimientos", etiqueta: "Movimientos" },
+    { id: "saldos", etiqueta: "Saldos" },
     { id: "pendientes", etiqueta: "Pendientes", cuenta: listos?.pendientes.length },
     { id: "sin_precio", etiqueta: "Sin precio", cuenta: listos?.sinPrecio.length },
   ]
@@ -125,13 +109,15 @@ function Economia() {
     <PageContainer>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold">Economía</h1>
-        <Link href="/economia/nuevo" className={buttonVariants({ className: "h-11 md:h-9" })}>
-          <Plus className="h-4 w-4 mr-1" /> Cargar ingreso o gasto
-        </Link>
+        {puedeOperar && (
+          <Link href="/economia/nuevo" className={buttonVariants({ className: "h-11 md:h-9" })}>
+            <Plus className="h-4 w-4 mr-1" /> Cargar ingreso o gasto
+          </Link>
+        )}
       </div>
 
-      {/* Período */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      {/* Período del resultado (Movimientos tiene el suyo) */}
+      {pestana === "resultado" && <div className="flex flex-wrap items-center gap-2 mb-4">
         <button type="button" className={chip(periodo.tipo === "ejercicio")} onClick={() => setPeriodo({ ...periodo, tipo: "ejercicio" })}>
           Ejercicio (jul-jun)
         </button>
@@ -142,7 +128,7 @@ function Economia() {
           onChange={e => setPeriodo({ ...periodo, anio: Number(e.target.value) })}>
           {anios.map(a => <option key={a} value={a}>{periodo.tipo === "ejercicio" ? `${a}/${String(a + 1).slice(2)}` : a}</option>)}
         </select>
-      </div>
+      </div>}
 
       {/* Pestañas */}
       <div className="flex gap-1 overflow-x-auto border-b mb-4" role="tablist">
@@ -157,7 +143,7 @@ function Economia() {
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {!listos && !error ? <div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /> : listos && (
-        <div className="max-w-3xl space-y-4">
+        <div className={cn("space-y-4", pestana !== "movimientos" && pestana !== "saldos" && "max-w-3xl")}>
           {/* Aviso: lo que el resultado no cuenta */}
           {listos.sinPrecio.length > 0 && pestana !== "sin_precio" && (
             <p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
@@ -171,12 +157,16 @@ function Economia() {
 
           {pestana === "resultado" && <Resultado filas={listos.resultado} periodo={periodo} />}
           {pestana === "movimientos" && (
-            <Movimientos movimientos={listos.movimientos} rubros={listos.rubros} conceptos={listos.conceptos} titulares={listos.titulares}
-              archivos={listos.archivos} reparto={listos.reparto} establecimientoId={establecimientoActivo.id} onPagar={setAPagar} onAnular={setAAnular}
-              onCambioArchivos={() => setVersion(v => v + 1)} />
+            <ListaMovimientos establecimientoId={establecimientoActivo.id} puedeOperar={puedeOperar} rubros={listos.rubros}
+              conceptos={listos.conceptos} titulares={listos.titulares} version={version} onPagar={setAPagar} onAnular={setAAnular}
+              onCambio={() => setVersion(v => v + 1)} />
           )}
-          {pestana === "pendientes" && <Pendientes pendientes={listos.pendientes} onPagar={setAPagar} />}
-          {pestana === "sin_precio" && <ListaSinPrecio filas={listos.sinPrecio} />}
+          {pestana === "saldos" && (
+            <PestanaSaldos establecimientoId={establecimientoActivo.id} puedeOperar={puedeOperar} titulares={listos.titulares}
+              version={version} onCambio={() => setVersion(v => v + 1)} />
+          )}
+          {pestana === "pendientes" && <Pendientes pendientes={listos.pendientes} puedeOperar={puedeOperar} onPagar={setAPagar} />}
+          {pestana === "sin_precio" && <ListaSinPrecio filas={listos.sinPrecio} puedeOperar={puedeOperar} />}
         </div>
       )}
 
@@ -276,131 +266,7 @@ function Resultado({ filas, periodo }: { filas: ResultadoDetalle[]; periodo: Per
   )
 }
 
-function Movimientos({ movimientos, rubros, conceptos, titulares, archivos, reparto, establecimientoId, onPagar, onAnular, onCambioArchivos }: {
-  movimientos: Movimiento[]
-  rubros: Rubro[]
-  conceptos: Concepto[]
-  titulares: Titular[]
-  archivos: ArchivoDeMovimiento[]
-  reparto: MovimientoTitular[]
-  establecimientoId: string
-  onPagar: (m: ParaAccion) => void
-  onAnular: (m: ParaAccion) => void
-  onCambioArchivos: () => void
-}) {
-  const [sentido, setSentido] = useState("")
-  const [estado, setEstado] = useState("")
-  const [rubroId, setRubroId] = useState("")
-  const [conceptoId, setConceptoId] = useState("")
-  const [verAnulados, setVerAnulados] = useState(false)
-  const nombreRubro = (id: string) => rubros.find(r => r.id === id)?.nombre ?? "—"
-  const nombreTitular = (id: string) => titulares.find(t => t.id === id)?.nombre ?? "—"
-  // "Juan" (uno, con todo) o "Juan USD 40 · Ana USD 200" (repartido)
-  const textoTitulares = (m: Movimiento) => {
-    const partes = reparto.filter(r => r.movimiento_id === m.id)
-    if (partes.length === 0) return null
-    if (partes.length === 1) return nombreTitular(partes[0].titular_id)
-    return partes.map(r => `${nombreTitular(r.titular_id)} ${montoOriginal(Number(r.monto), m.moneda_original, null)}`).join(" · ")
-  }
-  // El concepto del catálogo; los movimientos viejos sin concepto muestran su texto
-  const nombreConcepto = (m: Movimiento) => (m.concepto_id ? conceptos.find(c => c.id === m.concepto_id)?.nombre : null) ?? m.concepto
-
-  const lista = movimientos.filter(m =>
-    (!sentido || m.sentido === sentido) && (!estado || m.estado === estado) && (!rubroId || m.rubro_id === rubroId)
-    && (!conceptoId || m.concepto_id === conceptoId) && (verAnulados || !m.anulado_en))
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        <select aria-label="Ingresos o egresos" className={SELECT_NATIVO} value={sentido} onChange={e => setSentido(e.target.value)}>
-          <option value="">Ingresos y egresos</option>
-          <option value="ingreso">Ingresos</option>
-          <option value="egreso">Egresos</option>
-        </select>
-        <select aria-label="Estado" className={SELECT_NATIVO} value={estado} onChange={e => setEstado(e.target.value)}>
-          <option value="">Pagados y pendientes</option>
-          <option value="pendiente">Pendientes</option>
-          <option value="pagado">Pagados o cobrados</option>
-        </select>
-        <select aria-label="Rubro" className={SELECT_NATIVO} value={rubroId} onChange={e => setRubroId(e.target.value)}>
-          <option value="">Todos los rubros</option>
-          {rubros.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-        </select>
-        <select aria-label="Concepto" className={SELECT_NATIVO} value={conceptoId} onChange={e => setConceptoId(e.target.value)}>
-          <option value="">Todos los conceptos</option>
-          {conceptos.filter(c => !sentido || c.tipo === sentido).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-        </select>
-        <label className="flex items-center gap-2 min-h-11 text-sm cursor-pointer select-none">
-          <input type="checkbox" className="h-5 w-5 accent-primary" checked={verAnulados} onChange={e => setVerAnulados(e.target.checked)} />
-          Ver anulados
-        </label>
-      </div>
-
-      {lista.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin movimientos con esos filtros.</p>
-      ) : (
-        <ul className="rounded-lg border divide-y bg-card">
-          {lista.map(m => {
-            const anulado = !!m.anulado_en
-            const accion = { id: m.id, concepto: nombreConcepto(m), sentido: m.sentido, fecha: m.fecha }
-            return (
-              <li key={m.id} className={cn("px-4 py-3 space-y-1", anulado && "opacity-60")}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className={cn("font-medium", anulado && "line-through")}>{nombreConcepto(m)}</p>
-                    {m.actividad_id && m.concepto !== nombreConcepto(m) && (
-                      <Link href={`/actividades/${m.actividad_id}`} className="text-sm text-primary hover:underline">{m.concepto}</Link>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {[fechaCorta(m.fecha), nombreRubro(m.rubro_id), m.contraparte].filter(Boolean).join(" · ")}
-                    </p>
-                    {textoTitulares(m) && <p className="text-xs text-muted-foreground">Titular: {textoTitulares(m)}</p>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={cn("font-semibold tabular-nums", !anulado && COLOR_SENTIDO[m.sentido])}>{m.sentido === "ingreso" ? "+" : "−"} {usd(Number(m.monto_usd))}</p>
-                    {m.moneda_original === "UYU" && (
-                      <p className="text-xs text-muted-foreground tabular-nums">
-                        {montoOriginal(Number(m.monto_original), m.moneda_original, m.tipo_cambio)}
-                        {m.tipo_cambio_fuente === "BCU" && m.tipo_cambio_fecha ? ` · BCU ${fechaCorta(m.tipo_cambio_fecha).slice(0, 5)}` : " · a mano"}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {anulado
-                    ? <Badge variant="secondary">Anulado</Badge>
-                    : m.estado === "pendiente"
-                      ? <Badge variant="outline">Pendiente{m.fecha_vencimiento ? ` · ${m.sentido === "ingreso" ? "se cobra" : "se paga"} el ${fechaCorta(m.fecha_vencimiento)}` : ""}</Badge>
-                      : <Badge variant="outline">{m.sentido === "ingreso" ? "Cobrado" : "Pagado"}{m.fecha_pago ? ` el ${fechaCorta(m.fecha_pago)}` : ""}</Badge>}
-                  {!anulado && m.estado === "pendiente" && (
-                    <Button type="button" variant="outline" size="sm" className="h-9 md:h-8" onClick={() => onPagar(accion)}>
-                      {m.sentido === "ingreso" ? "Marcar cobrado" : "Marcar pagado"}
-                    </Button>
-                  )}
-                  {!anulado && (
-                    <Link href={`/economia/${m.id}/editar`} className={buttonVariants({ variant: "ghost", size: "sm", className: "h-9 md:h-8 text-muted-foreground" })}>
-                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                    </Link>
-                  )}
-                  {!anulado && m.origen === "manual" && (
-                    <Button type="button" variant="ghost" size="sm" className="h-9 md:h-8 text-muted-foreground" onClick={() => onAnular(accion)}>
-                      Anular
-                    </Button>
-                  )}
-                </div>
-                {anulado && m.motivo_anulacion && <p className="text-xs text-muted-foreground">Anulado: {m.motivo_anulacion}</p>}
-                <ArchivosDeMovimiento establecimientoId={establecimientoId} movimientoId={m.id}
-                  archivos={archivos.filter(a => a.movimiento_id === m.id)} puedeAdjuntar={!anulado} onCambio={onCambioArchivos} />
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-function Pendientes({ pendientes, onPagar }: { pendientes: Pendiente[]; onPagar: (m: ParaAccion) => void }) {
+function Pendientes({ pendientes, puedeOperar, onPagar }: { pendientes: Pendiente[]; puedeOperar: boolean; onPagar: (m: ParaAccion) => void }) {
   const bloque = (titulo: string, lista: Pendiente[], ingreso: boolean) => (
     <section className="space-y-2">
       <h2 className="flex items-baseline justify-between gap-2 font-semibold">
@@ -428,10 +294,12 @@ function Pendientes({ pendientes, onPagar }: { pendientes: Pendiente[]; onPagar:
               </div>
               <div className="flex items-center gap-2">
                 <span className={cn("font-semibold tabular-nums", COLOR_SENTIDO[p.sentido])}>{usd(Number(p.monto_usd))}</span>
-                <Button type="button" variant="outline" size="sm" className="h-9 md:h-8"
-                  onClick={() => onPagar({ id: p.id, concepto: p.concepto, sentido: p.sentido, fecha: p.fecha })}>
-                  {ingreso ? "Cobrado" : "Pagado"}
-                </Button>
+                {puedeOperar && (
+                  <Button type="button" variant="outline" size="sm" className="h-9 md:h-8"
+                    onClick={() => onPagar({ id: p.id, concepto: p.concepto, sentido: p.sentido, fecha: p.fecha })}>
+                    {ingreso ? "Cobrado" : "Pagado"}
+                  </Button>
+                )}
               </div>
             </li>
           ))}
@@ -449,7 +317,7 @@ function Pendientes({ pendientes, onPagar }: { pendientes: Pendiente[]; onPagar:
   )
 }
 
-function ListaSinPrecio({ filas }: { filas: SinPrecio[] }) {
+function ListaSinPrecio({ filas, puedeOperar }: { filas: SinPrecio[]; puedeOperar: boolean }) {
   if (filas.length === 0) return <p className="text-sm text-muted-foreground">Todas las compras y ventas tienen precio.</p>
   return (
     <div className="space-y-2">
@@ -462,7 +330,7 @@ function ListaSinPrecio({ filas }: { filas: SinPrecio[] }) {
               <p className="text-xs text-muted-foreground">{[fechaCorta(f.fecha), f.contraparte].filter(Boolean).join(" · ")}</p>
             </div>
             <Link href={`/actividades/${f.actividad_id}`} className={buttonVariants({ variant: "outline", size: "sm", className: "h-9 md:h-8" })}>
-              Cargar precio
+              {puedeOperar ? "Cargar precio" : "Ver"}
             </Link>
           </li>
         ))}

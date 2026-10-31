@@ -5,20 +5,19 @@ import { useRouter } from "next/navigation"
 import { Check } from "lucide-react"
 import { toast } from "sonner"
 
-import { crearEntrada, editarEntrada, getPersonas } from "@/lib/queries/bitacora"
+import { crearEntrada, editarEntrada, getPersonas, type Persona } from "@/lib/queries/bitacora"
 import { getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { BOTON, CAMPO, SELECT_NATIVO, TEXTAREA } from "@/components/shared/estilos"
+import { SelectorResponsables } from "@/components/shared/Responsables"
 import { hoyLocal } from "@/components/lotes/formato"
 import { ETIQUETA_TIPO, TIPOS_ENTRADA, textoRepeticion } from "@/components/bitacora/formato"
 import { cn } from "@/lib/utils"
 import type { EntradaConLotes, TipoEntrada } from "@/types/bitacora"
 import type { Lote } from "@/types/lotes"
-
-type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 
 interface Props {
   establecimientoId: string
@@ -39,7 +38,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
   const [fecha, setFecha] = useState(inicial?.fecha ?? hoyLocal())
   const [texto, setTexto] = useState(inicial?.texto ?? origen?.texto ?? "")
   const [lotes, setLotes] = useState<string[]>(inicial?.lotes ?? origen?.lotes ?? (loteInicial ? [loteInicial] : []))
-  const [personaId, setPersonaId] = useState(inicial?.persona_id ?? origen?.persona_id ?? "")
+  const [responsables, setResponsables] = useState<string[]>(inicial?.responsables ?? origen?.responsables ?? [])
   const [vencimiento, setVencimiento] = useState(inicial?.vencimiento ?? venceInicial ?? "")
   const [repetir, setRepetir] = useState(inicial?.repetir_cada_dias ? String(inicial.repetir_cada_dias) : "")
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +69,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
     }
 
     const datos = {
-      fecha, tipo, texto: texto.trim(), lotes, persona_id: personaId || null,
+      fecha, tipo, texto: texto.trim(), lotes, responsables,
       vencimiento: esTarea ? vencimiento : null,
       repetir_cada_dias: esTarea ? dias : null,
     }
@@ -92,8 +91,6 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
     }
   }
 
-  // Responsables: los activos, y el actual aunque esté inactivo
-  const personas = (opciones?.personas ?? []).filter(p => p.activo || p.id === inicial?.persona_id)
   const esTarea = tipo === "tarea"
   const repeticionLibre = repetir !== "" && !REPETICIONES.includes(Number(repetir))
 
@@ -165,18 +162,20 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="ent-fecha">{esTarea ? "Anotada el" : "Fecha"}</Label>
-          <Input id="ent-fecha" type="date" max={hoyLocal()} className={CAMPO} value={fecha} onChange={e => setFecha(e.target.value)} />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ent-persona">Responsable</Label>
-          <select id="ent-persona" className={SELECT_NATIVO} value={personaId} onChange={e => setPersonaId(e.target.value)}>
-            <option value="">{esTarea ? "Cualquiera (sin responsable)" : "Nadie en particular"}</option>
-            {personas.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-        </div>
+      <div className="space-y-1.5 max-w-[12rem]">
+        <Label htmlFor="ent-fecha">{esTarea ? "Anotada el" : "Fecha"}</Label>
+        <Input id="ent-fecha" type="date" max={hoyLocal()} className={CAMPO} value={fecha} onChange={e => setFecha(e.target.value)} />
+      </div>
+
+      {/* Al editar, los que ya tenía se pueden dejar aunque estén de baja */}
+      <div>
+        <SelectorResponsables personas={opciones?.personas ?? null} elegidos={responsables} onCambio={setResponsables}
+          conservar={inicial?.responsables} />
+        {responsables.length === 0 && (
+          <p className="text-xs text-muted-foreground mt-1.5">
+            {esTarea ? "Sin responsable: le toca a cualquiera." : "Sin responsable: nadie en particular."}
+          </p>
+        )}
       </div>
 
       <fieldset>

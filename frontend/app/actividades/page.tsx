@@ -7,11 +7,12 @@ import { ClipboardList, Plus } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getActividades } from "@/lib/queries/actividades"
+import { getPersonas } from "@/lib/queries/bitacora"
 import { getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { buttonVariants } from "@/components/ui/button"
-import { TarjetaActividad } from "@/components/actividades/TarjetaActividad"
+import { LineaDeTiempo, LineaDeTiempoCargando } from "@/components/actividades/LineaDeTiempo"
 import { ETIQUETA_ACTIVIDAD, TIPOS_CARGABLES, esTipoCargable } from "@/components/actividades/formato"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
@@ -22,6 +23,7 @@ interface Datos {
   actividades: ActividadResumen[]
   nombresLote: Map<string, string>
   lotesActivos: { id: string; nombre: string }[]
+  nombresPersona: Map<string, string>
 }
 
 export default function ActividadesPage() {
@@ -54,14 +56,16 @@ function Actividades() {
       getActividades(estId, { tipo, loteId: loteId || null, incluirAnuladas }),
       getLotes(estId, "activo"),
       getLotes(estId, "cerrado"),
+      getPersonas(estId),
     ])
-      .then(([actividades, activos, cerrados]) => {
+      .then(([actividades, activos, cerrados, personas]) => {
         if (!vigente) return
         setDatos({
           clave: JSON.stringify([estId, tipo, loteId, incluirAnuladas]),
           actividades,
           nombresLote: new Map([...activos, ...cerrados].map(l => [l.id, l.nombre])),
           lotesActivos: activos.map(l => ({ id: l.id, nombre: l.nombre })),
+          nombresPersona: new Map(personas.map(p => [p.id, p.nombre])),
         })
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudieron cargar las actividades")) })
@@ -117,18 +121,22 @@ function Actividades() {
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}
 
       {!datos ? (
-        <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-20 rounded-lg border bg-muted/30 animate-pulse" />)}</div>
+        <LineaDeTiempoCargando />
       ) : datos.actividades.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center">
           <ClipboardList className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">No hay actividades con estos filtros.</p>
+          {puedeOperar && (
+            <Link href={loteId ? `/actividades/nueva?lote=${loteId}` : "/actividades/nueva"} className={buttonVariants({ className: "mt-4 h-11 md:h-9" })}>
+              <Plus className="h-4 w-4 mr-1" /> Cargar actividad
+            </Link>
+          )}
         </div>
       ) : (
-        <ul className={cn("space-y-2 transition-opacity", actualizando && "opacity-60")}>
-          {datos.actividades.map(a => (
-            <li key={a.id}><TarjetaActividad actividad={a} nombresLote={datos.nombresLote} /></li>
-          ))}
-        </ul>
+        <div className={cn("transition-opacity", actualizando && "opacity-60")}>
+          <LineaDeTiempo actividades={datos.actividades} nombresLote={datos.nombresLote}
+            nombrePersona={id => datos.nombresPersona.get(id)} />
+        </div>
       )}
       {datos && datos.actividades.length >= 100 && (
         <p className="text-sm text-muted-foreground mt-4">Se muestran las 100 más recientes. Usá los filtros para encontrar las anteriores.</p>

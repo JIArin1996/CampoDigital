@@ -166,7 +166,7 @@ function Lotes() {
       {listo && cambioAbierto && (
         <CambiarPotreroDialog key="elegir" abierto onCerrar={cerrarCambio}
           onHecho={() => { cerrarCambio(); setVersion(v => v + 1) }}
-          lotes={[...listo.lotes].sort((a, b) => a.nombre.localeCompare(b.nombre, "es", { numeric: true }))}
+          lotes={listo.lotes}
           potreros={listo.potreros} estadias={listo.estadias} />
       )}
 

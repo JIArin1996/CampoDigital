@@ -484,6 +484,47 @@ export type Database = {
           },
         ]
       }
+      actividad_archivos: {
+        Row: {
+          actividad_id: string
+          archivo_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          ocultado_en: string | null
+          ocultado_por: string | null
+          oculto: boolean
+        }
+        Insert: {
+          actividad_id: string
+          archivo_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+        }
+        Update: {
+          actividad_id?: string
+          archivo_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          ocultado_en?: string | null
+          ocultado_por?: string | null
+          oculto?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividad_archivos_archivo_id_establecimiento_id_fkey"
+            columns: ["archivo_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "archivos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       actividad_lineas: {
         Row: {
           actividad_id: string
@@ -613,6 +654,66 @@ export type Database = {
           },
         ]
       }
+      actividad_responsables: {
+        Row: {
+          actividad_id: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          persona_id: string
+        }
+        Insert: {
+          actividad_id: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          persona_id: string
+        }
+        Update: {
+          actividad_id?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actividad_responsables_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actividad_responsables_persona_id_establecimiento_id_fkey"
+            columns: ["persona_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
       actividades: {
         Row: {
           anulada_en: string | null
@@ -626,7 +727,6 @@ export type Database = {
           lote_id: string | null
           motivo_anulacion: string | null
           notas: string | null
-          persona_id: string | null
           tipo: string
         }
         Insert: {
@@ -641,7 +741,6 @@ export type Database = {
           lote_id?: string | null
           motivo_anulacion?: string | null
           notas?: string | null
-          persona_id?: string | null
           tipo: string
         }
         Update: {
@@ -656,7 +755,6 @@ export type Database = {
           lote_id?: string | null
           motivo_anulacion?: string | null
           notas?: string | null
-          persona_id?: string | null
           tipo?: string
         }
         Relationships: [
@@ -679,13 +777,6 @@ export type Database = {
             columns: ["lote_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "lotes"
-            referencedColumns: ["id", "establecimiento_id"]
-          },
-          {
-            foreignKeyName: "actividades_persona_id_establecimiento_id_fkey"
-            columns: ["persona_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -751,7 +842,6 @@ export type Database = {
           fecha: string
           id: string
           motivo_anulacion: string | null
-          persona_id: string | null
           repetir_cada_dias: number | null
           tarea_anterior_id: string | null
           texto: string
@@ -775,7 +865,6 @@ export type Database = {
           fecha?: string
           id?: string
           motivo_anulacion?: string | null
-          persona_id?: string | null
           repetir_cada_dias?: number | null
           tarea_anterior_id?: string | null
           texto: string
@@ -799,7 +888,6 @@ export type Database = {
           fecha?: string
           id?: string
           motivo_anulacion?: string | null
-          persona_id?: string | null
           repetir_cada_dias?: number | null
           tarea_anterior_id?: string | null
           texto?: string
@@ -827,13 +915,6 @@ export type Database = {
             columns: ["entrada_origen_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "bitacora_entradas"
-            referencedColumns: ["id", "establecimiento_id"]
-          },
-          {
-            foreignKeyName: "bitacora_entradas_persona_id_establecimiento_id_fkey"
-            columns: ["persona_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -880,6 +961,52 @@ export type Database = {
             columns: ["lote_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
+      bitacora_responsables: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entrada_id: string
+          establecimiento_id: string
+          persona_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entrada_id: string
+          establecimiento_id: string
+          persona_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entrada_id?: string
+          establecimiento_id?: string
+          persona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bitacora_responsables_entrada_id_establecimiento_id_fkey"
+            columns: ["entrada_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "bitacora_entradas"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "bitacora_responsables_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bitacora_responsables_persona_id_establecimiento_id_fkey"
+            columns: ["persona_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
             referencedColumns: ["id", "establecimiento_id"]
           },
         ]
@@ -972,7 +1099,15 @@ export type Database = {
           orden?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "concepto_grupos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conceptos: {
         Row: {
@@ -1008,7 +1143,22 @@ export type Database = {
           tipo?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conceptos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conceptos_grupo_id_establecimiento_id_fkey"
+            columns: ["grupo_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "concepto_grupos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       especies: {
         Row: {
@@ -1120,6 +1270,108 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      liquidaciones: {
+        Row: {
+          a_pagador_id: string | null
+          a_titular_id: string | null
+          anulado_en: string | null
+          anulado_por: string | null
+          created_at: string
+          created_by: string | null
+          de_pagador_id: string | null
+          de_titular_id: string | null
+          establecimiento_id: string
+          fecha: string
+          id: string
+          moneda_original: string
+          monto_original: number
+          monto_usd: number | null
+          motivo_anulacion: string | null
+          observacion: string | null
+          tipo_cambio: number | null
+          tipo_cambio_fecha: string | null
+          tipo_cambio_fuente: string | null
+        }
+        Insert: {
+          a_pagador_id?: string | null
+          a_titular_id?: string | null
+          anulado_en?: string | null
+          anulado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          de_pagador_id?: string | null
+          de_titular_id?: string | null
+          establecimiento_id: string
+          fecha: string
+          id?: string
+          moneda_original: string
+          monto_original: number
+          monto_usd?: number | null
+          motivo_anulacion?: string | null
+          observacion?: string | null
+          tipo_cambio?: number | null
+          tipo_cambio_fecha?: string | null
+          tipo_cambio_fuente?: string | null
+        }
+        Update: {
+          a_pagador_id?: string | null
+          a_titular_id?: string | null
+          anulado_en?: string | null
+          anulado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          de_pagador_id?: string | null
+          de_titular_id?: string | null
+          establecimiento_id?: string
+          fecha?: string
+          id?: string
+          moneda_original?: string
+          monto_original?: number
+          monto_usd?: number | null
+          motivo_anulacion?: string | null
+          observacion?: string | null
+          tipo_cambio?: number | null
+          tipo_cambio_fecha?: string | null
+          tipo_cambio_fuente?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidaciones_a_pagador_id_establecimiento_id_fkey"
+            columns: ["a_pagador_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_a_titular_id_establecimiento_id_fkey"
+            columns: ["a_titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_de_pagador_id_establecimiento_id_fkey"
+            columns: ["de_pagador_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_de_titular_id_establecimiento_id_fkey"
+            columns: ["de_titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lote_archivos: {
         Row: {
@@ -1603,7 +1855,36 @@ export type Database = {
           tamano_bytes?: number
           tipo_mime?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimiento_archivos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimiento_archivos_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "movimientos_economicos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_archivos_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimientos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_archivos_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       movimiento_titulares: {
         Row: {
@@ -1624,13 +1905,50 @@ export type Database = {
           movimiento_id?: string
           titular_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimiento_titulares_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "movimientos_economicos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_movimientos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_movimiento_id_establecimiento_id_fkey"
+            columns: ["movimiento_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_saldos_pendientes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimiento_titulares_titular_id_establecimiento_id_fkey"
+            columns: ["titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       movimientos_economicos: {
         Row: {
           actividad_id: string | null
           anulado_en: string | null
           anulado_por: string | null
+          comentario: string | null
           concepto: string
           concepto_id: string | null
           contraparte: string | null
@@ -1640,16 +1958,21 @@ export type Database = {
           editado_por: string | null
           establecimiento_id: string
           estado: string
+          factura_nombre: string | null
+          factura_rut: string | null
           fecha: string
           fecha_pago: string | null
           fecha_vencimiento: string | null
           id: string
+          identificador: string | null
           lote_id: string | null
           moneda_original: string
           monto_original: number
           monto_usd: number | null
           motivo_anulacion: string | null
+          numero_comprobante: string | null
           origen: string
+          pagador_id: string | null
           rubro_id: string
           sentido: string
           tipo_cambio: number | null
@@ -1661,6 +1984,7 @@ export type Database = {
           actividad_id?: string | null
           anulado_en?: string | null
           anulado_por?: string | null
+          comentario?: string | null
           concepto: string
           concepto_id?: string | null
           contraparte?: string | null
@@ -1670,16 +1994,21 @@ export type Database = {
           editado_por?: string | null
           establecimiento_id: string
           estado: string
+          factura_nombre?: string | null
+          factura_rut?: string | null
           fecha: string
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
           id?: string
+          identificador?: string | null
           lote_id?: string | null
           moneda_original: string
           monto_original: number
           monto_usd?: number | null
           motivo_anulacion?: string | null
+          numero_comprobante?: string | null
           origen?: string
+          pagador_id?: string | null
           rubro_id: string
           sentido: string
           tipo_cambio?: number | null
@@ -1691,6 +2020,7 @@ export type Database = {
           actividad_id?: string | null
           anulado_en?: string | null
           anulado_por?: string | null
+          comentario?: string | null
           concepto?: string
           concepto_id?: string | null
           contraparte?: string | null
@@ -1700,16 +2030,21 @@ export type Database = {
           editado_por?: string | null
           establecimiento_id?: string
           estado?: string
+          factura_nombre?: string | null
+          factura_rut?: string | null
           fecha?: string
           fecha_pago?: string | null
           fecha_vencimiento?: string | null
           id?: string
+          identificador?: string | null
           lote_id?: string | null
           moneda_original?: string
           monto_original?: number
           monto_usd?: number | null
           motivo_anulacion?: string | null
+          numero_comprobante?: string | null
           origen?: string
+          pagador_id?: string | null
           rubro_id?: string
           sentido?: string
           tipo_cambio?: number | null
@@ -1740,6 +2075,13 @@ export type Database = {
             referencedColumns: ["actividad_id", "establecimiento_id"]
           },
           {
+            foreignKeyName: "movimientos_economicos_concepto_fkey"
+            columns: ["concepto_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
             foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
             columns: ["establecimiento_id"]
             isOneToOne: false
@@ -1751,6 +2093,13 @@ export type Database = {
             columns: ["lote_id", "establecimiento_id"]
             isOneToOne: false
             referencedRelation: "lotes"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_pagador_fkey"
+            columns: ["pagador_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
             referencedColumns: ["id", "establecimiento_id"]
           },
           {
@@ -1870,6 +2219,54 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "establecimientos"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagadores: {
+        Row: {
+          activo: boolean
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          titular_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          titular_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          titular_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagadores_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagadores_titular_id_establecimiento_id_fkey"
+            columns: ["titular_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "titulares"
+            referencedColumns: ["id", "establecimiento_id"]
           },
         ]
       }
@@ -2048,6 +2445,49 @@ export type Database = {
           },
         ]
       }
+      preferencias_economia: {
+        Row: {
+          establecimiento_id: string
+          ultimo_pagador_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          establecimiento_id: string
+          ultimo_pagador_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          establecimiento_id?: string
+          ultimo_pagador_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preferencias_economia_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preferencias_economia_ultimo_pagador_id_fkey"
+            columns: ["ultimo_pagador_id"]
+            isOneToOne: false
+            referencedRelation: "pagadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preferencias_economia_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rubros: {
         Row: {
           activo: boolean
@@ -2207,7 +2647,15 @@ export type Database = {
           nombre?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "titulares_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -2237,13 +2685,13 @@ export type Database = {
           nacidos_muertos: number | null
           notas: string | null
           observaciones: string | null
-          persona_id: string | null
           personalizada: string | null
           peso_promedio_kg: number | null
           peso_vivo_total_kg: number | null
           producto: string | null
           productos: number | null
           rendimiento_pct: number | null
+          responsables: string[] | null
           tipo: string | null
           toros: number | null
           vacas_diagnosticadas: number | null
@@ -2273,13 +2721,6 @@ export type Database = {
             referencedRelation: "lotes"
             referencedColumns: ["id", "establecimiento_id"]
           },
-          {
-            foreignKeyName: "actividades_persona_id_establecimiento_id_fkey"
-            columns: ["persona_id", "establecimiento_id"]
-            isOneToOne: false
-            referencedRelation: "personas"
-            referencedColumns: ["id", "establecimiento_id"]
-          },
         ]
       }
       v_calendario: {
@@ -2293,8 +2734,8 @@ export type Database = {
           lotes: string[] | null
           orden: number | null
           origen: string | null
-          persona_id: string | null
           repetir_cada_dias: number | null
+          responsables: string[] | null
           texto: string | null
         }
         Relationships: []
@@ -2513,7 +2954,29 @@ export type Database = {
           titular: string | null
           titular_id: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_concepto_fkey"
+            columns: ["concepto_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_rubro_id_establecimiento_id_fkey"
+            columns: ["rubro_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "rubros"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
       }
       v_resultado_rubro: {
         Row: {
@@ -2539,6 +3002,100 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "rubros"
             referencedColumns: ["id", "establecimiento_id"]
+          },
+        ]
+      }
+      v_saldos: {
+        Row: {
+          acreedor: string | null
+          acreedor_id: string | null
+          acreedor_tipo: string | null
+          deudor: string | null
+          deudor_id: string | null
+          deudor_tipo: string | null
+          establecimiento_id: string | null
+          monto_usd: number | null
+        }
+        Relationships: []
+      }
+      v_saldos_aportes: {
+        Row: {
+          acreedor_id: string | null
+          acreedor_tipo: string | null
+          descripcion: string | null
+          deudor_id: string | null
+          deudor_tipo: string | null
+          establecimiento_id: string | null
+          fecha: string | null
+          monto_usd: number | null
+          origen: string | null
+          origen_id: string | null
+          sentido: string | null
+        }
+        Relationships: []
+      }
+      v_saldos_pendientes: {
+        Row: {
+          actividad_id: string | null
+          concepto: string | null
+          establecimiento_id: string | null
+          falta_pagador: boolean | null
+          falta_reparto: boolean | null
+          fecha: string | null
+          id: string | null
+          monto_usd: number | null
+          sentido: string | null
+        }
+        Insert: {
+          actividad_id?: string | null
+          concepto?: string | null
+          establecimiento_id?: string | null
+          falta_pagador?: never
+          falta_reparto?: never
+          fecha?: string | null
+          id?: string | null
+          monto_usd?: number | null
+          sentido?: string | null
+        }
+        Update: {
+          actividad_id?: string | null
+          concepto?: string | null
+          establecimiento_id?: string | null
+          falta_pagador?: never
+          falta_reparto?: never
+          fecha?: string | null
+          id?: string | null
+          monto_usd?: number | null
+          sentido?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_actividades"
+            referencedColumns: ["id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_actividad_id_establecimiento_id_fkey"
+            columns: ["actividad_id", "establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "v_compraventas_sin_precio"
+            referencedColumns: ["actividad_id", "establecimiento_id"]
+          },
+          {
+            foreignKeyName: "movimientos_economicos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2635,7 +3192,6 @@ export type Database = {
           fecha: string
           id: string
           motivo_anulacion: string | null
-          persona_id: string | null
           repetir_cada_dias: number | null
           tarea_anterior_id: string | null
           texto: string
@@ -2687,9 +3243,21 @@ export type Database = {
         Args: { p_establecimiento_id: string }
         Returns: undefined
       }
+      _cargar_conceptos_base: {
+        Args: { p_establecimiento_id: string }
+        Returns: undefined
+      }
       _cerrar_si_vacio: {
         Args: { p_fecha: string; p_lote_id: string; p_motivo: string }
         Returns: boolean
+      }
+      _concepto_por_defecto: {
+        Args: {
+          p_especie_id: string
+          p_establecimiento_id: string
+          p_sentido: string
+        }
+        Returns: string
       }
       _entero_jsonb: {
         Args: { p_campo: string; p_valor: Json }
@@ -2699,15 +3267,49 @@ export type Database = {
         Args: { p_categoria_id: string; p_especie_id: string }
         Returns: undefined
       }
-      _exigir_persona: {
-        Args: { p_establecimiento_id: string; p_persona_id: string }
+      _fichas_de_admins: {
+        Args: { p_establecimiento_id: string; p_user_id: string }
         Returns: undefined
+      }
+      _fuente_tipo_cambio: {
+        Args: {
+          p_fecha_movimiento: string
+          p_moneda: string
+          p_precio: Json
+          p_tipo_cambio: number
+        }
+        Returns: Record<string, unknown>
       }
       _guardar_lotes_bitacora: {
         Args: {
           p_entrada_id: string
           p_establecimiento_id: string
           p_lotes: string[]
+        }
+        Returns: undefined
+      }
+      _guardar_pago_y_factura: {
+        Args: { p_movimiento_id: string; p_precio: Json }
+        Returns: undefined
+      }
+      _guardar_responsables_actividad: {
+        Args: { p_actividad_id: string; p_responsables: string[] }
+        Returns: undefined
+      }
+      _guardar_responsables_entrada: {
+        Args: {
+          p_entrada_id: string
+          p_establecimiento_id: string
+          p_responsables: string[]
+        }
+        Returns: undefined
+      }
+      _guardar_titulares: {
+        Args: {
+          p_establecimiento_id: string
+          p_monto: number
+          p_movimiento_id: string
+          p_titulares: Json
         }
         Returns: undefined
       }
@@ -2720,6 +3322,10 @@ export type Database = {
           p_peso: string
         }
         Returns: string[]
+      }
+      _parte_de_saldo: {
+        Args: { p_establecimiento_id: string; p_id: string; p_tipo: string }
+        Returns: string
       }
       _precio_valido: {
         Args: { p_precio: Json }
@@ -2763,7 +3369,6 @@ export type Database = {
         Args: {
           p_establecimiento_id: string
           p_fecha: string
-          p_persona_id: string
           p_texto: string
           p_tipo: string
         }
@@ -2773,12 +3378,20 @@ export type Database = {
         Args: { p_apertura: string; p_fecha: string }
         Returns: undefined
       }
+      _validar_responsables: {
+        Args: {
+          p_actuales?: string[]
+          p_establecimiento_id: string
+          p_responsables: string[]
+        }
+        Returns: undefined
+      }
       _validar_saldo: {
         Args: { p_categoria_id: string; p_lote_id: string }
         Returns: undefined
       }
-      adjuntar_archivo_movimiento: {
-        Args: { p_archivo_id: string; p_movimiento_id: string; p_nombre: string }
+      adjuntar_archivo_actividad: {
+        Args: { p_actividad_id: string; p_archivo_id: string; p_nombre: string }
         Returns: string
       }
       adjuntar_archivo_lote: {
@@ -2790,12 +3403,24 @@ export type Database = {
         }
         Returns: string
       }
+      adjuntar_archivo_movimiento: {
+        Args: {
+          p_archivo_id: string
+          p_movimiento_id: string
+          p_nombre: string
+        }
+        Returns: string
+      }
       anular_actividad: {
         Args: { p_actividad_id: string; p_motivo: string }
         Returns: undefined
       }
       anular_entrada_bitacora: {
         Args: { p_entrada_id: string; p_motivo: string }
+        Returns: undefined
+      }
+      anular_liquidacion: {
+        Args: { p_id: string; p_motivo: string }
         Returns: undefined
       }
       anular_movimiento: {
@@ -2843,8 +3468,8 @@ export type Database = {
           p_establecimiento_id: string
           p_fecha: string
           p_lotes?: string[]
-          p_persona_id?: string
           p_repetir_cada_dias?: number
+          p_responsables?: string[]
           p_texto: string
           p_tipo: string
           p_vencimiento?: string
@@ -2907,17 +3532,14 @@ export type Database = {
           p_entrada_id: string
           p_fecha: string
           p_lotes?: string[]
-          p_persona_id?: string
           p_repetir_cada_dias?: number
+          p_responsables?: string[]
           p_texto: string
           p_tipo: string
           p_vencimiento?: string
         }
         Returns: undefined
       }
-      es_admin: { Args: never; Returns: boolean }
-      es_miembro: { Args: { p_est: string }; Returns: boolean }
-      fecha_hoy: { Args: never; Returns: string }
       editar_movimiento: {
         Args: {
           p_concepto_id: string
@@ -2932,6 +3554,9 @@ export type Database = {
         }
         Returns: undefined
       }
+      es_admin: { Args: never; Returns: boolean }
+      es_miembro: { Args: { p_est: string }; Returns: boolean }
+      fecha_hoy: { Args: never; Returns: string }
       guardar_forma_potrero: {
         Args: {
           p_actualizar_superficie?: boolean
@@ -2973,6 +3598,10 @@ export type Database = {
       puede_operar: { Args: { p_est: string }; Returns: boolean }
       quitar_acceso: {
         Args: { p_establecimiento_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      quitar_archivo_actividad: {
+        Args: { p_actividad_id: string; p_archivo_id: string }
         Returns: undefined
       }
       quitar_archivo_lote: {
@@ -3018,8 +3647,8 @@ export type Database = {
           p_lote_nuevo?: Json
           p_modalidad: string
           p_notas?: string
-          p_persona_id?: string
           p_precio?: Json
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3031,7 +3660,7 @@ export type Database = {
           p_id: string
           p_notas?: string
           p_origenes: Json
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3041,7 +3670,7 @@ export type Database = {
           p_id: string
           p_lote_id: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
           p_vacas_diagnosticadas: number
           p_vacas_prenadas: number
         }
@@ -3055,7 +3684,21 @@ export type Database = {
           p_kg_lana_total: number
           p_lotes: string[]
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      registrar_liquidacion: {
+        Args: {
+          p_a_id: string
+          p_a_tipo: string
+          p_de_id: string
+          p_de_tipo: string
+          p_establecimiento_id: string
+          p_fecha: string
+          p_id: string
+          p_observacion?: string
+          p_precio: Json
         }
         Returns: string
       }
@@ -3068,7 +3711,7 @@ export type Database = {
           p_lote_id: string
           p_notas?: string
           p_observaciones?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3097,7 +3740,7 @@ export type Database = {
           p_lote_madres_id: string
           p_nacidos_muertos?: number
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3110,7 +3753,7 @@ export type Database = {
           p_lotes: string[]
           p_nombre: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3121,7 +3764,7 @@ export type Database = {
           p_lineas: Json
           p_lote_id: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3132,8 +3775,8 @@ export type Database = {
           p_id: string
           p_lotes: string[]
           p_notas?: string
-          p_persona_id?: string
           p_productos: Json
+          p_responsables?: string[]
         }
         Returns: string
       }
@@ -3143,7 +3786,7 @@ export type Database = {
           p_id: string
           p_lote_id: string
           p_notas?: string
-          p_persona_id?: string
+          p_responsables?: string[]
           p_toros?: number
           p_vacas_entoradas: number
         }
@@ -3159,8 +3802,8 @@ export type Database = {
           p_lote_id: string
           p_modalidad: string
           p_notas?: string
-          p_persona_id?: string
           p_precio?: Json
+          p_responsables?: string[]
         }
         Returns: string
       }

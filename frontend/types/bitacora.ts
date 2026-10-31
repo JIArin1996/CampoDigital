@@ -15,10 +15,11 @@ export type EntradaBitacora = Omit<Tables<'bitacora_entradas'>, 'tipo' | 'estado
 
 export type BitacoraLote = Tables<'bitacora_lotes'>
 
-// Entrada con los ids de sus lotes etiquetados y el vínculo nota ↔ tarea:
+// Entrada con los ids de sus lotes etiquetados, sus responsables (personas) y el vínculo nota ↔ tarea:
 // tarea: la tarea que salió de esta nota (de una repetida, la más nueva); origen: la nota de la que salió esta tarea
 export type EntradaConLotes = EntradaBitacora & {
   lotes: string[]
+  responsables: string[]
   tarea: { id: string; texto: string; vencimiento: string; estado: EstadoTarea } | null
   origen: { id: string; tipo: TipoEntrada; texto: string } | null
 }
@@ -32,7 +33,7 @@ export type FilaCalendario = {
   orden: number | null            // dosis: el producto dentro de la sanidad
   fecha: string
   texto: string
-  persona_id: string | null
+  responsables: string[]          // las dosis no tienen
   estado: EstadoTarea
   repetir_cada_dias: number | null
   lotes: string[]

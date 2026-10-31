@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Pencil, RotateCcw, Ban, UserRound, Check, X, Repeat, CalendarClock, CalendarPlus, CornerDownRight } from "lucide-react"
+import { Pencil, RotateCcw, Ban, Check, X, Repeat, CalendarClock, CalendarPlus, CornerDownRight } from "lucide-react"
 import { toast } from "sonner"
 
 import { anularEntrada, cambiarEstadoIdea, cambiarEstadoTarea, restaurarEntrada } from "@/lib/queries/bitacora"
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CAMPO } from "@/components/shared/estilos"
+import { ChipResponsables } from "@/components/shared/Responsables"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import {
   COLOR_TIPO, ESTADOS_IDEA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, fechaHora, mensajeTareaHecha, textoRepeticion, textoVencimiento,
@@ -41,7 +42,7 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
   const [trabajando, setTrabajando] = useState(false)
 
   const anulada = entrada.anulada_en !== null
-  const responsable = personas.find(p => p.id === entrada.persona_id)?.nombre
+  const nombrePersona = (id: string) => personas.find(p => p.id === id)?.nombre
   // Quién cargó o editó: el usuario se muestra por su ficha en personas
   const nombreUsuario = (userId: string | null) => personas.find(p => p.user_id && p.user_id === userId)?.nombre ?? "otro usuario"
 
@@ -147,19 +148,15 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
         </Link>
       )}
 
-      {/* Lotes y responsable */}
-      {(entrada.lotes.length > 0 || responsable) && (
+      {/* Lotes y responsables */}
+      {(entrada.lotes.length > 0 || entrada.responsables.length > 0) && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {entrada.lotes.map(id => (
             <Link key={id} href={`/lotes/${id}`} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium hover:bg-accent">
               {nombresLote.get(id) ?? "Lote"}
             </Link>
           ))}
-          {responsable && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-              <UserRound className="h-3 w-3" /> {responsable}
-            </span>
-          )}
+          <ChipResponsables ids={entrada.responsables} nombre={nombrePersona} completo={!compacta} />
         </div>
       )}
 

@@ -1,7 +1,3 @@
-import {
-  Baby, HeartCrack, Heart, MilkOff, Scale, ShoppingCart, Stethoscope, Syringe, Tag, Wind, ClipboardPen, type LucideIcon,
-} from "lucide-react"
-
 import type { Modalidad, TipoActividad, TipoActividad6a, TipoActividad6b1, TipoCargable } from "@/types/actividades"
 
 export const ETIQUETA_ACTIVIDAD: Record<TipoActividad, string> = {
@@ -23,20 +19,6 @@ export const ETIQUETA_ACTIVIDAD: Record<TipoActividad, string> = {
 export const TIPOS_6A: TipoActividad6a[] = ["pesada", "venta", "compra", "mortandad", "paricion"]
 export const TIPOS_6B1: TipoActividad6b1[] = ["sanidad", "servicio", "diagnostico_gestacion", "esquila", "personalizada"]
 export const TIPOS_CARGABLES: TipoCargable[] = [...TIPOS_6A, "destete", ...TIPOS_6B1]
-
-export const ICONO_ACTIVIDAD: Record<TipoCargable, LucideIcon> = {
-  pesada: Scale,
-  venta: Tag,
-  compra: ShoppingCart,
-  mortandad: HeartCrack,
-  paricion: Baby,
-  destete: MilkOff,
-  sanidad: Syringe,
-  servicio: Heart,
-  diagnostico_gestacion: Stethoscope,
-  esquila: Wind,
-  personalizada: ClipboardPen,
-}
 
 export const DESCRIPCION_ACTIVIDAD: Record<TipoCargable, string> = {
   pesada: "Peso vivo por categoría; no cambia el stock",

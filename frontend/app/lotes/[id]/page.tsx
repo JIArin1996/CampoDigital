@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
 import { deshacerCambioPotrero, getEstadiasLote, getPotreros } from "@/lib/queries/potreros"
-import { getCarencias } from "@/lib/queries/actividades"
+import { getActividades, getCarencias } from "@/lib/queries/actividades"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,7 +28,7 @@ import { BitacoraDelLote } from "@/components/bitacora/BitacoraDelLote"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import { formatoAnios } from "@/components/lotes/anios"
 import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
-import type { Carencia } from "@/types/actividades"
+import type { ActividadResumen, Carencia } from "@/types/actividades"
 import type { Estadia, Potrero } from "@/types/database"
 import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
 
@@ -43,6 +43,7 @@ interface Ficha {
   eventos: LoteEvento[]
   cambios: CambioEstadoLote[]
   carencias: Carencia[]
+  actividades: ActividadResumen[]   // las vigentes del lote (para el historial)
 }
 
 export default function LotePage() {
@@ -61,8 +62,8 @@ export default function LotePage() {
     const clave = `${id}:${version}`
     getLote(id)
       .then(async lote => {
-        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], estadias: [], stock: [], eventos: [], cambios: [], carencias: [] }
-        const [especies, categorias, potreros, estadias, stock, eventos, cambios, carencias] = await Promise.all([
+        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], estadias: [], stock: [], eventos: [], cambios: [], carencias: [], actividades: [] }
+        const [especies, categorias, potreros, estadias, stock, eventos, cambios, carencias, actividades] = await Promise.all([
           getEspecies(lote.establecimiento_id),
           getCategorias(lote.establecimiento_id, { incluirInactivas: true }),
           getPotreros(lote.establecimiento_id, { incluirInactivos: true }),
@@ -71,8 +72,9 @@ export default function LotePage() {
           getEventosLote(lote.id),
           getCambiosEstadoLote(lote.id),
           getCarencias([lote.id], hoyLocal()),
+          getActividades(lote.establecimiento_id, { loteId: lote.id, limite: 1000 }),
         ])
-        return { clave, lote, especies, categorias, potreros, estadias, stock, eventos, cambios, carencias }
+        return { clave, lote, especies, categorias, potreros, estadias, stock, eventos, cambios, carencias, actividades }
       })
       .then(datos => {
         if (vigente) setFicha(datos)
@@ -261,11 +263,8 @@ export default function LotePage() {
           </CardContent>
         </Card>
 
-        {/* Archivos (trazabilidad y otros); se descargan, nunca se muestran adentro de la app */}
+        {/* Archivos (trazabilidad y otros); se ven en el visor y se descargan */}
         <ArchivosDelLote key={`${lote.id}:${lote.estado}`} lote={lote} puedeOperar={puedeOperar} esAdmin={esAdmin} />
-
-        {/* Linaje: de qué lotes viene y en cuáles terminó */}
-        <LinajeLote loteId={lote.id} version={version} />
 
         {/* Bitácora del lote */}
         <BitacoraDelLote
@@ -282,9 +281,12 @@ export default function LotePage() {
               Actividades <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
-          <HistorialLote eventos={vigente.eventos} estadias={vigente.estadias}
+          <HistorialLote eventos={vigente.eventos} estadias={vigente.estadias} actividades={vigente.actividades}
             nombrePotrero={nombrePotrero} nombreCategoria={nombreCategoria} />
         </section>
+
+        {/* Linaje: de qué lotes viene y en cuáles terminó (al final de la ficha) */}
+        <LinajeLote loteId={lote.id} version={version} />
       </div>
 
       {/* Cerrar o reabrir (key: el formulario arranca limpio en cada estado) */}

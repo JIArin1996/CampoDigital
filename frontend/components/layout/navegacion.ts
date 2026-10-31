@@ -1,5 +1,5 @@
 import {
-  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Tags, ListTree, Contact,
+  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Contact,
   type LucideIcon,
 } from "lucide-react"
 
@@ -18,7 +18,7 @@ export interface ItemNav {
 export const NAV_MOVIL: ItemNav[] = [
   { href: "/inicio",     label: "Inicio",     icon: Home },
   { href: "/lotes",      label: "Lotes",      icon: Layers,       necesitaEstablecimiento: true },
-  { href: "/bitacora",   label: "Bitácora",   icon: NotebookPen,  necesitaEstablecimiento: true },
+  { href: "/potreros",   label: "Potreros",   icon: Grid3X3,      necesitaEstablecimiento: true },
   { href: "/calendario", label: "Calendario", icon: CalendarDays, necesitaEstablecimiento: true },
   { href: "/mas",        label: "Más",        icon: Menu },
 ]
@@ -27,20 +27,21 @@ export const NAV_MOVIL: ItemNav[] = [
 export const NAV_PRINCIPAL: ItemNav[] = [
   { href: "/inicio",      label: "Inicio",      icon: Home },
   { href: "/lotes",       label: "Lotes",       icon: Layers,        necesitaEstablecimiento: true },
-  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true, necesitaOperar: true },
+  { href: "/economia",    label: "Economía",    icon: Wallet,        necesitaEstablecimiento: true },
   { href: "/actividades", label: "Actividades", icon: ClipboardList, necesitaEstablecimiento: true },
-  { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
+  { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true },
   { href: "/calendario",  label: "Calendario",  icon: CalendarDays,  necesitaEstablecimiento: true },
   { href: "/indicadores", label: "Indicadores", icon: TrendingUp,    necesitaEstablecimiento: true },
-  { href: "/potreros",    label: "Potreros",    icon: Grid3X3,       necesitaEstablecimiento: true },
+  { href: "/bitacora",    label: "Bitácora",    icon: NotebookPen,   necesitaEstablecimiento: true },
 ]
 
 // Lo que hay dentro de la pantalla Configuraciones (solo administrador)
 export const NAV_CONFIGURACION: ItemNav[] = [
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
-  { href: "/rubros",           label: "Rubros",           icon: Tags,     necesitaEstablecimiento: true },
-  { href: "/conceptos",        label: "Conceptos",        icon: ListTree, necesitaEstablecimiento: true },
-  { href: "/titulares",        label: "Titulares",        icon: Contact,  necesitaEstablecimiento: true },
+  // Rubros, conceptos, titulares y pagadores, en pestañas (las rutas viejas redirigen ahí)
+  { href: "/configuraciones/economia", label: "Economía", icon: Wallet, necesitaEstablecimiento: true },
+  // Responsables de notas, tareas y actividades (usuarios o no)
+  { href: "/configuraciones/personas", label: "Personas", icon: Contact, necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },
   { href: "/usuarios",         label: "Usuarios",         icon: Users },
 ]

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ElegirArchivo } from "@/components/lotes/ElegirArchivo"
+import { VisorArchivo } from "@/components/shared/VisorArchivo"
 import { nuevoId } from "@/components/actividades/formato"
 import { guardarPendientes, leerPendientes } from "@/components/lotes/archivosPendientes"
 import {
@@ -33,7 +34,7 @@ const fechaSubida = (iso: string) =>
   new Date(iso).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" })
 
 /**
- * Archivos de la ficha del lote. Todos los miembros ven y descargan. Quien puede cargar adjunta
+ * Archivos de la ficha del lote. Todos los miembros los ven (en el visor, tocando el nombre) y los descargan. Quien puede cargar adjunta
  * (solo con el lote abierto). El administrador quita (oculta) y restaura; nada se borra.
  */
 export function ArchivosDelLote({ lote, puedeOperar, esAdmin }: { lote: Lote; puedeOperar: boolean; esAdmin: boolean }) {
@@ -52,6 +53,7 @@ export function ArchivosDelLote({ lote, puedeOperar, esAdmin }: { lote: Lote; pu
   const [avisos, setAvisos] = useState<string[]>([])
   const [aQuitar, setAQuitar] = useState<ArchivoDeLote | null>(null)
   const [trabajando, setTrabajando] = useState(false)
+  const [viendo, setViendo] = useState<ArchivoDeLote | null>(null)
 
   useEffect(() => {
     let vigente = true
@@ -136,7 +138,7 @@ export function ArchivosDelLote({ lote, puedeOperar, esAdmin }: { lote: Lote; pu
     <li key={a.archivo_id} className={cn("flex items-start gap-3 px-4 py-3", a.oculto && "opacity-70")}>
       <FileText className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
-        <button type="button" onClick={() => descargar(a)}
+        <button type="button" onClick={() => setViendo(a)} title={`Ver ${a.archivo.nombre}`}
           className="max-w-full truncate text-left text-sm font-medium text-primary hover:underline min-h-6">
           {a.archivo.nombre}
         </button>
@@ -254,6 +256,8 @@ export function ArchivosDelLote({ lote, puedeOperar, esAdmin }: { lote: Lote; pu
           </div>
         )}
       </CardContent>
+
+      <VisorArchivo archivo={viendo?.archivo ?? null} onCerrar={() => setViendo(null)} />
 
       {/* Quitar: confirmación */}
       <Dialog open={aQuitar !== null} onOpenChange={abre => { if (!abre) setAQuitar(null) }}>
