@@ -10,6 +10,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getCambiosEstadoLote, getCategorias, getEspecies, getEventosLote, getLote, getStockLote } from "@/lib/queries/lotes"
 import { deshacerCambioPotrero, getEstadiasLote, getPotreros } from "@/lib/queries/potreros"
 import { getActividades, getCarencias } from "@/lib/queries/actividades"
+import { getEntradas, getPersonas, type Persona } from "@/lib/queries/bitacora"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +32,7 @@ import { AvisoCarencia } from "@/components/actividades/AvisoCarencia"
 import type { ActividadResumen, Carencia } from "@/types/actividades"
 import type { Estadia, Potrero } from "@/types/database"
 import type { CambioEstadoLote, CategoriaAnimal, Especie, Lote, LoteEvento, StockLote } from "@/types/lotes"
+import type { EntradaConLotes } from "@/types/bitacora"
 
 interface Ficha {
   clave: string
@@ -44,6 +46,8 @@ interface Ficha {
   cambios: CambioEstadoLote[]
   carencias: Carencia[]
   actividades: ActividadResumen[]   // las vigentes del lote (para el historial)
+  cerradas: EntradaConLotes[]       // entradas de bitácora del lote ya cerradas (para el historial)
+  personas: Persona[]
 }
 
 export default function LotePage() {
@@ -62,8 +66,11 @@ export default function LotePage() {
     const clave = `${id}:${version}`
     getLote(id)
       .then(async lote => {
-        if (!lote) return { clave, lote: null, especies: [], categorias: [], potreros: [], estadias: [], stock: [], eventos: [], cambios: [], carencias: [], actividades: [] }
-        const [especies, categorias, potreros, estadias, stock, eventos, cambios, carencias, actividades] = await Promise.all([
+        if (!lote) {
+          return { clave, lote: null, especies: [], categorias: [], potreros: [], estadias: [], stock: [], eventos: [], cambios: [], carencias: [],
+            actividades: [], cerradas: [], personas: [] }
+        }
+        const [especies, categorias, potreros, estadias, stock, eventos, cambios, carencias, actividades, cerradas, personas] = await Promise.all([
           getEspecies(lote.establecimiento_id),
           getCategorias(lote.establecimiento_id, { incluirInactivas: true }),
           getPotreros(lote.establecimiento_id, { incluirInactivos: true }),
@@ -73,8 +80,10 @@ export default function LotePage() {
           getCambiosEstadoLote(lote.id),
           getCarencias([lote.id], hoyLocal()),
           getActividades(lote.establecimiento_id, { loteId: lote.id, limite: 1000 }),
+          getEntradas(lote.establecimiento_id, { loteId: lote.id, cierre: "cerradas", limite: 1000 }),
+          getPersonas(lote.establecimiento_id),
         ])
-        return { clave, lote, especies, categorias, potreros, estadias, stock, eventos, cambios, carencias, actividades }
+        return { clave, lote, especies, categorias, potreros, estadias, stock, eventos, cambios, carencias, actividades, cerradas, personas }
       })
       .then(datos => {
         if (vigente) setFicha(datos)
@@ -271,6 +280,7 @@ export default function LotePage() {
           establecimientoId={lote.establecimiento_id}
           loteId={lote.id}
           puedeOperar={puedeOperar}
+          onCambio={() => setVersion(v => v + 1)}
         />
 
         {/* Historial */}
@@ -282,7 +292,10 @@ export default function LotePage() {
             </Link>
           </div>
           <HistorialLote eventos={vigente.eventos} estadias={vigente.estadias} actividades={vigente.actividades}
-            nombrePotrero={nombrePotrero} nombreCategoria={nombreCategoria} />
+            nombrePotrero={nombrePotrero} nombreCategoria={nombreCategoria}
+            loteId={lote.id} entradas={vigente.cerradas}
+            nombrePersona={pid => vigente.personas.find(p => p.id === pid)?.nombre}
+            nombreUsuario={uid => vigente.personas.find(p => p.user_id === uid)?.nombre} />
         </section>
 
         {/* Linaje: de qué lotes viene y en cuáles terminó (al final de la ficha) */}

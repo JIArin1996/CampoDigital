@@ -16,14 +16,17 @@ type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 const CUANTAS = 5
 
 /**
- * Últimas entradas de bitácora que etiquetan este lote.
+ * Últimas entradas abiertas de bitácora que etiquetan este lote: notas, ideas abiertas y tareas
+ * pendientes. Las cerradas (tareas hechas o canceladas, ideas decididas o descartadas) pasan al
+ * historial del lote; onCambio avisa a la ficha para que lo recargue.
  */
 export function BitacoraDelLote({
-  establecimientoId, loteId, puedeOperar,
+  establecimientoId, loteId, puedeOperar, onCambio,
 }: {
   establecimientoId: string
   loteId: string
   puedeOperar: boolean
+  onCambio?: () => void
 }) {
   const [datos, setDatos] = useState<{
     entradas: EntradaConLotes[]
@@ -35,7 +38,7 @@ export function BitacoraDelLote({
   useEffect(() => {
     let vigente = true
     Promise.all([
-      getEntradas(establecimientoId, { loteId, limite: CUANTAS }),
+      getEntradas(establecimientoId, { loteId, limite: CUANTAS, cierre: "abiertas" }),
       getPersonas(establecimientoId),
       getLotes(establecimientoId, "activo"),
       getLotes(establecimientoId, "cerrado"),
@@ -63,14 +66,16 @@ export function BitacoraDelLote({
         {!datos ? (
           <div className="h-16 rounded bg-muted animate-pulse" />
         ) : datos.entradas.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Todavía no hay notas sobre este lote.</p>
+          <p className="text-sm text-muted-foreground">
+            No hay notas abiertas sobre este lote. Las tareas y las ideas cerradas quedan en el historial.
+          </p>
         ) : (
           <>
             <ul className="space-y-2">
               {datos.entradas.map(e => (
                 <li key={e.id}>
                   <TarjetaEntrada entrada={e} nombresLote={datos.nombresLote} personas={datos.personas}
-                    puedeOperar={puedeOperar} compacta onCambio={() => setVersion(v => v + 1)} />
+                    puedeOperar={puedeOperar} compacta onCambio={() => { setVersion(v => v + 1); onCambio?.() }} />
                 </li>
               ))}
             </ul>

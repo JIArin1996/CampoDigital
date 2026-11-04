@@ -12,6 +12,8 @@ export interface FiltrosBitacora {
   texto?: string | null
   incluirAnuladas?: boolean
   sinTareas?: boolean        // el calendario muestra las tareas por su vencimiento, aparte
+  // Cerradas: tareas hechas o canceladas e ideas decididas o descartadas (las que tienen cerrada_en)
+  cierre?: 'abiertas' | 'cerradas' | null
   desde?: string | null      // fecha de la nota, inclusive (YYYY-MM-DD)
   hasta?: string | null
   limite?: number
@@ -41,6 +43,8 @@ export async function getEntradas(establecimiento_id: string, filtros: FiltrosBi
   if (ids) query = query.in('id', ids)
   if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
   if (filtros.sinTareas) query = query.neq('tipo', 'tarea')
+  if (filtros.cierre === 'abiertas') query = query.is('cerrada_en', null)
+  if (filtros.cierre === 'cerradas') query = query.not('cerrada_en', 'is', null)
   if (filtros.desde) query = query.gte('fecha', filtros.desde)
   if (filtros.hasta) query = query.lte('fecha', filtros.hasta)
   if (filtros.estadoIdea) query = query.eq('tipo', 'idea').eq('estado_idea', filtros.estadoIdea)

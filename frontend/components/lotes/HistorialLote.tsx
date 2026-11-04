@@ -1,15 +1,18 @@
 import type { LucideIcon } from "lucide-react"
 import Link from "next/link"
 import {
-  ArrowRight, ArrowRightLeft, Baby, Banknote, ChevronRight, CirclePlus, HeartCrack, MapPin, Merge, MilkOff, ShoppingCart,
-  SlidersHorizontal, Split,
+  ArrowRight, ArrowRightLeft, Baby, Banknote, ChevronRight, CircleCheck, CircleX, CirclePlus, HeartCrack, MapPin, Merge, MilkOff,
+  ShoppingCart, SlidersHorizontal, Split,
 } from "lucide-react"
 
 import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
 import { ACTIVIDAD, coloresActividad } from "@/components/actividades/actividad-iconos"
 import { destacado } from "@/components/actividades/LineaDeTiempo"
+import { ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO } from "@/components/bitacora/formato"
+import { textoResponsables } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { ActividadResumen } from "@/types/actividades"
+import type { EntradaConLotes } from "@/types/bitacora"
 import type { Estadia } from "@/types/database"
 import type { LoteEvento, TipoEventoLote } from "@/types/lotes"
 
@@ -44,6 +47,11 @@ type Fila =
   | { clase: "potrero"; fecha: string; orden: number; id: string; desde: string | null; hacia: string | null; notas: string[] }
   // Una actividad del lote, con los eventos de stock que generó en este lote (uno por categoría; vacío si no mueve stock)
   | { clase: "actividad"; fecha: string; orden: number; actividad: ActividadResumen; eventos: LoteEvento[] }
+  // Una entrada de bitácora del lote que se cerró (tarea hecha o cancelada, idea decidida o descartada), el día que se cerró
+  | { clase: "bitacora"; fecha: string; orden: number; entrada: EntradaConLotes }
+
+// Día (en Uruguay) de un momento guardado con hora
+const diaUruguay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Montevideo" })
 
 // Junta la salida de un potrero con la entrada al siguiente cuando son el mismo día: "A → B"
 function movimientosDePotrero(estadias: Estadia[], nombre: (id: string) => string): Fila[] {
@@ -78,12 +86,18 @@ interface Props {
   actividades: ActividadResumen[]   // las vigentes de este lote
   nombrePotrero: (id: string) => string
   nombreCategoria: (id: string) => string
+  loteId?: string                    // para el enlace de las entradas a la bitácora del lote
+  entradas?: EntradaConLotes[]       // las entradas de bitácora cerradas que etiquetan el lote
+  nombrePersona?: (personaId: string) => string | undefined
+  nombreUsuario?: (userId: string) => string | undefined   // quién cerró la entrada (cerrada_por es un usuario)
 }
 
 // Historial: actividades, eventos de stock y cambios de potrero intercalados por fecha (lo más nuevo
 // arriba; el mismo día, los movimientos de potrero arriba). Los eventos que generó una actividad
 // van dentro de su fila (los de una eliminada ya no existen: se borran al eliminarla).
-export function HistorialLote({ eventos, estadias, actividades, nombrePotrero, nombreCategoria }: Props) {
+export function HistorialLote({
+  eventos, estadias, actividades, nombrePotrero, nombreCategoria, loteId, entradas = [], nombrePersona, nombreUsuario,
+}: Props) {
   const vigentes = new Set(actividades.map(a => a.id))
   const eventosDe = new Map<string, LoteEvento[]>()
   const sueltos: LoteEvento[] = []
@@ -96,6 +110,9 @@ export function HistorialLote({ eventos, estadias, actividades, nombrePotrero, n
       clase: "actividad" as const, fecha: actividad.fecha, orden: 2 + i / 1e6, actividad, eventos: eventosDe.get(actividad.id) ?? [],
     })),
     ...sueltos.map((evento, i) => ({ clase: "evento" as const, fecha: evento.fecha, orden: 3 + i / 1e6, evento })),
+    ...entradas.filter(e => e.cerrada_en).map((entrada, i) => ({
+      clase: "bitacora" as const, fecha: diaUruguay(entrada.cerrada_en!), orden: 1.5 + i / 1e6, entrada,
+    })),
     ...movimientosDePotrero(estadias, nombrePotrero),
   ].sort((a, b) => b.fecha.localeCompare(a.fecha) || a.orden - b.orden)
 
@@ -108,6 +125,10 @@ export function HistorialLote({ eventos, estadias, actividades, nombrePotrero, n
         if (fila.clase === "actividad") {
           return <FilaActividad key={fila.actividad.id} actividad={fila.actividad} eventos={fila.eventos} ultima={ultima}
             nombreCategoria={nombreCategoria} />
+        }
+        if (fila.clase === "bitacora") {
+          return <FilaBitacora key={fila.entrada.id} entrada={fila.entrada} fecha={fila.fecha} ultima={ultima} loteId={loteId}
+            nombrePersona={nombrePersona} nombreUsuario={nombreUsuario} />
         }
         let tono: Tono, Icono: LucideIcon, contenido: React.ReactNode, cifra: React.ReactNode = null
         if (fila.clase === "potrero") {
@@ -160,6 +181,46 @@ export function HistorialLote({ eventos, estadias, actividades, nombrePotrero, n
         )
       })}
     </ol>
+  )
+}
+
+// Una entrada de bitácora cerrada: tipo y estado ("Tarea hecha"), texto, responsables y quién la cerró.
+// Lleva a la bitácora del lote, filtrada por ese tipo y estado.
+function FilaBitacora({ entrada: e, fecha, ultima, loteId, nombrePersona, nombreUsuario }: {
+  entrada: EntradaConLotes
+  fecha: string
+  ultima: boolean
+  loteId?: string
+  nombrePersona?: (personaId: string) => string | undefined
+  nombreUsuario?: (userId: string) => string | undefined
+}) {
+  const estado = e.tipo === "tarea" ? e.estado_tarea : e.estado_idea
+  const etiquetaEstado = e.tipo === "tarea" && e.estado_tarea ? ETIQUETA_ESTADO_TAREA[e.estado_tarea]
+    : e.estado_idea ? ETIQUETA_ESTADO[e.estado_idea] : ""
+  const cumplida = estado === "hecha" || estado === "decidida"
+  const Icono = cumplida ? CircleCheck : CircleX
+  const responsables = e.responsables.length > 0 && nombrePersona ? textoResponsables(e.responsables, nombrePersona) : null
+  const quien = e.cerrada_por && nombreUsuario ? nombreUsuario(e.cerrada_por) : undefined
+  const href = `/bitacora?${new URLSearchParams({ ...(loteId ? { lote: loteId } : {}), tipo: e.tipo, ...(estado ? { estado } : {}) })}`
+
+  return (
+    <li className="relative">
+      {!ultima && <span aria-hidden className="absolute left-4 top-11 -bottom-2.5 w-px -translate-x-1/2 bg-border" />}
+      <Link href={href} className="relative flex gap-3 py-2.5 rounded-md hover:bg-muted/50 active:bg-muted">
+        <span className={cn("relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          cumplida ? CIRCULO.suma : CIRCULO.neutro)}>
+          <Icono className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="text-sm font-medium">{ETIQUETA_TIPO[e.tipo]} {etiquetaEstado.toLowerCase()}</p>
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{e.texto}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {[fechaCorta(fecha), responsables, quien ? `cerrada por ${quien}` : null].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" />
+      </Link>
+    </li>
   )
 }
 
