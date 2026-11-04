@@ -1,7 +1,7 @@
 -- Campo Digital v2 — Pruebas de eliminar actividades, versiones anteriores y bitácora cerrada (paso 1)
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261104000400_quitar_anular_actividad).
+--   1. Con todas las migraciones aplicadas (hasta 20261104000500_arreglo_proteger_dato_de_actividad).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ELIMINAR ACTIVIDADES: N OK, ...", que deshace todo.
 --      El resultado esperado es "76 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
