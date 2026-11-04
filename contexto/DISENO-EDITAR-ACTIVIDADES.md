@@ -1,6 +1,14 @@
 # Diseño: Editar y eliminar actividades; bitácora cerrada en el historial del lote
 
-Estado: **aprobado** (2026-11-04), con los ajustes de las dos revisiones. Las respuestas de la segunda revisión están en la sección 7.
+Estado: **implementado** (2026-11-04). Se hizo en los pasos de la sección 9, con parada y aprobación en cada uno. Las respuestas de la segunda revisión están en la sección 7.
+
+| Paso | Migración y pruebas | Commit |
+|---|---|---|
+| 1. Eliminar, versiones y bitácora cerrada | `20261104000100_eliminar_actividades`, `tests/eliminar_actividades.sql` | `45e56ba` |
+| 2a. Editar compra, venta y pesada | `20261104000200_editar_compra_venta_pesada`, `tests/editar_compra_venta_pesada.sql` | `60f0ec3` |
+| 2b. Editar el resto de los tipos | `20261104000300_editar_resto_de_actividades`, `tests/editar_resto_de_actividades.sql` | `2552968` |
+| 3. App: Editar y Eliminar; se borra el alias | `20261104000400_quitar_anular_actividad`, pruebas viejas al día | `d9881b3` |
+| 4. App: bitácora del lote e historial | — | `a6d64ce` |
 
 Cambia la regla de la Etapa 6a ("las actividades no se editan: si hay un error, se anula y se carga de nuevo", `DISENO-BASE-ETAPA-6A.md` §5). También cambia, solo para editar y eliminar actividades, la regla general "nunca borrar registros; los eventos de stock se corrigen con eventos de ajuste" (`contexto/README.md`). La sección 4.2 explica cómo se conserva el rastro.
 

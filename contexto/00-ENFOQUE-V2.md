@@ -93,6 +93,8 @@ Son **datos de catálogo, no código**.
 - Compra / venta, con modalidad elegible (productor, remate, frigorífico), porque varía según el año
 - Actividad personalizada con campos libres
 
+**Editar y eliminar** (2026-11-04, `DISENO-EDITAR-ACTIVIDADES.md`): toda actividad se edita (Administrador y Operador) y se elimina (solo el Administrador). La versión anterior queda guardada.
+
 **Cambios de potrero**: se registran con fecha de salida y de ingreso (estadías), con historial en el lote y en el potrero (ver `DISENO-POTREROS.md`, 2026-10-23). No son una actividad.
 
 ---
@@ -116,6 +118,7 @@ Todos se calculan **sobre vacas entoradas**.
 - Tipos: **decisión, idea sin definir, observación, compra/venta/gasto**.
 - Las ideas tienen estado: **abierta, decidida, descartada**.
 - **Las actividades NO van en la bitácora**: son registros estructurados aparte.
+- En la ficha del lote, el recuadro Bitácora muestra las entradas abiertas. Las tareas hechas o canceladas y las ideas decididas o descartadas pasan al historial del lote, en el día en que se cerraron (2026-11-04).
 
 ---
 
@@ -170,4 +173,5 @@ Ingresos y egresos con dimensión de **rubro**: vacunos, ovinos, forestación te
 | 2026-10-15 | Responsable de actividades: pendiente (usuario o persona). Responsable de bitácora y tareas: usuario | **persona_id en bitácora, tareas y actividades**. `created_by` queda solo como auditoría de quién cargó |
 | 2026-10-16 | Dos roles por establecimiento: editor y lector | **Tres roles**: Administrador (del sistema), Operador y Consulta (por establecimiento) |
 | 2026-10-16 | Gestión de usuarios en la Etapa 9 | **Etapa 3c**, desde la app: perfiles, contraseña provisoria, reseteo por el administrador, desactivar en vez de borrar |
+| 2026-11-04 | Las actividades no se editan: un error se anula (con motivo) y se carga de nuevo | **Se editan** (Administrador y Operador) **y se eliminan** (solo el Administrador). La versión anterior se guarda en `actividad_versiones`; eliminar borra sus eventos de stock y la deja oculta (`DISENO-EDITAR-ACTIVIDADES.md`) |
 | 2026-10-23 | Cambios de potrero fuera de esta etapa; potrero del lote como dato simple, sin historial; Potreros dentro de Configuraciones para el administrador | **Estadías de lotes en potreros** con historial, mapa con dibujo e importación de formas, y Potreros en el menú para todos los roles (`DISENO-POTREROS.md`) |
