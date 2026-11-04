@@ -214,6 +214,17 @@ create function pruebas.prod(p_producto text, p_categoria text, p_carencia int d
                                               'via', p_via, 'fecha_proxima_dosis', p_proxima, 'dosis', p_dosis))
 $$;
 
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -552,13 +563,13 @@ select pruebas.espera_valor('F03 Listado del establecimiento: aparecen los tres 
 select pruebas.preparar('eventos_antes', $q$ select set_config('test.eventos_antes',
       (select count(*)::text from public.lote_eventos where establecimiento_id = pruebas.id('est_a')), false) $q$);
 
-select pruebas.espera_ok('A01 Anular la sanidad s3',        $q$ select public.anular_actividad(pruebas.id('s3'), 'Producto equivocado') $q$);
-select pruebas.espera_ok('A02 Anular la esquila',           $q$ select public.anular_actividad(pruebas.id('e1'), 'Kg mal pesados') $q$);
-select pruebas.espera_ok('A03 Anular la personalizada',     $q$ select public.anular_actividad(pruebas.id('p1'), 'Era otro lote') $q$);
-select pruebas.espera_ok('A04 Anular un servicio',          $q$ select public.anular_actividad(pruebas.id('sv2'), 'Cargado de más') $q$);
-select pruebas.espera_ok('A05 Anular un diagnóstico',       $q$ select public.anular_actividad(pruebas.id('dg2'), 'Repetido') $q$);
-select pruebas.espera_valor('A06 Las cinco quedan anuladas con motivo, sin eventos de stock y con sus lotes intactos',
-  $q$ select count(*) filter (where a.anulada_en is not null and a.motivo_anulacion is not null) || '|'
+select pruebas.espera_ok('A01 Anular la sanidad s3',        $q$ select pruebas.eliminar(pruebas.id('s3')) $q$);
+select pruebas.espera_ok('A02 Anular la esquila',           $q$ select pruebas.eliminar(pruebas.id('e1')) $q$);
+select pruebas.espera_ok('A03 Anular la personalizada',     $q$ select pruebas.eliminar(pruebas.id('p1')) $q$);
+select pruebas.espera_ok('A04 Anular un servicio',          $q$ select pruebas.eliminar(pruebas.id('sv2')) $q$);
+select pruebas.espera_ok('A05 Anular un diagnóstico',       $q$ select pruebas.eliminar(pruebas.id('dg2')) $q$);
+select pruebas.espera_valor('A06 Las cinco quedan eliminadas, sin eventos de stock y con sus lotes intactos',
+  $q$ select count(*) filter (where a.anulada_en is not null) || '|'
           || (select count(*) from public.lote_eventos where actividad_id in (pruebas.id('s3'), pruebas.id('e1'), pruebas.id('p1'), pruebas.id('sv2'), pruebas.id('dg2'))) || '|'
           || (select count(*) from public.actividad_lotes where actividad_id in (pruebas.id('s3'), pruebas.id('e1'), pruebas.id('p1'), pruebas.id('sv2'), pruebas.id('dg2')))
       from public.actividades a where a.id in (pruebas.id('s3'), pruebas.id('e1'), pruebas.id('p1'), pruebas.id('sv2'), pruebas.id('dg2')) $q$,
@@ -567,10 +578,10 @@ select pruebas.espera_valor('A07 Las anulaciones no agregaron eventos de stock (
   $q$ select (count(*) = current_setting('test.eventos_antes')::bigint)::text || '|' || pruebas.stock('LO', 'ovejas_cria')
       from public.lote_eventos where establecimiento_id = pruebas.id('est_a') $q$, 'true|20');
 select pruebas.espera_error('A08 Anular dos veces',
-  $q$ select public.anular_actividad(pruebas.id('e1'), 'Otra vez') $q$, '22023');
+  $q$ select pruebas.eliminar(pruebas.id('e1')) $q$, '22023');
 
 -- Parición cuyo lote de madres se cerró después (se vendieron todas las madres): se anula sin error.
--- anular_actividad bloquea también el lote de madres (fila principal en actividad_lotes), aunque esté cerrado.
+-- eliminar_actividad bloquea también el lote de madres (fila principal en actividad_lotes), aunque esté cerrado.
 select pruebas.guardar('LMad', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'LMad Vacas', pruebas.d(20), pruebas.comp('vacas_cria', 3)) $q$);
 select pruebas.guardar('pa_mc', $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LMad'), p_fecha => pruebas.d(10),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 2)), p_lote_cria_nuevo => jsonb_build_object('nombre', 'Crías LMad (prueba)')) $q$);
@@ -578,7 +589,7 @@ select pruebas.guardar('LCMad', $q$ select lote_cria_id from public.act_paricion
 select pruebas.preparar('LMad', $q$ select public.registrar_venta(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LMad'), p_fecha => pruebas.d(5),
       p_lineas => jsonb_build_array(pruebas.lin('vacas_cria', 3)), p_modalidad => 'remate') $q$);
 select pruebas.espera_ok('A09 Anular una parición cuyo lote de madres ya está cerrado (vendido después)',
-  $q$ select public.anular_actividad(pruebas.id('pa_mc'), 'Las crías eran de otro lote') $q$);
+  $q$ select pruebas.eliminar(pruebas.id('pa_mc')) $q$);
 select pruebas.espera_valor('A10 Parición anulada; las madres siguen vendidas (lote cerrado, 0 vacas); el lote de cría queda en cero y cerrado',
   $q$ select (a.anulada_en is not null)::text || '|'
           || (select estado from public.lotes where id = pruebas.id('LMad')) || '|' || pruebas.stock('LMad', 'vacas_cria') || '|'
@@ -656,8 +667,8 @@ select pruebas.espera_error('Q05 Consulta: registrar_esquila',
   $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LO')], public.fecha_hoy(), 50) $q$, '42501');
 select pruebas.espera_error('Q06 Consulta: registrar_personalizada',
   $q$ select public.registrar_personalizada(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LV')], public.fecha_hoy(), 'X') $q$, '42501');
-select pruebas.espera_error('Q07 Consulta: anular una sanidad',
-  $q$ select public.anular_actividad(pruebas.id('s1'), 'x') $q$, '42501');
+select pruebas.espera_error('Q07 Consulta: eliminar una sanidad',
+  $q$ select public.eliminar_actividad(pruebas.id('s1')) $q$, '42501');
 select pruebas.espera_error('Q08 Consulta reusa el p_id de una sanidad del operador',
   $q$ select public.registrar_sanidad(pruebas.id('s1'), pruebas.id('est_a'), array[pruebas.id('LV')], pruebas.d(10),
       jsonb_build_array(pruebas.prod('Aftosa', 'Vacunación'))) $q$, '42501');
@@ -687,8 +698,8 @@ select pruebas.espera_error('X04 X registra un servicio en un lote ajeno',
 select pruebas.espera_error('X05 X reusa el p_id de una sanidad de Santa Remigia en su campo',
   $q$ select public.registrar_sanidad(pruebas.id('s1'), pruebas.id('est_x'), array[pruebas.id('LX')], public.fecha_hoy(),
       jsonb_build_array(pruebas.prod('Aftosa', 'Vacunación'))) $q$, '42501');
-select pruebas.espera_error('X06 X anula una sanidad ajena',
-  $q$ select public.anular_actividad(pruebas.id('s1'), 'x') $q$, '42501');
+select pruebas.espera_error('X06 X elimina una sanidad ajena',
+  $q$ select public.eliminar_actividad(pruebas.id('s1')) $q$, '42501');
 select pruebas.espera_valor('X07 X sí carga una sanidad en su propio lote',
   $q$ select (public.registrar_sanidad(gen_random_uuid(), pruebas.id('est_x'), array[pruebas.id('LX')], public.fecha_hoy(),
         jsonb_build_array(pruebas.prod('Aftosa', 'Vacunación'))) is not null)::text $q$, 'true');

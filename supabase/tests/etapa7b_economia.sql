@@ -213,6 +213,17 @@ $$;
 create function pruebas.mov(p_act text) returns uuid language sql stable as $$
   select id from public.movimientos_economicos where actividad_id = pruebas.id(p_act) and anulado_en is null
 $$;
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -375,7 +386,7 @@ select pruebas.espera_error('A03 Un anulado no se marca pagado',
 select pruebas.espera_error('A04 El movimiento de una venta no se anula solo (se anula la actividad)',
   $q$ select public.anular_movimiento(pruebas.mov('v1'), 'Prueba') $q$, '22023');
 select pruebas.espera_ok('A05 Anular la compra c1',
-  $q$ select public.anular_actividad(pruebas.id('c1'), 'Cargada por error') $q$);
+  $q$ select pruebas.eliminar(pruebas.id('c1')) $q$);
 select pruebas.espera_valor('A06 Su movimiento quedó anulado',
   $q$ select (anulado_en is not null)::text from public.movimientos_economicos where actividad_id = pruebas.id('c1') $q$, 'true');
 

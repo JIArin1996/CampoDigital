@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { AlertTriangle, CheckCircle2, Plus, Scale, X } from "lucide-react"
 import { toast } from "sonner"
 
-import { getHistorialCria, getLotesConRol, registrarDestete } from "@/lib/queries/actividades"
+import { editarDestete, getHistorialCria, getLotesConRol, registrarDestete, type ActividadParaEditar } from "@/lib/queries/actividades"
 import { getLotesPorIds } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -41,12 +42,17 @@ const entero = (v: string | undefined) => {
   return Number.isInteger(n) && n >= 0 ? n : NaN
 }
 
+// Suma de cabezas de unos eventos de una categoría (los que salieron, en positivo)
+const sumaDe = (eventos: { categoria_id: string; cabezas: number }[], catId: string | undefined) =>
+  eventos.filter(e => e.categoria_id === catId).reduce((s, e) => s + Math.abs(e.cabezas), 0)
+
 /**
  * Destete: mueve crías al pie (solo categorías de cría) de uno o más lotes a lotes nuevos.
  * Las crías sin sexar se separan en machos y hembras; los destinos se sugieren por sexo (o todo
  * junto) con los años de las pariciones, y todo se puede editar. La base valida el balance igual.
+ * Al editar (`edicion`), los destinos son los mismos lotes: cambian la fecha, los orígenes y las cabezas.
  */
-export function FormularioDestete({ loteInicial, datos }: {
+export function FormularioDestete({ loteInicial, datos, edicion }: {
   loteInicial: string
   datos: {
     estId: string
@@ -56,23 +62,69 @@ export function FormularioDestete({ loteInicial, datos }: {
     potreros: Potrero[]
     personas: PersonaResponsable[]
   }
+  edicion?: ActividadParaEditar
 }) {
-  const { estId, lotes, categorias, stock, potreros, personas } = datos
+  const router = useRouter()
+  const { estId, lotes, categorias, potreros, personas } = datos
+  const a = edicion?.actividad
 
-  const [id] = useState(nuevoId)
-  const [fecha, setFecha] = useState(hoyLocal())
+  // Al editar: lo que salió de cada origen vuelve a estar disponible; los destinos quedan fijos
+  const salidas = (edicion?.eventos ?? []).filter(e => e.cabezas < 0)
+  const entradas = (edicion?.eventos ?? []).filter(e => e.cabezas > 0)
+  const destinosFijos = edicion ? lotes.filter(l => edicion.roles.some(r => r.rol === "destino" && r.lote_id === l.id)) : []
+  const stock: StockLote[] = (() => {
+    if (!edicion) return datos.stock
+    const sumado = datos.stock.map(s => ({ ...s }))
+    for (const e of salidas) {
+      const fila = sumado.find(s => s.lote_id === e.lote_id && s.categoria_id === e.categoria_id)
+      if (fila) fila.cabezas += -e.cabezas
+      else {
+        const lote = lotes.find(l => l.id === e.lote_id)
+        sumado.push({ lote_id: e.lote_id, categoria_id: e.categoria_id, cabezas: -e.cabezas, especie_id: lote?.especie_id ?? "", establecimiento_id: estId })
+      }
+    }
+    return sumado
+  })()
+
+  const [id] = useState(() => a?.id ?? nuevoId())
+  const [fecha, setFecha] = useState(a?.fecha ?? hoyLocal())
   const [historial, setHistorial] = useState<Historial | null>(null)
   // lote → categoría → cabezas. Si se entra desde un lote con crías, arranca elegido con todas.
+  // Al editar, lo que salió de cada origen.
   const [cantidades, setCantidades] = useState<Record<string, Record<string, string>>>(() => {
+    if (edicion) {
+      const porLote: Record<string, Record<string, string>> = {}
+      for (const e of salidas) porLote[e.lote_id] = { ...porLote[e.lote_id], [e.categoria_id]: String(-e.cabezas) }
+      return porLote
+    }
     const crias = stock.filter(s => s.lote_id === loteInicial && s.cabezas > 0
       && categorias.some(c => c.id === s.categoria_id && c.cria_al_pie))
     return crias.length > 0 ? { [loteInicial]: Object.fromEntries(crias.map(s => [s.categoria_id, String(s.cabezas)])) } : {}
   })
-  const [machos, setMachos] = useState("")
-  const [hembras, setHembras] = useState("")
-  const [destinosEditados, setDestinosEditados] = useState<DestinoForm[] | null>(null)       // null: los sugeridos
-  const [responsables, setResponsables] = useState<string[]>([])
-  const [notas, setNotas] = useState("")
+  // Al editar: los machos y las hembras que salieron de las sin sexar (lo que entró de cada sexo menos lo
+  // que ya salió sexado)
+  const [sexadoInicial] = useState(() => {
+    if (!edicion) return { machos: "", hembras: "" }
+    const especie = lotes.find(l => l.id === salidas[0]?.lote_id)?.especie_id
+    const crias = categorias.filter(c => c.especie_id === especie && c.cria_al_pie)
+    const separados = (sexo: string) => {
+      const cat = crias.find(c => c.sexo === sexo)?.id
+      const n = sumaDe(entradas, cat) - sumaDe(salidas, cat)
+      return n > 0 ? String(n) : ""
+    }
+    return { machos: separados("macho"), hembras: separados("hembra") }
+  })
+  const [machos, setMachos] = useState(sexadoInicial.machos)
+  const [hembras, setHembras] = useState(sexadoInicial.hembras)
+  const [destinosEditados, setDestinosEditados] = useState<DestinoForm[] | null>(() =>   // null: los sugeridos
+    edicion
+      ? destinosFijos.map(l => ({
+          clave: l.id, nombre: l.nombre, potrero: "", anios: [],
+          cantidades: Object.fromEntries(entradas.filter(e => e.lote_id === l.id).map(e => [e.categoria_id, String(e.cabezas)])),
+        }))
+      : null)
+  const [responsables, setResponsables] = useState<string[]>(a?.responsables ?? [])
+  const [notas, setNotas] = useState(a?.notas ?? "")
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [hecho, setHecho] = useState<{ destinos: Lote[] } | null>(null)
@@ -95,7 +147,10 @@ export function FormularioDestete({ loteInicial, datos }: {
   const tieneCrias = (loteId: string) => stock.some(s => s.lote_id === loteId && s.cabezas > 0 && esCria(s.categoria_id))
   const tieneMadres = (loteId: string) => stock.some(s => s.lote_id === loteId && s.cabezas > 0 && !esCria(s.categoria_id))
   const parioEn = (loteId: string) => (historial?.pariciones ?? []).some(p => p.lote_id === loteId)
-  const lotesConCria = lotes.filter(l => tieneCrias(l.id) && (tieneMadres(l.id) || parioEn(l.id)))
+  // Al editar, también los orígenes que tenía (aunque hoy estén cerrados porque quedaron vacíos)
+  const lotesConCria = lotes.filter(l =>
+    salidas.some(e => e.lote_id === l.id)
+    || (l.estado === "activo" && !destinosFijos.some(d => d.id === l.id) && tieneCrias(l.id) && (tieneMadres(l.id) || parioEn(l.id))))
 
   const elegidos = Object.keys(cantidades)
   const especieId = lotes.find(l => l.id === elegidos[0])?.especie_id ?? null
@@ -194,11 +249,14 @@ export function FormularioDestete({ loteInicial, datos }: {
   })()
   const destinos = destinosEditados ?? sugeridos
 
-  // Cualquier cambio en lo que sale vuelve a los destinos sugeridos
+  // Cualquier cambio en lo que sale vuelve a los destinos sugeridos (al editar, los destinos quedan)
   const cambiarSalida = (cambio: (prev: typeof cantidades) => typeof cantidades) => {
     setCantidades(cambio)
-    setDestinosEditados(null)
+    if (!edicion) setDestinosEditados(null)
   }
+  // Categorías de cada destino: las que tienen que entrar y, al editar, las que ya tenía
+  const categoriasDestino = (d: DestinoForm) =>
+    [...new Set([...totales.keys(), ...Object.keys(d.cantidades).filter(c => entero(d.cantidades[c]) > 0)])]
   const alternarOrigen = (lote: Lote) => cambiarSalida(prev => {
     if (prev[lote.id]) {
       const { [lote.id]: _, ...resto } = prev
@@ -253,6 +311,7 @@ export function FormularioDestete({ loteInicial, datos }: {
       return setError("La especie necesita una categoría de cría macho y una hembra (Especies) para separar las sin sexar")
     }
     const lista: DestinoDestete[] = []
+    const fijos: { lote_id: string; lineas: { categoria_id: string; cabezas: number }[] }[] = []
     for (const d of destinos) {
       if (!d.nombre.trim()) return setError("Cada lote nuevo necesita un nombre")
       const lineas = []
@@ -261,14 +320,30 @@ export function FormularioDestete({ loteInicial, datos }: {
         if (Number.isNaN(n)) return setError(`Las cabezas de ${d.nombre} tienen que ser números enteros`)
         if (n > 0) lineas.push({ categoria_id: catId, cabezas: n })
       }
-      if (lineas.length === 0) return setError(`${d.nombre} no tiene cabezas: sacalo o asignale crías`)
+      if (lineas.length === 0) {
+        return setError(edicion
+          ? `${d.nombre} no puede quedar sin cabezas: para sacar un destino, eliminá el destete y cargalo de nuevo`
+          : `${d.nombre} no tiene cabezas: sacalo o asignale crías`)
+      }
       lista.push({ nombre: d.nombre.trim(), anios_nacimiento: d.anios, lineas, ...(d.potrero ? { potrero_id: d.potrero } : {}) })
+      fijos.push({ lote_id: d.clave, lineas })
     }
     if (faltantes.length > 0) {
       return setError(faltantes.map(f => `${nombreCat(f.c)}: ${f.falta > 0 ? `faltan asignar ${f.falta}` : `sobran ${-f.falta}`}`).join(" · "))
     }
 
     setEnviando(true)
+    if (edicion) {
+      try {
+        await editarDestete({ id, fecha, origenes, destinos: fijos, responsables, notas: notas.trim() || null })
+        toast.success("Destete actualizado")
+        router.push(`/actividades/${id}`)
+      } catch (err) {
+        setError(mensajeDeError(err))
+        setEnviando(false)
+      }
+      return
+    }
     try {
       await registrarDestete({ id, establecimiento_id: estId, fecha, origenes, destinos: lista,
         responsables, notas: notas.trim() || null })
@@ -316,7 +391,7 @@ export function FormularioDestete({ loteInicial, datos }: {
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Destete</h1>
+      <h1 className="text-2xl font-bold">{edicion ? "Editar destete" : "Destete"}</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">{DESCRIPCION_ACTIVIDAD.destete}.</p>
 
       <form onSubmit={onSubmit} className="space-y-6 max-w-xl">
@@ -400,13 +475,13 @@ export function FormularioDestete({ loteInicial, datos }: {
                 <Label htmlFor="destete-machos" className="text-sm">Machos</Label>
                 <Input id="destete-machos" type="number" inputMode="numeric" min="0" max={sinSexar} step="1" placeholder="0"
                   className={`${CAMPO} w-24 text-right tabular-nums`} value={machos}
-                  onChange={e => { setMachos(e.target.value); setDestinosEditados(null) }} />
+                  onChange={e => { setMachos(e.target.value); if (!edicion) setDestinosEditados(null) }} />
               </span>
               <span className="flex items-center gap-2">
                 <Label htmlFor="destete-hembras" className="text-sm">Hembras</Label>
                 <Input id="destete-hembras" type="number" inputMode="numeric" min="0" max={sinSexar} step="1" placeholder="0"
                   className={`${CAMPO} w-24 text-right tabular-nums`} value={hembras}
-                  onChange={e => { setHembras(e.target.value); setDestinosEditados(null) }} />
+                  onChange={e => { setHembras(e.target.value); if (!edicion) setDestinosEditados(null) }} />
               </span>
             </div>
             {sexadoValido ? (
@@ -425,27 +500,39 @@ export function FormularioDestete({ loteInicial, datos }: {
         {/* 3. Destinos */}
         {totalCrias > 0 && (
           <fieldset className="space-y-3">
-            <legend className="text-sm font-medium mb-1">{sinSexar > 0 ? "3" : "2"}. A qué lotes nuevos van ({totalCrias} crías)</legend>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className={chip(destinosEditados === null)} onClick={() => setDestinosEditados(null)}>Por sexo</button>
-              <button type="button" className={chip(destinos.length === 1 && destinosEditados !== null)}
-                onClick={() => setDestinosEditados([destinoTodo()])}>Juntar todo en un lote</button>
-            </div>
+            <legend className="text-sm font-medium mb-1">
+              {sinSexar > 0 ? "3" : "2"}. {edicion ? "Cuántas van a cada lote" : "A qué lotes nuevos van"} ({totalCrias} crías)
+            </legend>
+            {edicion ? (
+              <p className="text-xs text-muted-foreground">
+                Los lotes que creó el destete no se cambian: para agregar o sacar uno, eliminá el destete y cargalo de nuevo.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={chip(destinosEditados === null)} onClick={() => setDestinosEditados(null)}>Por sexo</button>
+                <button type="button" className={chip(destinos.length === 1 && destinosEditados !== null)}
+                  onClick={() => setDestinosEditados([destinoTodo()])}>Juntar todo en un lote</button>
+              </div>
+            )}
             {destinos.map(d => (
               <Card key={d.clave}>
                 <CardContent className="space-y-3 pt-4">
-                  <div className="flex items-start gap-2">
-                    <Input aria-label="Nombre del lote nuevo" className={`${CAMPO} flex-1`} value={d.nombre}
-                      onChange={e => editarDestino(d.clave, { nombre: e.target.value })} />
-                    {destinos.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-11 w-11 md:h-9 md:w-9 shrink-0" aria-label={`Sacar ${d.nombre}`}
-                        onClick={() => setDestinosEditados(destinos.filter(x => x.clave !== d.clave))}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                  {edicion ? (
+                    <p className="font-medium">{d.nombre}</p>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <Input aria-label="Nombre del lote nuevo" className={`${CAMPO} flex-1`} value={d.nombre}
+                        onChange={e => editarDestino(d.clave, { nombre: e.target.value })} />
+                      {destinos.length > 1 && (
+                        <Button type="button" variant="ghost" size="icon" className="h-11 w-11 md:h-9 md:w-9 shrink-0" aria-label={`Sacar ${d.nombre}`}
+                          onClick={() => setDestinosEditados(destinos.filter(x => x.clave !== d.clave))}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <div className="rounded-lg border divide-y">
-                    {[...totales.keys()].map(catId => (
+                    {categoriasDestino(d).map(catId => (
                       <div key={catId} className="flex items-center justify-between gap-2 px-3 py-2">
                         <span className="text-sm">{nombreCat(catId)}</span>
                         <Input aria-label={`${nombreCat(catId)} en ${d.nombre}`} type="number" inputMode="numeric" min="0" step="1" placeholder="0"
@@ -454,24 +541,30 @@ export function FormularioDestete({ loteInicial, datos }: {
                       </div>
                     ))}
                   </div>
-                  <select aria-label={`Potrero de ${d.nombre}`} className={SELECT_NATIVO} value={d.potrero}
-                    onChange={e => editarDestino(d.clave, { potrero: e.target.value })}>
-                    <option value="">Sin potrero</option>
-                    {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                  </select>
-                  <div className="space-y-1.5">
-                    <Label htmlFor={`destete-anios-${d.clave}`}>Año de nacimiento</Label>
-                    <SelectorAnios id={`destete-anios-${d.clave}`} valor={d.anios} onCambio={anios => editarDestino(d.clave, { anios })} />
-                  </div>
+                  {!edicion && (
+                    <>
+                      <select aria-label={`Potrero de ${d.nombre}`} className={SELECT_NATIVO} value={d.potrero}
+                        onChange={e => editarDestino(d.clave, { potrero: e.target.value })}>
+                        <option value="">Sin potrero</option>
+                        {potreros.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      </select>
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`destete-anios-${d.clave}`}>Año de nacimiento</Label>
+                        <SelectorAnios id={`destete-anios-${d.clave}`} valor={d.anios} onCambio={anios => editarDestino(d.clave, { anios })} />
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ))}
-            <Button type="button" variant="outline" className="h-11 md:h-9"
-              onClick={() => setDestinosEditados([...destinos, {
-                clave: nuevoId(), nombre: `Destetados ${anioNombre}`, potrero: "", anios: aniosSugeridos, cantidades: {},
-              }])}>
-              <Plus className="h-4 w-4 mr-1" /> Agregar otro lote
-            </Button>
+            {!edicion && (
+              <Button type="button" variant="outline" className="h-11 md:h-9"
+                onClick={() => setDestinosEditados([...destinos, {
+                  clave: nuevoId(), nombre: `Destetados ${anioNombre}`, potrero: "", anios: aniosSugeridos, cantidades: {},
+                }])}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar otro lote
+              </Button>
+            )}
             {faltantes.length > 0 ? (
               <p role="status" className="text-sm text-destructive">
                 {faltantes.map(f => `${nombreCat(f.c)}: ${f.falta > 0 ? `faltan asignar ${f.falta}` : `sobran ${-f.falta}`}`).join(" · ")}
@@ -482,7 +575,7 @@ export function FormularioDestete({ loteInicial, datos }: {
           </fieldset>
         )}
 
-        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} />
+        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} conservar={a?.responsables ?? []} />
         <div className="space-y-1.5">
           <Label htmlFor="destete-notas">Notas</Label>
           <textarea id="destete-notas" rows={2} className={TEXTAREA} value={notas} onChange={e => setNotas(e.target.value)} />
@@ -490,9 +583,14 @@ export function FormularioDestete({ loteInicial, datos }: {
 
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-        <Button type="submit" className={BOTON} disabled={enviando || totalCrias === 0}>
-          {enviando ? "Guardando..." : "Registrar destete"}
-        </Button>
+        <div className="flex gap-3">
+          <Button type="submit" className={BOTON} disabled={enviando || totalCrias === 0}>
+            {enviando ? "Guardando..." : edicion ? "Guardar cambios" : "Registrar destete"}
+          </Button>
+          {edicion && (
+            <Button type="button" variant="outline" className={BOTON} onClick={() => router.back()} disabled={enviando}>Cancelar</Button>
+          )}
+        </div>
       </form>
     </>
   )

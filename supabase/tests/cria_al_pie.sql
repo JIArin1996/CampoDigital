@@ -81,6 +81,18 @@ begin
     json_build_object('sub', current_setting('test.' || p_clave), 'role', 'authenticated')::text, true);
 end $$;
 
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
+
 -- Composición jsonb de una categoría: [{"categoria_id": ..., "cabezas": n}]
 create function pruebas.comp(p_cat text, p_cabezas int) returns jsonb language sql stable as $$
   select jsonb_build_array(jsonb_build_object('categoria_id', pruebas.id(p_cat), 'cabezas', p_cabezas))
@@ -301,7 +313,7 @@ select pruebas.espera_valor('P06 Parición sexada a un lote de cría nuevo: sigu
   $q$ select pruebas.stock('LN', 'terneros') || '|' || pruebas.stock('LN', 'terneras') $q$, '2|3');
 
 select pruebas.espera_ok('P07 Anular una parición al pie',
-  $q$ select public.anular_actividad(pruebas.id('pa2'), 'Cargada dos veces') $q$);
+  $q$ select pruebas.eliminar(pruebas.id('pa2')) $q$);
 select pruebas.espera_valor('P08 La anulación resta sus crías del lote de las madres, que sigue abierto',
   $q$ select pruebas.stock('LM', 'sin_sexar') || '|' || pruebas.stock('LM', 'vacas_cria') || '|' || estado
       from public.lotes where id = pruebas.id('LM') $q$, '12|30|activo');

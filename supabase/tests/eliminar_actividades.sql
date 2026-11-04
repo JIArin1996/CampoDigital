@@ -1,7 +1,7 @@
 -- Campo Digital v2 — Pruebas de eliminar actividades, versiones anteriores y bitácora cerrada (paso 1)
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261104000100_eliminar_actividades).
+--   1. Con todas las migraciones aplicadas (hasta 20261104000400_quitar_anular_actividad).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ELIMINAR ACTIVIDADES: N OK, ...", que deshace todo.
 --      El resultado esperado es "76 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
@@ -326,7 +326,7 @@ select pruebas.guardar('c3', $q$ select public.registrar_compra(p_id => gen_rand
       p_fecha => pruebas.d(8), p_lineas => jsonb_build_array(pruebas.lin('terneros', 6)), p_modalidad => 'remate',
       p_lote_nuevo => jsonb_build_object('nombre', 'LN Compra nueva', 'especie_id', pruebas.id('vacunos'))) $q$);
 select pruebas.guardar('LN', $q$ select lote_creado_id from public.actividades where id = pruebas.id('c3') $q$);
--- san: sanidad en LV con una próxima dosis (d+20). m1: mortandad de 1 novillo en LV (d-2), para el alias.
+-- san: sanidad en LV con una próxima dosis (d+20). m1: mortandad de 1 novillo en LV (d-2).
 select pruebas.guardar('san', $q$ select public.registrar_sanidad(p_id => gen_random_uuid(), p_establecimiento_id => pruebas.id('est_a'),
       p_lotes => array[pruebas.id('LV')], p_fecha => pruebas.d(3), p_productos => jsonb_build_array(
         jsonb_build_object('producto', 'Aftosa', 'categoria', 'Vacunación', 'fecha_proxima_dosis', pruebas.d(-20)))) $q$);
@@ -344,8 +344,8 @@ select pruebas.espera_valor('P01 Preparación: LV con 19 novillos (20 menos la m
 
 select pruebas.espera_error('E01 El operador no elimina actividades',
   $q$ select public.eliminar_actividad(pruebas.id('v1')) $q$, '42501');
-select pruebas.espera_error('E02 El operador tampoco con el alias anular_actividad',
-  $q$ select public.anular_actividad(pruebas.id('v1'), 'Error de carga') $q$, '42501');
+select pruebas.espera_valor('E02 El alias anular_actividad ya no existe (se borró en 20261104000400)',
+  $q$ select count(*)::text from pg_proc where pronamespace = 'public'::regnamespace and proname = 'anular_actividad' $q$, '0');
 select pruebas.como('u_consulta');
 select pruebas.espera_error('E03 Consulta no elimina actividades',
   $q$ select public.eliminar_actividad(pruebas.id('v1')) $q$, '42501');
@@ -401,11 +401,11 @@ select pruebas.espera_ok('E19 Eliminar la sanidad',
 select pruebas.espera_valor('E20 Su próxima dosis desaparece sola del calendario',
   $q$ select count(*)::text from public.v_calendario where origen = 'dosis' and actividad_id = pruebas.id('san') $q$, '0');
 
-select pruebas.espera_ok('E21 El alias anular_actividad elimina igual (administrador) y guarda el motivo',
-  $q$ select public.anular_actividad(pruebas.id('m1'), 'Cargada dos veces') $q$);
-select pruebas.espera_valor('E22 La mortandad queda eliminada con su motivo, sin eventos y LV vuelve a 20 novillos',
-  $q$ select a.motivo_anulacion || '|' || pruebas.eventos('m1') || '|' || pruebas.stock('LV', 'novillos')
-      from public.actividades a where a.id = pruebas.id('m1') $q$, 'Cargada dos veces|0|20');
+select pruebas.espera_ok('E21 Eliminar la mortandad',
+  $q$ select public.eliminar_actividad(pruebas.id('m1')) $q$);
+select pruebas.espera_valor('E22 La mortandad queda eliminada sin motivo, sin eventos y LV vuelve a 20 novillos',
+  $q$ select coalesce(a.motivo_anulacion, 'sin motivo') || '|' || pruebas.eventos('m1') || '|' || pruebas.stock('LV', 'novillos')
+      from public.actividades a where a.id = pruebas.id('m1') $q$, 'sin motivo|0|20');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Versiones: solo las lee el administrador

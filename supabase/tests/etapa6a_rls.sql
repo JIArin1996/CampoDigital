@@ -582,83 +582,88 @@ select pruebas.espera_error('MF26 registrar_venta: la misma categoría en dos l�
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 1), pruebas.lin('novillos', 2)), p_modalidad => 'productor') $q$, '22023');
 
 -- ════════════════════════════════════════════════════════════════════════════
--- 7. Operador: anular
+-- 7. Administrador: eliminar (desde 20261104000100; antes, el operador anulaba con motivo)
 -- ════════════════════════════════════════════════════════════════════════════
+-- Eliminar borra los eventos de stock de la actividad (sin inversos) y la deja oculta.
+
+select pruebas.como('u_admin');
 
 -- Pesada: solo se marca (no tiene eventos)
-select pruebas.espera_ok('A01 Anular una pesada',
-  $q$ select public.anular_actividad(pruebas.id('pe1'), 'Pesada repetida') $q$);
-select pruebas.espera_valor('A02 Quedan los tres datos de la anulación y ningún evento',
-  $q$ select (anulada_en is not null)::text || '|' || motivo_anulacion || '|' || (anulada_por = pruebas.id('u_operador'))::text || '|'
+select pruebas.espera_ok('A01 Eliminar una pesada',
+  $q$ select public.eliminar_actividad(pruebas.id('pe1')) $q$);
+select pruebas.espera_valor('A02 Queda eliminada (quién y cuándo, sin motivo) y sin eventos',
+  $q$ select (anulada_en is not null)::text || '|' || coalesce(motivo_anulacion, 'sin motivo') || '|' || (anulada_por = pruebas.id('u_admin'))::text || '|'
           || (select count(*) from public.lote_eventos where actividad_id = pruebas.id('pe1'))
-      from public.actividades where id = pruebas.id('pe1') $q$, 'true|Pesada repetida|true|0');
-select pruebas.espera_error('A03 Anular dos veces',
-  $q$ select public.anular_actividad(pruebas.id('pe1'), 'Otra vez') $q$, '22023');
-select pruebas.espera_error('A04 Anular sin motivo',
-  $q$ select public.anular_actividad(pruebas.id('m1'), '   ') $q$, '22023');
-select pruebas.espera_error('A05 Anular una actividad inexistente',
-  $q$ select public.anular_actividad(gen_random_uuid(), 'x') $q$, '42501');
+      from public.actividades where id = pruebas.id('pe1') $q$, 'true|sin motivo|true|0');
+select pruebas.espera_error('A03 Eliminar dos veces',
+  $q$ select public.eliminar_actividad(pruebas.id('pe1')) $q$, '22023');
+select pruebas.como('u_operador');
+select pruebas.espera_error('A04 El operador no elimina',
+  $q$ select public.eliminar_actividad(pruebas.id('m1')) $q$, '42501');
+select pruebas.como('u_admin');
+select pruebas.espera_error('A05 Eliminar una actividad inexistente',
+  $q$ select public.eliminar_actividad(gen_random_uuid()) $q$, '42501');
 
 -- Mortandad
-select pruebas.espera_ok('A06 Anular la mortandad',
-  $q$ select public.anular_actividad(pruebas.id('m1'), 'Aparecieron') $q$);
-select pruebas.espera_valor('A07 LV vuelve a 10 terneros; evento inverso con la fecha original (d-3), mismo tipo',
-  $q$ select pruebas.stock('LV', 'terneros') || '|' || count(*) || '|' || sum(cabezas) || '|' || bool_and(fecha = pruebas.d(3) and tipo = 'mortandad')
-      from public.lote_eventos where actividad_id = pruebas.id('m1') $q$, '10|2|0|true');
+select pruebas.espera_ok('A06 Eliminar la mortandad',
+  $q$ select public.eliminar_actividad(pruebas.id('m1')) $q$);
+select pruebas.espera_valor('A07 LV vuelve a 10 terneros; la mortandad ya no tiene eventos (se borraron, sin inversos)',
+  $q$ select pruebas.stock('LV', 'terneros') || '|' || (select count(*) from public.lote_eventos where actividad_id = pruebas.id('m1')) $q$, '10|0');
 
 -- Compra a lote existente, con movimiento en pesos
-select pruebas.espera_ok('A08 Anular la compra de 5 novillos (c2)',
-  $q$ select public.anular_actividad(pruebas.id('c2'), 'Se cargó dos veces') $q$);
-select pruebas.espera_valor('A09 LV baja a 15 novillos y el movimiento queda anulado (sin monto en la vista)',
+select pruebas.espera_ok('A08 Eliminar la compra de 5 novillos (c2)',
+  $q$ select public.eliminar_actividad(pruebas.id('c2')) $q$);
+select pruebas.espera_valor('A09 LV baja a 15 novillos y el movimiento queda anulado (la vista ya no trae la compra)',
   $q$ select pruebas.stock('LV', 'novillos') || '|' || (me.anulado_en is not null)::text || '|' || me.motivo_anulacion || '|'
           || coalesce((select monto_usd::text from public.v_actividades where id = pruebas.id('c2')), 'sin monto')
       from public.movimientos_economicos me where me.actividad_id = pruebas.id('c2') $q$,
-  '15|true|Actividad anulada: Se cargó dos veces|sin monto');
+  '15|true|Actividad eliminada|sin monto');
 
--- Compra cuyos animales ya se vendieron: no se puede anular hasta anular la venta
+-- Compra cuyos animales ya se vendieron: no se puede eliminar hasta eliminar la venta
 select pruebas.guardar('v3', $q$ select public.registrar_venta(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LC'), p_fecha => pruebas.d(1),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 15)), p_modalidad => 'productor') $q$);
 select pruebas.espera_valor('A10 (preparación) La venta de los 15 terneros cerró LC',
   $q$ select estado from public.lotes where id = pruebas.id('LC') $q$, 'cerrado');
-select pruebas.espera_error('A11 Anular la compra c1 cuando sus animales ya se vendieron (el stock quedaría negativo)',
-  $q$ select public.anular_actividad(pruebas.id('c1'), 'Error') $q$, '23514');
-select pruebas.espera_ok('A12 Anular la venta v3',
-  $q$ select public.anular_actividad(pruebas.id('v3'), 'Venta cargada en el lote equivocado') $q$);
+select pruebas.espera_error('A11 Eliminar la compra c1 cuando sus animales ya se vendieron (el stock quedaría negativo)',
+  $q$ select public.eliminar_actividad(pruebas.id('c1')) $q$, '23514');
+select pruebas.espera_ok('A12 Eliminar la venta v3',
+  $q$ select public.eliminar_actividad(pruebas.id('v3')) $q$);
 select pruebas.espera_valor('A13 LC se reabre con 15 terneros y queda el registro de reapertura',
   $q$ select l.estado || '|' || coalesce(l.fecha_cierre::text, 'sin cierre') || '|' || pruebas.stock('LC', 'terneros') || '|'
           || (select motivo from public.lote_cambios_estado where lote_id = l.id and tipo = 'reapertura')
       from public.lotes l where l.id = pruebas.id('LC') $q$,
-  'activo|sin cierre|15|Anulación de venta: Venta cargada en el lote equivocado');
-select pruebas.espera_ok('A14 Ahora sí: anular la compra c1, que creó LC',
-  $q$ select public.anular_actividad(pruebas.id('c1'), 'Compra que no se hizo') $q$);
+  'activo|sin cierre|15|Eliminación de venta');
+select pruebas.espera_ok('A14 Ahora sí: eliminar la compra c1, que creó LC',
+  $q$ select public.eliminar_actividad(pruebas.id('c1')) $q$);
 select pruebas.espera_valor('A15 LC queda en cero y se cierra solo; el movimiento de USD 9000 queda anulado',
   $q$ select l.estado || '|' || pruebas.stock('LC', 'terneros') || '|'
           || (select string_agg(motivo, ' / ' order by motivo) from public.lote_cambios_estado where lote_id = l.id and tipo = 'cierre') || '|'
           || (select (anulado_en is not null)::text from public.movimientos_economicos where actividad_id = pruebas.id('c1'))
       from public.lotes l where l.id = pruebas.id('LC') $q$,
-  'cerrado|0|Anulación de compra: Compra que no se hizo / Vendido|true');
+  'cerrado|0|Eliminación de compra / Vendido|true');
 
 -- Parición que creó su propio lote de cría
-select pruebas.espera_ok('A16 Anular la parición pa1',
-  $q$ select public.anular_actividad(pruebas.id('pa1'), 'Era de otro rodeo') $q$);
+select pruebas.espera_ok('A16 Eliminar la parición pa1',
+  $q$ select public.eliminar_actividad(pruebas.id('pa1')) $q$);
 select pruebas.espera_valor('A17 El lote de cría queda en cero y cerrado con la fecha de la parición (d-7); las madres siguen en 30',
   $q$ select l.estado || '|' || (l.fecha_cierre = pruebas.d(7))::text || '|' || pruebas.stock('LN', 'terneros') || '|' || pruebas.stock('LM', 'vacas_cria')
       from public.lotes l where l.id = pruebas.id('LN') $q$, 'cerrado|true|0|30');
-select pruebas.espera_valor('A18 Eventos inversos de la parición: 4 en total, suma 0, todos con fecha d-7 y tipo paricion',
-  $q$ select count(*) || '|' || sum(cabezas) || '|' || bool_and(fecha = pruebas.d(7) and tipo = 'paricion')
-      from public.lote_eventos where actividad_id = pruebas.id('pa1') $q$, '4|0|true');
+select pruebas.espera_valor('A18 La parición ya no tiene eventos (se borraron, sin inversos)',
+  $q$ select count(*)::text from public.lote_eventos where actividad_id = pruebas.id('pa1') $q$, '0');
 
 -- Parición a un lote de cría existente: vuelve al stock anterior y sigue activo
-select pruebas.espera_ok('A19 Anular la parición pa2',
-  $q$ select public.anular_actividad(pruebas.id('pa2'), 'Mal cargada') $q$);
+select pruebas.espera_ok('A19 Eliminar la parición pa2',
+  $q$ select public.eliminar_actividad(pruebas.id('pa2')) $q$);
 select pruebas.espera_valor('A20 LCE vuelve a 1 ternero y sigue activo (no lo creó la parición)',
   $q$ select pruebas.stock('LCE', 'terneros') || '|' || estado from public.lotes where id = pruebas.id('LCE') $q$, '1|activo');
 
 -- Venta que había cerrado el lote
-select pruebas.espera_ok('A21 Anular la venta v2, que había cerrado LS',
-  $q$ select public.anular_actividad(pruebas.id('v2'), 'No se concretó') $q$);
+select pruebas.espera_ok('A21 Eliminar la venta v2, que había cerrado LS',
+  $q$ select public.eliminar_actividad(pruebas.id('v2')) $q$);
 select pruebas.espera_valor('A22 LS reabierto con sus 3 toros',
   $q$ select estado || '|' || pruebas.stock('LS', 'toros') from public.lotes where id = pruebas.id('LS') $q$, 'activo|3');
+
+select pruebas.como('u_operador');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 8. Consulta: lee todo, no escribe nada
@@ -687,8 +692,8 @@ select pruebas.espera_error('Q05 Consulta: registrar_venta',
 select pruebas.espera_error('Q06 Consulta: registrar_paricion',
   $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LM'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('terneros', 1)), p_lote_cria_id => pruebas.id('LCE')) $q$, '42501');
-select pruebas.espera_error('Q07 Consulta: anular_actividad',
-  $q$ select public.anular_actividad(pruebas.id('v1'), 'x') $q$, '42501');
+select pruebas.espera_error('Q07 Consulta: eliminar_actividad',
+  $q$ select public.eliminar_actividad(pruebas.id('v1')) $q$, '42501');
 select pruebas.espera_error('Q08 Consulta reusa el p_id de una venta del operador',
   $q$ select public.registrar_venta(p_id => pruebas.id('v1'), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(2),
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 5, 2400)), p_modalidad => 'frigorifico') $q$, '42501');
@@ -714,8 +719,8 @@ select pruebas.espera_valor('X01 X ve 0 actividades, líneas, detalles y movimie
 select pruebas.espera_error('X02 X vende de un lote ajeno',
   $q$ select public.registrar_venta(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('novillos', 1)), p_modalidad => 'productor') $q$, '42501');
-select pruebas.espera_error('X03 X anula una actividad ajena',
-  $q$ select public.anular_actividad(pruebas.id('v1'), 'x') $q$, '42501');
+select pruebas.espera_error('X03 X elimina una actividad ajena',
+  $q$ select public.eliminar_actividad(pruebas.id('v1')) $q$, '42501');
 select pruebas.espera_error('X04 X reusa un p_id de Santa Remigia en su propio campo',
   $q$ select public.registrar_venta(p_id => pruebas.id('v1'), p_lote_id => pruebas.id('LX'), p_fecha => public.fecha_hoy(),
       p_lineas => jsonb_build_array(pruebas.lin('terneros_x', 1)), p_modalidad => 'productor') $q$, '42501');
@@ -743,7 +748,7 @@ select pruebas.espera_error('N02 anon: registrar_mortandad', $q$ select public.r
 select pruebas.espera_error('N03 anon: registrar_compra',    $q$ select public.registrar_compra(gen_random_uuid(), pruebas.id('est_a'), public.fecha_hoy(), '[]'::jsonb, 'otra') $q$, '42501');
 select pruebas.espera_error('N04 anon: registrar_venta',     $q$ select public.registrar_venta(gen_random_uuid(), pruebas.id('LV'), public.fecha_hoy(), '[]'::jsonb, 'otra') $q$, '42501');
 select pruebas.espera_error('N05 anon: registrar_paricion',  $q$ select public.registrar_paricion(gen_random_uuid(), pruebas.id('LM'), public.fecha_hoy(), '[]'::jsonb) $q$, '42501');
-select pruebas.espera_error('N06 anon: anular_actividad',    $q$ select public.anular_actividad(pruebas.id('v1'), 'x') $q$, '42501');
+select pruebas.espera_error('N06 anon: eliminar_actividad',  $q$ select public.eliminar_actividad(pruebas.id('v1')) $q$, '42501');
 select pruebas.espera_error('N07 anon: leer actividades',    $q$ select count(*) from public.actividades $q$, '42501');
 select pruebas.espera_error('N08 anon: leer la vista',       $q$ select count(*) from public.v_actividades $q$, '42501');
 select pruebas.espera_error('N09 anon: leer movimientos',    $q$ select count(*) from public.movimientos_economicos $q$, '42501');
@@ -793,7 +798,7 @@ select pruebas.espera_valor('B13 Funciones nuevas: ninguna para anon; internas y
       from pg_proc p
       where p.pronamespace = 'public'::regnamespace
         and p.proname in ('registrar_pesada', 'registrar_mortandad', 'registrar_compra', 'registrar_venta', 'registrar_paricion',
-                          'anular_actividad', '_actividad_ya_registrada', '_validar_responsables', '_stock_categoria_al',
+                          'eliminar_actividad', '_actividad_ya_registrada', '_validar_responsables', '_stock_categoria_al',
                           '_insertar_lineas', '_registrar_movimiento', 'proteger_actividad') $q$, 'true');
 select pruebas.espera_valor('B14 Tablas y vista nuevas: authenticated solo lee; anon nada',
   $q$ select bool_and(has_table_privilege('authenticated', t, 'select')

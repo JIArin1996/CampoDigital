@@ -140,7 +140,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261104000300, editar el resto de las actividades): 147 filas, todas con ok = true.
+-- ESPERADO (después de 20261104000400, sin anular_actividad): 146 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -151,7 +151,8 @@ order by 1 desc, 2, 3, 4;
 -- _lotes_de_actividad, _responsables_de_actividad, _terminar_edicion, editar_compra, editar_venta y editar_pesada;
 -- +22 de 20261104000300: 13 internas (_actividad_para_editar, _actualizar_actividad, _cargar_destete, _cargar_diagnostico,
 -- _cargar_esquila, _cargar_mortandad, _cargar_paricion, _cargar_personalizada, _cargar_productos_sanidad, _cargar_servicio,
--- _lote_para_editar, _origenes_destete, _validar_lote_cria), el trigger proteger_vinculo_de_actividad y las 8 editar_<tipo>.)
+-- _lote_para_editar, _origenes_destete, _validar_lote_cria), el trigger proteger_vinculo_de_actividad y las 8 editar_<tipo>;
+-- -1 de 20261104000400: sale anular_actividad.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -217,7 +218,6 @@ order by 1 desc, 2, 3, 4;
 --   adjuntar_archivo_actividad  | true             | true          | false | false
 --   adjuntar_archivo_lote       | true             | true          | false | false
 --   adjuntar_archivo_movimiento | true             | true          | false | false
---   anular_actividad            | true             | true          | false | false
 --   anular_entrada_bitacora     | true             | true          | false | false
 --   anular_liquidacion          | true             | true          | false | false
 --   anular_movimiento           | true             | true          | false | false
@@ -345,7 +345,7 @@ select
                                             'crear_entrada_bitacora', 'editar_entrada_bitacora', 'cambiar_estado_idea',
                                             'anular_entrada_bitacora', 'restaurar_entrada_bitacora',
                                             'registrar_pesada', 'registrar_mortandad', 'registrar_compra',
-                                            'registrar_venta', 'registrar_paricion', 'anular_actividad',
+                                            'registrar_venta', 'registrar_paricion',
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
                                             'registrar_esquila', 'registrar_personalizada', 'registrar_destete',
                                             'registrar_movimiento', 'cargar_precio_actividad', 'marcar_pagado', 'anular_movimiento',

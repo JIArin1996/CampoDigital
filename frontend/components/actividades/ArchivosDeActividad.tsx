@@ -20,7 +20,7 @@ const fechaSubida = (iso: string) =>
 
 /**
  * Archivos de una actividad (planilla de la balanza, fotos...). Todos los miembros los ven (en el
- * visor, tocando el nombre) y los descargan; quien puede cargar adjunta (si la actividad no está anulada); el administrador quita
+ * visor, tocando el nombre) y los descargan; quien puede cargar adjunta; el administrador quita
  * (oculta). Nada se borra.
  */
 export function ArchivosDeActividad({ actividadId, establecimientoId, puedeAdjuntar, esAdmin }: {

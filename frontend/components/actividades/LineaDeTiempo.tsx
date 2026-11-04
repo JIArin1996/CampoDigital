@@ -131,7 +131,6 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
   const idDetalle = useId()
   const apariencia = ACTIVIDAD[a.tipo]
   const Icono = apariencia.icono
-  const anulada = !!a.anulada_en
   const { dia, mes, diaSemana } = partesFecha(a.fecha)
 
   const titulo = a.tipo === "personalizada" && a.personalizada ? a.personalizada : apariencia.etiqueta
@@ -148,7 +147,6 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
   const linea2 = [
     cabezasEnLinea ? `${numero(a.cabezas!)} cab.` : null,
     responsables,
-    anulada ? "anulada" : null,
   ].filter(Boolean).join(" · ")
   const mas = resumen(a)
 
@@ -171,14 +169,14 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
           </span>
         </span>
         <span className="min-w-0">
-          <span className={cn("block truncate font-semibold", anulada && "line-through text-muted-foreground")}>
-            <span className={cn(!anulada && "text-[var(--c)]")}>{tituloCorto}</span>
+          <span className="block truncate font-semibold">
+            <span className="text-[var(--c)]">{tituloCorto}</span>
             {lotes && <span> · {lotes}</span>}
           </span>
           {linea2 && <span className="block truncate text-[13px] text-muted-foreground">{linea2}</span>}
         </span>
         <span className={cn("max-w-[7.5rem] md:max-w-[12rem] truncate text-right font-bold tabular-nums",
-          dato?.negativo && "text-destructive", anulada && "line-through text-muted-foreground")}>
+          dato?.negativo && "text-destructive")}>
           {dato?.valor}
         </span>
         <ChevronDown aria-hidden className={cn("h-5 w-5 text-muted-foreground transition-transform motion-reduce:transition-none", abierta && "rotate-180")} />
@@ -190,7 +188,7 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
             <dt className="text-muted-foreground">Fecha</dt>
             <dd>{diaSemana} {dia} de {MESES[mes - 1]}</dd>
             <dt className="text-muted-foreground">Tipo</dt>
-            <dd>{titulo}{anulada && <span className="ml-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">anulada</span>}</dd>
+            <dd>{titulo}</dd>
             {(lotes || cria) && <>
               <dt className="text-muted-foreground">{a.lote_id || (a.lotes ?? []).length <= 1 ? "Lote" : "Lotes"}</dt>
               <dd>{[lotes, cria ? `crías a ${cria}` : null].filter(Boolean).join(" · ")}</dd>
@@ -210,10 +208,6 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
             {responsables && <>
               <dt className="text-muted-foreground">{(a.responsables ?? []).length === 1 ? "Responsable" : "Responsables"}</dt>
               <dd>{textoResponsables(a.responsables ?? [], nombrePersona, Infinity)}</dd>
-            </>}
-            {anulada && a.motivo_anulacion && <>
-              <dt className="text-muted-foreground">Anulada</dt>
-              <dd>{a.motivo_anulacion}</dd>
             </>}
           </dl>
           <Link href={`/actividades/${a.id}`} className="mt-1 inline-flex min-h-11 items-center gap-1 font-semibold text-primary hover:underline">

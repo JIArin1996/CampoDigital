@@ -211,6 +211,17 @@ create function pruebas.ind(p_temporada int) returns public.v_indicadores_reprod
   select * from public.v_indicadores_reproductivos
   where establecimiento_id = pruebas.id('est_a') and especie_id = pruebas.id('vacunos') and temporada is not distinct from p_temporada
 $$;
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -289,7 +300,7 @@ select pruebas.guardar('dest_lx', $q$ select public.registrar_destete(gen_random
 -- LS: parición sin servicio; un servicio anulado no cuenta
 select pruebas.guardar('LS', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'LS Vacas', pruebas.f('2025-01-01'), pruebas.comp('vacas_cria', 10)) $q$);
 select pruebas.guardar('s_ls', $q$ select public.registrar_servicio(gen_random_uuid(), pruebas.id('LS'), pruebas.f('2025-01-15'), 10, 1) $q$);
-select pruebas.preparar('anul_s_ls', $q$ select public.anular_actividad(pruebas.id('s_ls'), 'Era de otro lote') $q$);
+select pruebas.preparar('anul_s_ls', $q$ select pruebas.eliminar(pruebas.id('s_ls')) $q$);
 select pruebas.preparar('pa_ls', $q$ select public.registrar_paricion(p_id => gen_random_uuid(), p_lote_madres_id => pruebas.id('LS'),
       p_fecha => pruebas.f('2025-10-01'), p_lineas => pruebas.comp('sin_sexar', 5), p_lote_cria_id => pruebas.id('LS')) $q$);
 

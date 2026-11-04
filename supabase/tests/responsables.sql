@@ -208,6 +208,17 @@ create function pruebas.resp_entrada(p_clave text) returns int language sql stab
   select count(*)::int from public.bitacora_responsables where entrada_id = pruebas.id(p_clave)
 $$;
 
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -391,8 +402,8 @@ select pruebas.espera_error('C06 Actividad con un responsable de otro establecim
 select pruebas.espera_error('C07 El operador no escribe directo en los responsables de una actividad',
   $q$ insert into public.actividad_responsables (establecimiento_id, actividad_id, persona_id)
       values (pruebas.id('est_a'), pruebas.id('m1'), pruebas.id('per_oper')) $q$, '42501');
-select pruebas.espera_ok('C08 Anular la pesada sigue funcionando (proteger_actividad sin la columna)',
-  $q$ select public.anular_actividad(pruebas.id('pe1'), 'Pesada repetida') $q$);
+select pruebas.espera_ok('C08 Eliminar la pesada (administrador) sigue funcionando',
+  $q$ select pruebas.eliminar(pruebas.id('pe1')) $q$);
 
 reset role;
 select pruebas.espera_error('C09 Ni la base puede cambiar los responsables de una actividad',

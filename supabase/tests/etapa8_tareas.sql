@@ -207,6 +207,17 @@ create function pruebas.tarea(p_texto text, p_vence date, p_repetir int default 
   select public.crear_entrada_bitacora(pruebas.id('est_a'), public.fecha_hoy(), 'tarea', p_texto, p_lotes, p_responsables,
                                        p_vence, p_repetir, p_origen)
 $$;
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -365,7 +376,7 @@ select pruebas.espera_valor('D07 El calendario muestra las tareas no anuladas co
   $q$ select string_agg(estado, ',' order by fecha) from public.v_calendario
       where origen = 'tarea' and entrada_id in (pruebas.id('r1'), pruebas.id('r2'), pruebas.id('r2_sig'), pruebas.id('r1_sig')) $q$,
   'pendiente,hecha,pendiente');
-select pruebas.preparar('anular_san', $q$ select public.anular_actividad(pruebas.id('san'), 'Cargada por error') $q$);
+select pruebas.preparar('anular_san', $q$ select pruebas.eliminar(pruebas.id('san')) $q$);
 select pruebas.espera_valor('D08 Si se anula la sanidad, la próxima dosis desaparece del calendario',
   $q$ select count(*)::text from public.v_calendario where origen = 'dosis' and actividad_id = pruebas.id('san') $q$, '0');
 select pruebas.espera_error('D09 La dosis de una sanidad anulada no se marca',

@@ -6,7 +6,8 @@ import { AlertTriangle, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import {
-  registrarDiagnostico, registrarEsquila, registrarPersonalizada, registrarSanidad, registrarServicio,
+  editarDiagnostico, editarEsquila, editarPersonalizada, editarSanidad, editarServicio, registrarDiagnostico,
+  registrarEsquila, registrarPersonalizada, registrarSanidad, registrarServicio, type ActividadParaEditar,
 } from "@/lib/queries/actividades"
 import { getEventosLote } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
@@ -34,6 +35,9 @@ export interface DatosSinStock {
 
 interface ProductoForm {
   clave: number
+  id?: string                // al editar: el producto que ya existe
+  proximaOriginal?: string   // al editar: la fecha de próxima dosis que tenía
+  dada?: boolean             // al editar: la próxima dosis figura como dada
   producto: string
   categoria: string
   dosis: string
@@ -57,37 +61,59 @@ const leer = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")
 
 const VARIOS_LOTES: TipoActividad6b1[] = ["sanidad", "esquila", "personalizada"]
 
+// Número guardado como texto del formulario ("" si no hay)
+const aTexto = (n: number | null | undefined) => (n == null ? "" : String(Number(n)).replace(".", ","))
+
 /**
- * Formulario de las actividades que no mueven stock (6b-1).
+ * Formulario de las actividades que no mueven stock (6b-1): carga nueva o edición (`edicion`).
  * Sanidad, esquila y personalizada: uno o más lotes. Servicio y diagnóstico: un lote.
+ * Al editar una sanidad, cada producto conserva su id (y su marca de dosis dada si no cambia la fecha).
  */
-export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoActividad6b1; loteInicial: string; datos: DatosSinStock }) {
+export function FormularioSinStock({ tipo, loteInicial, datos, edicion }: {
+  tipo: TipoActividad6b1
+  loteInicial: string
+  datos: DatosSinStock
+  edicion?: ActividadParaEditar
+}) {
   const router = useRouter()
   const { lotes, especies, stock, personas, categoriasSanidad, vias, nombresPersonalizadas } = datos
+  const a = edicion?.actividad
 
   const grupoDe = (lote: Lote) => especies.find(e => e.id === lote.especie_id)?.grupo
   const especieDe = (lote: Lote) => especies.find(e => e.id === lote.especie_id)?.nombre ?? ""
-  // Esquila: solo lotes de especies del grupo ovino
-  const lotesElegibles = tipo === "esquila" ? lotes.filter(l => grupoDe(l) === "ovino") : lotes
+  // Al editar se ofrecen los lotes activos y los de la actividad (aunque estén cerrados).
+  // Esquila: solo lotes de especies del grupo ovino.
+  const lotesDisponibles = lotes.filter(l => l.estado === "activo" || (a?.lotes ?? []).includes(l.id) || l.id === a?.lote_id)
+  const lotesElegibles = tipo === "esquila" ? lotesDisponibles.filter(l => grupoDe(l) === "ovino") : lotesDisponibles
   const varios = VARIOS_LOTES.includes(tipo)
   const inicialValido = lotesElegibles.some(l => l.id === loteInicial)
 
-  // Id de la actividad: se genera una vez al abrir el formulario y se reusa en los reintentos
-  const [id] = useState(nuevoId)
-  const [fecha, setFecha] = useState(hoyLocal())
-  const [seleccion, setSeleccion] = useState<string[]>(inicialValido ? [loteInicial] : [])
-  const [loteId, setLoteId] = useState(inicialValido ? loteInicial : "")
-  const [responsables, setResponsables] = useState<string[]>([])
-  const [notas, setNotas] = useState("")
+  // Id de la actividad: el de la que se edita, o uno nuevo que se genera una vez y se reusa en los reintentos
+  const [id] = useState(() => a?.id ?? nuevoId())
+  const [fecha, setFecha] = useState(a?.fecha ?? hoyLocal())
+  const [seleccion, setSeleccion] = useState<string[]>(a ? a.lotes ?? [] : inicialValido ? [loteInicial] : [])
+  const [loteId, setLoteId] = useState(a ? a.lote_id ?? "" : inicialValido ? loteInicial : "")
+  const [responsables, setResponsables] = useState<string[]>(a?.responsables ?? [])
+  const [notas, setNotas] = useState(a?.notas ?? "")
 
-  const [productos, setProductos] = useState<ProductoForm[]>(() => [productoVacio()])
-  const [entoradas, setEntoradas] = useState("")
-  const [toros, setToros] = useState("")
-  const [diagnosticadas, setDiagnosticadas] = useState("")
-  const [prenadas, setPrenadas] = useState("")
-  const [kgLana, setKgLana] = useState("")
-  const [nombre, setNombre] = useState("")
-  const [campos, setCampos] = useState<CampoForm[]>(() => [campoVacio()])
+  const [productos, setProductos] = useState<ProductoForm[]>(() =>
+    edicion && edicion.productos.length > 0
+      ? edicion.productos.map(p => ({
+          clave: siguienteClave++, id: p.id, proximaOriginal: p.fecha_proxima_dosis ?? "", dada: edicion.dosisDadas.includes(p.id),
+          producto: p.producto, categoria: p.categoria, dosis: p.dosis ?? "", via: p.via ?? "",
+          carencia: p.carencia_dias != null ? String(p.carencia_dias) : "", proxima: p.fecha_proxima_dosis ?? "",
+        }))
+      : [productoVacio()])
+  const [entoradas, setEntoradas] = useState(a?.vacas_entoradas != null ? String(a.vacas_entoradas) : "")
+  const [toros, setToros] = useState(a?.toros != null ? String(a.toros) : "")
+  const [diagnosticadas, setDiagnosticadas] = useState(a?.vacas_diagnosticadas != null ? String(a.vacas_diagnosticadas) : "")
+  const [prenadas, setPrenadas] = useState(a?.vacas_prenadas != null ? String(a.vacas_prenadas) : "")
+  const [kgLana, setKgLana] = useState(aTexto(a?.kg_lana_total))
+  const [nombre, setNombre] = useState(a?.personalizada ?? "")
+  const [campos, setCampos] = useState<CampoForm[]>(() =>
+    a?.campos && a.campos.length > 0
+      ? a.campos.map(c => ({ clave: siguienteClave++, campo: c.campo, valor: c.valor }))
+      : [campoVacio()])
 
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -139,7 +165,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
       for (const p of productos) {
         if (!p.producto.trim()) return setError("Cada producto necesita un nombre")
         if (!p.categoria) return setError(`Elegí la categoría de ${p.producto.trim()}`)
-        const item: ProductoCarga = { producto: p.producto.trim(), categoria: p.categoria }
+        const item: ProductoCarga = { ...(p.id ? { id: p.id } : {}), producto: p.producto.trim(), categoria: p.categoria }
         if (p.dosis.trim()) item.dosis = p.dosis.trim()
         if (p.via) item.via = p.via
         const carencia = leer(p.carencia)
@@ -154,12 +180,16 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
         lista.push(item)
       }
       if (lista.length === 0) return setError("Indicá al menos un producto")
-      enviar = () => registrarSanidad({ ...variosLotes, productos: lista })
+      enviar = edicion
+        ? () => editarSanidad({ ...comunes, lotes: seleccion, productos: lista })
+        : () => registrarSanidad({ ...variosLotes, productos: lista })
     } else if (tipo === "esquila") {
       const kg = leer(kgLana)
       const errorLana = errorKg(kgLana, "Los kg de lana")
       if (kg === null || errorLana) return setError(errorLana ?? "Los kg de lana: un número mayor a 0, con hasta dos decimales")
-      enviar = () => registrarEsquila({ ...variosLotes, kg_lana_total: kg })
+      enviar = edicion
+        ? () => editarEsquila({ ...comunes, lotes: seleccion, kg_lana_total: kg })
+        : () => registrarEsquila({ ...variosLotes, kg_lana_total: kg })
     } else if (tipo === "personalizada") {
       if (!nombre.trim()) return setError("La actividad necesita un nombre")
       const lista: CampoPersonalizado[] = []
@@ -173,26 +203,30 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
         lista.push({ campo: c.campo.trim(), valor: c.valor.trim() })
       }
       if (lista.length > 20) return setError("Hasta 20 campos")
-      enviar = () => registrarPersonalizada({ ...variosLotes, nombre: nombre.trim(), campos: lista })
+      enviar = edicion
+        ? () => editarPersonalizada({ ...comunes, lotes: seleccion, nombre: nombre.trim(), campos: lista })
+        : () => registrarPersonalizada({ ...variosLotes, nombre: nombre.trim(), campos: lista })
     } else if (tipo === "servicio") {
       const e = leer(entoradas)
       if (e === null || !Number.isInteger(e) || e <= 0) return setError("Las vacas entoradas tienen que ser un número entero mayor a cero")
       const t = leer(toros)
       if (t !== null && (!Number.isInteger(t) || t <= 0)) return setError("Los toros tienen que ser un número entero mayor a cero (o dejarlo vacío)")
-      enviar = () => registrarServicio({ ...comunes, lote_id: loteId, vacas_entoradas: e, toros: t })
+      const servicio = { ...comunes, lote_id: loteId, vacas_entoradas: e, toros: t }
+      enviar = edicion ? () => editarServicio(servicio) : () => registrarServicio(servicio)
     } else {
       const d = leer(diagnosticadas)
       const p = leer(prenadas)
       if (d === null || !Number.isInteger(d) || d <= 0) return setError("Las diagnosticadas tienen que ser un número entero mayor a cero")
       if (p === null || !Number.isInteger(p) || p < 0) return setError("Las preñadas tienen que ser un número entero, cero o más")
       if (p > d) return setError("Las preñadas no pueden ser más que las diagnosticadas")
-      enviar = () => registrarDiagnostico({ ...comunes, lote_id: loteId, vacas_diagnosticadas: d, vacas_prenadas: p })
+      const diagnostico = { ...comunes, lote_id: loteId, vacas_diagnosticadas: d, vacas_prenadas: p }
+      enviar = edicion ? () => editarDiagnostico(diagnostico) : () => registrarDiagnostico(diagnostico)
     }
 
     setEnviando(true)
     try {
       await enviar()
-      toast.success(`${ETIQUETA_ACTIVIDAD[tipo]} registrada`)
+      toast.success(`${ETIQUETA_ACTIVIDAD[tipo]} ${edicion ? "actualizada" : "registrada"}`)
       router.push(`/actividades/${id}`)
     } catch (err) {
       // El id se conserva: si el envío llegó a guardarse, reintentar no lo duplica
@@ -211,7 +245,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
 
   return (
     <>
-      <h1 className="text-2xl font-bold">{ETIQUETA_ACTIVIDAD[tipo]}</h1>
+      <h1 className="text-2xl font-bold">{edicion ? `Editar ${ETIQUETA_ACTIVIDAD[tipo].toLowerCase()}` : ETIQUETA_ACTIVIDAD[tipo]}</h1>
       <p className="text-sm text-muted-foreground mt-1 mb-6">{DESCRIPCION_ACTIVIDAD[tipo]}.</p>
 
       <form onSubmit={onSubmit} className="space-y-5 max-w-xl">
@@ -243,7 +277,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
             <Label htmlFor="ss-lote">Lote</Label>
             <select id="ss-lote" className={SELECT_NATIVO} value={loteId} onChange={e => setLoteId(e.target.value)}>
               <option value="">Elegí un lote</option>
-              {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+              {lotesDisponibles.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
             </select>
           </div>
         )}
@@ -308,6 +342,12 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
                         value={p.proxima} onChange={e => cambiarProducto(p.clave, { proxima: e.target.value })} />
                     </div>
                   </div>
+                  {p.dada && p.proxima !== p.proximaOriginal && (
+                    <p role="status" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                      Esta dosis figura como dada. Si cambiás la fecha, se desmarca.
+                    </p>
+                  )}
                   {leer(p.carencia) ? (
                     <p className="text-xs text-muted-foreground">
                       En carencia hasta el {fechaCorta(sumarDias(fecha, Number(leer(p.carencia))))}.
@@ -418,7 +458,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
         )}
 
         {/* Comunes */}
-        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} />
+        <SelectorResponsables personas={personas} elegidos={responsables} onCambio={setResponsables} conservar={a?.responsables ?? []} />
         <div className="space-y-1.5">
           <Label htmlFor="ss-notas">Notas</Label>
           <textarea id="ss-notas" rows={2} className={TEXTAREA} value={notas} onChange={e => setNotas(e.target.value)} />
@@ -427,7 +467,7 @@ export function FormularioSinStock({ tipo, loteInicial, datos }: { tipo: TipoAct
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-3">
-          <Button type="submit" className={BOTON} disabled={enviando}>{enviando ? "Guardando..." : "Guardar"}</Button>
+          <Button type="submit" className={BOTON} disabled={enviando}>{enviando ? "Guardando..." : edicion ? "Guardar cambios" : "Guardar"}</Button>
           <Button type="button" variant="outline" className={BOTON} onClick={() => router.back()} disabled={enviando}>Cancelar</Button>
         </div>
       </form>

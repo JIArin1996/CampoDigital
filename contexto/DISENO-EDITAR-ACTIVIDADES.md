@@ -257,8 +257,13 @@ Cuando la anulación falla, también fallan o quedan omitidas las verificaciones
 
 Siguen pasando las que esperan que Consulta, un usuario ajeno o anon **no** puedan anular, porque ahora también da `42501`: `etapa6a` Q07, X03 y N06, y `etapa6b1` Q07 y X06.
 
-**En el paso 3** (cuando se borra el alias) se actualizan:
+**Actualizadas en el paso 3** (migración `20261104000400`, que borra el alias):
 
 - llaman a `eliminar_actividad` como Administrador;
 - verifican que los eventos se borraron en lugar de buscar los inversos;
 - sacan la prueba del motivo obligatorio.
+
+Cada archivo tiene un ayudante `pruebas.eliminar(id)`, que elimina como Administrador y vuelve al usuario que estaba. Así las pruebas siguen en el mismo orden, con los mismos casos y la misma cantidad.
+
+- `etapa6a` A04 ("anular sin motivo") pasa a ser "el Operador no elimina".
+- En `eliminar_actividades`, E02 pasa a verificar que el alias ya no existe.

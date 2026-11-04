@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type {
-  ActividadResumen, CampoPersonalizado, Carencia, DestinoDestete, LineaActividad, LineaCarga, LoteNuevoCarga, Modalidad,
+  ActividadResumen, CampoPersonalizado, Carencia, DestinoDestete, LineaActividad, LineaCarga, LineaDestete, LoteNuevoCarga, Modalidad,
   MovimientoEconomico, OrigenDestete, PrecioCarga, ProductoCarga, ProductoSanidad, TipoActividad,
 } from '@/types/actividades'
 
@@ -9,7 +9,6 @@ import type {
 export interface FiltrosActividades {
   tipo?: TipoActividad | null
   loteId?: string | null
-  incluirAnuladas?: boolean
   desde?: string | null      // fecha inclusive (YYYY-MM-DD)
   hasta?: string | null
   limite?: number
@@ -41,7 +40,6 @@ export async function getActividades(establecimiento_id: string, filtros: Filtro
   if (filtros.desde) query = query.gte('fecha', filtros.desde)
   if (filtros.hasta) query = query.lte('fecha', filtros.hasta)
   if (ids) query = query.in('id', ids)
-  if (!filtros.incluirAnuladas) query = query.is('anulada_en', null)
 
   const { data, error } = await query
   if (error) throw error
@@ -69,6 +67,30 @@ export async function getActividad(id: string) {
     movimientos: (movimientos.data ?? []) as MovimientoEconomico[],
   }
 }
+
+// Lo que necesita el formulario de edición, además del detalle: los eventos de stock de la actividad
+// (el destete los usa para saber qué salió de cada origen y qué entró a cada destino), los lotes con
+// su rol y los productos de sanidad con la próxima dosis marcada como dada
+export async function getActividadParaEditar(id: string) {
+  const detalle = await getActividad(id)
+  if (!detalle) return null
+  const supabase = createClient()
+  const [eventos, roles, dadas] = await Promise.all([
+    supabase.from('lote_eventos').select('lote_id, categoria_id, cabezas').eq('actividad_id', id),
+    getLotesConRol(id),
+    supabase.from('sanidad_dosis_dadas').select('producto_id').eq('actividad_id', id).is('deshecha_en', null),
+  ])
+  if (eventos.error) throw eventos.error
+  if (dadas.error) throw dadas.error
+  return {
+    ...detalle,
+    eventos: (eventos.data ?? []) as { lote_id: string; categoria_id: string; cabezas: number }[],
+    roles,
+    dosisDadas: (dadas.data ?? []).map(d => d.producto_id),
+  }
+}
+
+export type ActividadParaEditar = NonNullable<Awaited<ReturnType<typeof getActividadParaEditar>>>
 
 // Carencias vigentes a una fecha de uno o más lotes (incluye las heredadas por división, unión o destete)
 export async function getCarencias(lote_ids: string[], al: string) {
@@ -376,8 +398,184 @@ export async function registrarDestete(p: {
   return data as string
 }
 
-// Eventos inversos con la fecha original, movimiento anulado, lotes reabiertos o cerrados según corresponda
-export async function anularActividad(actividad_id: string, motivo: string) {
-  const { error } = await createClient().rpc('anular_actividad', { p_actividad_id: actividad_id, p_motivo: motivo })
+// ── Editar y eliminar ────────────────────────────────────────────────────────
+// Editar: los mismos datos que al registrar; id es el de la actividad. La base deshace la versión
+// anterior (la guarda), vuelve a cargar con las mismas validaciones y valida el saldo una sola vez.
+
+export async function editarPesada(p: Comunes & { lote_id: string }) {
+  const { data, error } = await createClient().rpc('editar_pesada', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarMortandad(p: Comunes & { lote_id: string; causa?: string | null; observaciones?: string | null }) {
+  const { data, error } = await createClient().rpc('editar_mortandad', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
+    p_causa: p.causa ?? undefined,
+    p_observaciones: p.observaciones ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Sin precio, el movimiento que tenía se anula; la compra que creó su lote no cambia de destino
+export async function editarCompra(p: Comunes & CompraVenta & { lote_id?: string | null }) {
+  const { data, error } = await createClient().rpc('editar_compra', {
+    p_actividad_id: p.id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
+    p_modalidad: p.modalidad,
+    p_lote_id: p.lote_id ?? undefined,
+    p_contraparte: p.contraparte ?? undefined,
+    p_kg_gancho: p.kg_gancho ?? undefined,
+    p_precio: p.precio ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarVenta(p: Comunes & CompraVenta & { lote_id: string }) {
+  const { data, error } = await createClient().rpc('editar_venta', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
+    p_modalidad: p.modalidad,
+    p_contraparte: p.contraparte ?? undefined,
+    p_kg_gancho: p.kg_gancho ?? undefined,
+    p_precio: p.precio ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// La parición que creó su lote de cría no lo cambia (lote_cria_id: ese lote o null)
+export async function editarParicion(p: Comunes & { lote_madres_id: string; nacidos_muertos?: number | null; lote_cria_id?: string | null }) {
+  const { data, error } = await createClient().rpc('editar_paricion', {
+    p_actividad_id: p.id,
+    p_lote_madres_id: p.lote_madres_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
+    p_nacidos_muertos: p.nacidos_muertos ?? undefined,
+    p_lote_cria_id: p.lote_cria_id ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+type EdicionVariosLotes = Omit<VariosLotes, 'establecimiento_id'>
+
+// Cada producto con id se actualiza, sin id se crea y el que falta se borra (con su marca de dosis dada)
+export async function editarSanidad(p: EdicionVariosLotes & { productos: ProductoCarga[] }) {
+  const { data, error } = await createClient().rpc('editar_sanidad', {
+    p_actividad_id: p.id,
+    p_lotes: p.lotes,
+    p_fecha: p.fecha,
+    p_productos: p.productos,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarEsquila(p: EdicionVariosLotes & { kg_lana_total: number }) {
+  const { data, error } = await createClient().rpc('editar_esquila', {
+    p_actividad_id: p.id,
+    p_lotes: p.lotes,
+    p_fecha: p.fecha,
+    p_kg_lana_total: p.kg_lana_total,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarPersonalizada(p: EdicionVariosLotes & { nombre: string; campos: CampoPersonalizado[] }) {
+  const { data, error } = await createClient().rpc('editar_personalizada', {
+    p_actividad_id: p.id,
+    p_lotes: p.lotes,
+    p_fecha: p.fecha,
+    p_nombre: p.nombre,
+    p_campos: p.campos,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarServicio(p: UnLote & { vacas_entoradas: number; toros?: number | null }) {
+  const { data, error } = await createClient().rpc('editar_servicio', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_vacas_entoradas: p.vacas_entoradas,
+    p_toros: p.toros ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarDiagnostico(p: UnLote & { vacas_diagnosticadas: number; vacas_prenadas: number }) {
+  const { data, error } = await createClient().rpc('editar_diagnostico', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_vacas_diagnosticadas: p.vacas_diagnosticadas,
+    p_vacas_prenadas: p.vacas_prenadas,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Los destinos son los mismos lotes: cambian la fecha, los orígenes y las cabezas
+export async function editarDestete(p: {
+  id: string
+  fecha: string
+  origenes: OrigenDestete[]
+  destinos: { lote_id: string; lineas: LineaDestete[] }[]
+  responsables?: string[]
+  notas?: string | null
+}) {
+  const { data, error } = await createClient().rpc('editar_destete', {
+    p_actividad_id: p.id,
+    p_fecha: p.fecha,
+    p_origenes: p.origenes,
+    p_destinos: p.destinos,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Solo el administrador. La actividad deja de verse; el stock vuelve a como estaba, el precio se anula
+// y los lotes se reabren o se cierran según corresponda. La base guarda la versión eliminada.
+export async function eliminarActividad(actividad_id: string) {
+  const { error } = await createClient().rpc('eliminar_actividad', { p_actividad_id: actividad_id })
   if (error) throw error
 }

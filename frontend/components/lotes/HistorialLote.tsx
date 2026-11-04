@@ -82,7 +82,7 @@ interface Props {
 
 // Historial: actividades, eventos de stock y cambios de potrero intercalados por fecha (lo más nuevo
 // arriba; el mismo día, los movimientos de potrero arriba). Los eventos que generó una actividad
-// vigente van dentro de su fila; los de una anulada (y su inverso) quedan como eventos sueltos.
+// van dentro de su fila (los de una eliminada ya no existen: se borran al eliminarla).
 export function HistorialLote({ eventos, estadias, actividades, nombrePotrero, nombreCategoria }: Props) {
   const vigentes = new Set(actividades.map(a => a.id))
   const eventosDe = new Map<string, LoteEvento[]>()
