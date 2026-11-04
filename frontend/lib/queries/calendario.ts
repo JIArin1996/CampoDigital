@@ -2,9 +2,9 @@ import { createClient } from '@/lib/supabase/client'
 import type { Tables } from '@/types/supabase'
 import type { EstadoTarea, FilaCalendario } from '@/types/bitacora'
 
-// ── Lectura (v_calendario: tareas no anuladas y próximas dosis de sanidades no anuladas) ──
+// ── Lectura (v_calendario: tareas no eliminadas y próximas dosis de sanidades no eliminadas) ──
 
-// Pendientes: todas, de la más vieja a la más nueva. Terminadas (hechas o canceladas): las más recientes.
+// Pendientes: todas, de la más vieja a la más nueva. Terminadas (realizadas o dosis dadas): las más recientes.
 export async function getCalendario(establecimiento_id: string, terminadas = false): Promise<FilaCalendario[]> {
   const supabase = createClient()
   let query = supabase.from('v_calendario').select('*').eq('establecimiento_id', establecimiento_id)

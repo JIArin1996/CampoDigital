@@ -8,7 +8,7 @@ import {
 import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
 import { ACTIVIDAD, coloresActividad } from "@/components/actividades/actividad-iconos"
 import { destacado } from "@/components/actividades/LineaDeTiempo"
-import { ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO } from "@/components/bitacora/formato"
+import { ETIQUETA_TIPO, estadoDe, etiquetaEstado } from "@/components/bitacora/formato"
 import { textoResponsables } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { ActividadResumen } from "@/types/actividades"
@@ -47,7 +47,7 @@ type Fila =
   | { clase: "potrero"; fecha: string; orden: number; id: string; desde: string | null; hacia: string | null; notas: string[] }
   // Una actividad del lote, con los eventos de stock que generó en este lote (uno por categoría; vacío si no mueve stock)
   | { clase: "actividad"; fecha: string; orden: number; actividad: ActividadResumen; eventos: LoteEvento[] }
-  // Una entrada de bitácora del lote que se cerró (tarea hecha o cancelada, idea decidida o descartada), el día que se cerró
+  // Una entrada de bitácora del lote que se cerró (tarea o decisión realizada, idea decidida o descartada), el día que se cerró
   | { clase: "bitacora"; fecha: string; orden: number; entrada: EntradaConLotes }
 
 // Día (en Uruguay) de un momento guardado con hora
@@ -184,7 +184,7 @@ export function HistorialLote({
   )
 }
 
-// Una entrada de bitácora cerrada: tipo y estado ("Tarea hecha"), texto, responsables y quién la cerró.
+// Una entrada de bitácora cerrada: tipo y estado ("Tarea realizada"), texto, responsables y quién la cerró.
 // Lleva a la bitácora del lote, filtrada por ese tipo y estado.
 function FilaBitacora({ entrada: e, fecha, ultima, loteId, nombrePersona, nombreUsuario }: {
   entrada: EntradaConLotes
@@ -194,10 +194,8 @@ function FilaBitacora({ entrada: e, fecha, ultima, loteId, nombrePersona, nombre
   nombrePersona?: (personaId: string) => string | undefined
   nombreUsuario?: (userId: string) => string | undefined
 }) {
-  const estado = e.tipo === "tarea" ? e.estado_tarea : e.estado_idea
-  const etiquetaEstado = e.tipo === "tarea" && e.estado_tarea ? ETIQUETA_ESTADO_TAREA[e.estado_tarea]
-    : e.estado_idea ? ETIQUETA_ESTADO[e.estado_idea] : ""
-  const cumplida = estado === "hecha" || estado === "decidida"
+  const estado = estadoDe(e)
+  const cumplida = estado === "realizada" || estado === "decidida"
   const Icono = cumplida ? CircleCheck : CircleX
   const responsables = e.responsables.length > 0 && nombrePersona ? textoResponsables(e.responsables, nombrePersona) : null
   const quien = e.cerrada_por && nombreUsuario ? nombreUsuario(e.cerrada_por) : undefined
@@ -212,7 +210,7 @@ function FilaBitacora({ entrada: e, fecha, ultima, loteId, nombrePersona, nombre
           <Icono className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="text-sm font-medium">{ETIQUETA_TIPO[e.tipo]} {etiquetaEstado.toLowerCase()}</p>
+          <p className="text-sm font-medium">{ETIQUETA_TIPO[e.tipo]} {etiquetaEstado(e).toLowerCase()}</p>
           <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{e.texto}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {[fechaCorta(fecha), responsables, quien ? `cerrada por ${quien}` : null].filter(Boolean).join(" · ")}

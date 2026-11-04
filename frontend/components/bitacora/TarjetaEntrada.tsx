@@ -2,24 +2,23 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Pencil, RotateCcw, Ban, Check, X, Repeat, CalendarClock, CalendarPlus, CornerDownRight } from "lucide-react"
+import { Pencil, RotateCcw, Check, Repeat, CalendarClock, CalendarPlus, CornerDownRight, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { anularEntrada, cambiarEstadoIdea, cambiarEstadoTarea, restaurarEntrada } from "@/lib/queries/bitacora"
+import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
+import { cambiarEstadoDecision, cambiarEstadoIdea, cambiarEstadoTarea, eliminarEntrada } from "@/lib/queries/bitacora"
 import { avisarCambioTareas } from "@/lib/queries/calendario"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { CAMPO } from "@/components/shared/estilos"
+import { BOTON } from "@/components/shared/estilos"
 import { ChipResponsables } from "@/components/shared/Responsables"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
 import {
-  COLOR_TIPO, ESTADOS_IDEA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, fechaHora, mensajeTareaHecha, textoRepeticion, textoVencimiento,
+  COLOR_TIPO, ESTADOS_IDEA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, etiquetaEstado, fechaHora, mensajeTareaRealizada, textoRepeticion, textoVencimiento,
 } from "@/components/bitacora/formato"
 import { cn } from "@/lib/utils"
-import type { EntradaConLotes, EstadoIdea, EstadoTarea } from "@/types/bitacora"
+import type { EntradaConLotes, EstadoDecision, EstadoIdea, EstadoTarea } from "@/types/bitacora"
 
 export interface Persona {
   id: string
@@ -33,15 +32,14 @@ interface Props {
   personas: Persona[]
   puedeOperar: boolean
   onCambio: () => void
-  compacta?: boolean            // en el inicio y en la ficha de lote: sin acciones de anular
+  compacta?: boolean            // en el inicio y en la ficha de lote: los responsables abreviados
 }
 
 export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, onCambio, compacta = false }: Props) {
-  const [anulando, setAnulando] = useState(false)
-  const [motivo, setMotivo] = useState("")
+  const { esAdmin } = useEstablecimiento()
+  const [eliminando, setEliminando] = useState(false)
   const [trabajando, setTrabajando] = useState(false)
 
-  const anulada = entrada.anulada_en !== null
   const nombrePersona = (id: string) => personas.find(p => p.id === id)?.nombre
   // Quién cargó o editó: el usuario se muestra por su ficha en personas
   const nombreUsuario = (userId: string | null) => personas.find(p => p.user_id && p.user_id === userId)?.nombre ?? "otro usuario"
@@ -62,7 +60,7 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
   const cambiarEstado = (estado: EstadoIdea) =>
     ejecutar(() => cambiarEstadoIdea(entrada.id, estado), `Idea ${ETIQUETA_ESTADO[estado].toLowerCase()}`)
 
-  // Tareas: al marcar hecha una repetida, la base anota la siguiente
+  // Tareas: al marcar realizada una repetida, la base anota la siguiente
   const esTarea = entrada.tipo === "tarea"
   const hoy = hoyLocal()
   const vencida = esTarea && entrada.estado_tarea === "pendiente" && !!entrada.vencimiento && entrada.vencimiento < hoy
@@ -70,51 +68,45 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
     ejecutar(async () => {
       const siguiente = await cambiarEstadoTarea(entrada.id, estado)
       avisarCambioTareas()
-      if (siguiente) toast.info(mensajeTareaHecha(entrada.vencimiento!, entrada.repetir_cada_dias!, hoy))
-    }, estado === "hecha" ? "Tarea hecha" : estado === "cancelada" ? "Tarea cancelada" : "Tarea reabierta")
-  // "Crear tarea" desde una nota que no es tarea (de una idea, solo si está decidida) y que todavía no tiene una
+      if (siguiente) toast.info(mensajeTareaRealizada(entrada.vencimiento!, entrada.repetir_cada_dias!, hoy))
+    }, estado === "realizada" ? "Tarea realizada" : "Tarea reabierta")
+  const cambiarDecision = (estado: EstadoDecision) =>
+    ejecutar(() => cambiarEstadoDecision(entrada.id, estado), estado === "realizada" ? "Decisión realizada" : "Decisión reabierta")
+  // "Crear tarea" desde una decisión, o desde una idea decidida, que todavía no tiene una
   const puedeCrearTarea = !esTarea && !entrada.tarea && (entrada.tipo !== "idea" || entrada.estado_idea === "decidida")
 
-  const confirmarAnulacion = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!motivo.trim()) return toast.error("Escribí el motivo")
-    await ejecutar(() => anularEntrada(entrada.id, motivo.trim()), "Entrada anulada")
-    setAnulando(false)
-    setMotivo("")
+  const confirmarEliminacion = async () => {
+    await ejecutar(async () => {
+      await eliminarEntrada(entrada.id)
+      if (esTarea) avisarCambioTareas()
+    }, `${ETIQUETA_TIPO[entrada.tipo]} eliminada`)
+    setEliminando(false)
   }
 
   return (
-    <article className={cn("rounded-lg border bg-card px-4 py-3", anulada && "border-dashed bg-muted/40")}>
+    <article className="rounded-lg border bg-card px-4 py-3">
       {/* Tipo, fecha y estado */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", COLOR_TIPO[entrada.tipo])}>
           {ETIQUETA_TIPO[entrada.tipo]}
         </span>
-        {entrada.estado_idea && (
-          <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium">{ETIQUETA_ESTADO[entrada.estado_idea]}</span>
-        )}
-        {entrada.estado_tarea && (
-          <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium",
-            vencida && "border-destructive bg-destructive/10 text-destructive font-semibold")}>
-            {vencida ? "Vencida" : ETIQUETA_ESTADO_TAREA[entrada.estado_tarea]}
-          </span>
-        )}
-        {anulada && <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive">Anulada</span>}
+        <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium",
+          vencida && "border-destructive bg-destructive/10 text-destructive font-semibold")}>
+          {vencida ? "Vencida" : etiquetaEstado(entrada)}
+        </span>
         <span className="ml-auto text-sm text-muted-foreground">{fechaCorta(entrada.fecha)}</span>
       </div>
 
       {/* Texto */}
-      <p className={cn("mt-2 whitespace-pre-line text-base md:text-sm", anulada && "line-through text-muted-foreground")}>
-        {entrada.texto}
-      </p>
+      <p className="mt-2 whitespace-pre-line text-base md:text-sm">{entrada.texto}</p>
 
-      {/* Tarea: vencimiento, repetición y quién la marcó hecha */}
+      {/* Tarea: vencimiento, repetición y quién la marcó realizada */}
       {esTarea && entrada.vencimiento && (
         <div className="mt-2 space-y-0.5 text-sm">
           <p className={cn("flex items-center gap-1.5 font-medium", vencida && "text-destructive")}>
             <CalendarClock className="h-4 w-4 shrink-0" />
             Vence el {fechaCorta(entrada.vencimiento)}
-            {entrada.estado_tarea === "pendiente" && !anulada && (
+            {entrada.estado_tarea === "pendiente" && (
               <span className="font-normal">· {textoVencimiento(entrada.vencimiento, hoy)}</span>
             )}
           </p>
@@ -123,12 +115,19 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
               <Repeat className="h-4 w-4 shrink-0" /> {textoRepeticion(entrada.repetir_cada_dias)}
             </p>
           )}
-          {entrada.estado_tarea === "hecha" && entrada.completada_en && (
+          {entrada.estado_tarea === "realizada" && entrada.completada_en && (
             <p className="flex items-center gap-1.5 text-muted-foreground">
-              <Check className="h-4 w-4 shrink-0" /> Hecha el {fechaHora(entrada.completada_en)} por {nombreUsuario(entrada.completada_por)}
+              <Check className="h-4 w-4 shrink-0" /> Realizada el {fechaHora(entrada.completada_en)} por {nombreUsuario(entrada.completada_por)}
             </p>
           )}
         </div>
+      )}
+
+      {/* Decisión realizada: cuándo y quién */}
+      {entrada.tipo === "decision" && entrada.estado_decision === "realizada" && entrada.cerrada_en && (
+        <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Check className="h-4 w-4 shrink-0" /> Realizada el {fechaHora(entrada.cerrada_en)} por {nombreUsuario(entrada.cerrada_por)}
+        </p>
       )}
 
       {/* Vínculo nota ↔ tarea */}
@@ -165,36 +164,36 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
         Cargó {nombreUsuario(entrada.created_by)}
         {entrada.editada_en && ` · editada el ${fechaHora(entrada.editada_en)} por ${nombreUsuario(entrada.editada_por)}`}
       </p>
-      {anulada && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          Anulada el {fechaHora(entrada.anulada_en!)} por {nombreUsuario(entrada.anulada_por)}: {entrada.motivo_anulacion}
-        </p>
-      )}
 
       {/* Acciones */}
       {puedeOperar && (
         <div className="mt-3 flex flex-wrap gap-2">
-          {!anulada && esTarea && entrada.estado_tarea === "pendiente" && (
-            <>
-              <Button type="button" size="sm" disabled={trabajando} onClick={() => cambiarTarea("hecha")}>
-                <Check className="h-4 w-4 mr-1" /> Hecha
-              </Button>
-              <Button type="button" size="sm" variant="outline" disabled={trabajando} onClick={() => cambiarTarea("cancelada")}>
-                <X className="h-4 w-4 mr-1" /> Cancelar tarea
-              </Button>
-            </>
+          {esTarea && entrada.estado_tarea === "pendiente" && (
+            <Button type="button" size="sm" disabled={trabajando} onClick={() => cambiarTarea("realizada")}>
+              <Check className="h-4 w-4 mr-1" /> Realizada
+            </Button>
           )}
-          {!anulada && esTarea && entrada.estado_tarea !== "pendiente" && (
+          {esTarea && entrada.estado_tarea === "realizada" && (
             <Button type="button" size="sm" variant="outline" disabled={trabajando} onClick={() => cambiarTarea("pendiente")}>
               <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
             </Button>
           )}
-          {!anulada && puedeCrearTarea && (
+          {entrada.tipo === "decision" && entrada.estado_decision === "pendiente" && (
+            <Button type="button" size="sm" disabled={trabajando} onClick={() => cambiarDecision("realizada")}>
+              <Check className="h-4 w-4 mr-1" /> Realizada
+            </Button>
+          )}
+          {entrada.tipo === "decision" && entrada.estado_decision === "realizada" && (
+            <Button type="button" size="sm" variant="outline" disabled={trabajando} onClick={() => cambiarDecision("pendiente")}>
+              <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
+            </Button>
+          )}
+          {puedeCrearTarea && (
             <Link href={`/bitacora/nueva?origen=${entrada.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
               <CalendarPlus className="h-4 w-4 mr-1" /> Crear tarea
             </Link>
           )}
-          {!anulada && entrada.tipo === "idea" && (
+          {entrada.tipo === "idea" && (
             <div className="flex gap-1" role="group" aria-label="Estado de la idea">
               {ESTADOS_IDEA.map(estado => (
                 <Button
@@ -210,42 +209,33 @@ export function TarjetaEntrada({ entrada, nombresLote, personas, puedeOperar, on
               ))}
             </div>
           )}
-          {!anulada && (
-            <Link href={`/bitacora/${entrada.id}/editar`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              <Pencil className="h-4 w-4 mr-1" /> Editar
-            </Link>
-          )}
-          {!compacta && !anulada && (
-            <Button type="button" size="sm" variant="ghost" className="text-muted-foreground" disabled={trabajando} onClick={() => setAnulando(true)}>
-              <Ban className="h-4 w-4 mr-1" /> Anular
-            </Button>
-          )}
-          {!compacta && anulada && (
-            <Button type="button" size="sm" variant="outline" disabled={trabajando}
-              onClick={() => ejecutar(() => restaurarEntrada(entrada.id), "Entrada restaurada")}>
-              <RotateCcw className="h-4 w-4 mr-1" /> Restaurar
+          <Link href={`/bitacora/${entrada.id}/editar`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <Pencil className="h-4 w-4 mr-1" /> Editar
+          </Link>
+          {esAdmin && (
+            <Button type="button" size="sm" variant="ghost" className="text-destructive" disabled={trabajando} onClick={() => setEliminando(true)}>
+              <Trash2 className="h-4 w-4 mr-1" /> Eliminar
             </Button>
           )}
         </div>
       )}
 
-      {/* Anular: motivo obligatorio */}
-      <Dialog open={anulando} onOpenChange={setAnulando}>
+      {/* Eliminar: solo el administrador, con confirmación */}
+      <Dialog open={eliminando} onOpenChange={setEliminando}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Anular entrada</DialogTitle>
-            <DialogDescription>No se borra: queda oculta, con el motivo, y se puede restaurar.</DialogDescription>
+            <DialogTitle>Eliminar {ETIQUETA_TIPO[entrada.tipo].toLowerCase()}</DialogTitle>
+            <DialogDescription>
+              Deja de verse en toda la app{esTarea ? ", también en el Calendario" : ""}.
+              {entrada.tarea && " La tarea que salió de acá sigue."}
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={confirmarAnulacion} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor={`motivo-${entrada.id}`}>Motivo</Label>
-              <Input id={`motivo-${entrada.id}`} className={CAMPO} placeholder="Ej: cargada por error" value={motivo} onChange={e => setMotivo(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit" variant="destructive" disabled={trabajando}>Anular</Button>
-              <Button type="button" variant="outline" onClick={() => setAnulando(false)}>Cancelar</Button>
-            </div>
-          </form>
+          <div className="flex gap-3">
+            <Button type="button" variant="destructive" className={BOTON} disabled={trabajando} onClick={confirmarEliminacion}>
+              {trabajando ? "Eliminando..." : "Eliminar"}
+            </Button>
+            <Button type="button" variant="outline" className={BOTON} disabled={trabajando} onClick={() => setEliminando(false)}>Cancelar</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </article>

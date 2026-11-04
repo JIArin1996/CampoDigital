@@ -36,9 +36,6 @@ export default function EditarEntradaPage() {
   if (!puedeOperarEn(entrada.establecimiento_id)) {
     return <PageContainer>{volver}<p className="text-muted-foreground">No tenés permiso de carga en este establecimiento.</p></PageContainer>
   }
-  if (entrada.anulada_en) {
-    return <PageContainer>{volver}<p className="text-muted-foreground">La entrada está anulada: restaurala desde la bitácora para poder editarla.</p></PageContainer>
-  }
 
   return (
     <PageContainer>

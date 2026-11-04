@@ -13,10 +13,12 @@ import { PageContainer } from "@/components/layout/PageContainer"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { TarjetaEntrada } from "@/components/bitacora/TarjetaEntrada"
-import { ESTADOS_IDEA, ESTADOS_TAREA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, TIPOS_ENTRADA } from "@/components/bitacora/formato"
+import {
+  ESTADOS_DECISION, ESTADOS_IDEA, ESTADOS_TAREA, ETIQUETA_ESTADO, ETIQUETA_ESTADO_TAREA, ETIQUETA_TIPO, TIPOS_ENTRADA,
+} from "@/components/bitacora/formato"
 import { CAMPO, SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
-import type { EntradaConLotes, EstadoIdea, EstadoTarea, TipoEntrada } from "@/types/bitacora"
+import type { EntradaConLotes, EstadoDecision, EstadoIdea, EstadoTarea, TipoEntrada } from "@/types/bitacora"
 
 type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 
@@ -39,20 +41,25 @@ export default function BitacoraPage() {
 const esTipo = (v: string | null): v is TipoEntrada => !!v && (TIPOS_ENTRADA as string[]).includes(v)
 const esEstado = (v: string | null): v is EstadoIdea => !!v && (ESTADOS_IDEA as string[]).includes(v)
 const esEstadoTarea = (v: string | null): v is EstadoTarea => !!v && (ESTADOS_TAREA as string[]).includes(v)
+const esEstadoDecision = (v: string | null): v is EstadoDecision => !!v && (ESTADOS_DECISION as string[]).includes(v)
 
 function Bitacora() {
   const params = useSearchParams()
   const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const estId = establecimientoActivo?.id
 
-  // Filtros (se pueden pasar por la URL: ?tipo=idea&estado=abierta&lote=<id>, ?tipo=tarea&estado=pendiente)
-  const [tipo, setTipo] = useState<TipoEntrada | null>(esTipo(params.get("tipo")) ? (params.get("tipo") as TipoEntrada) : null)
-  const [estado, setEstado] = useState<EstadoIdea | null>(esEstado(params.get("estado")) ? (params.get("estado") as EstadoIdea) : null)
-  const [estadoTarea, setEstadoTarea] = useState<EstadoTarea | null>(esEstadoTarea(params.get("estado")) ? (params.get("estado") as EstadoTarea) : null)
+  // Filtros (se pueden pasar por la URL: ?tipo=idea&estado=abierta&lote=<id>, ?tipo=tarea&estado=pendiente,
+  // ?tipo=decision&estado=realizada). El estado de la URL se lee según el tipo: tarea y decisión comparten nombres.
+  const tipoUrl = params.get("tipo")
+  const estadoUrl = params.get("estado")
+  const [tipo, setTipo] = useState<TipoEntrada | null>(esTipo(tipoUrl) ? tipoUrl : null)
+  const [estado, setEstado] = useState<EstadoIdea | null>(esEstado(estadoUrl) ? estadoUrl : null)
+  const [estadoTarea, setEstadoTarea] = useState<EstadoTarea | null>(tipoUrl === "tarea" && esEstadoTarea(estadoUrl) ? estadoUrl : null)
+  const [estadoDecision, setEstadoDecision] = useState<EstadoDecision | null>(
+    tipoUrl === "decision" && esEstadoDecision(estadoUrl) ? estadoUrl : null)
   const [loteId, setLoteId] = useState<string>(params.get("lote") ?? "")
   const [busqueda, setBusqueda] = useState("")
   const [texto, setTexto] = useState("")              // búsqueda aplicada (con una pausa al tipear)
-  const [incluirAnuladas, setIncluirAnuladas] = useState(false)
   const [version, setVersion] = useState(0)
 
   const [datos, setDatos] = useState<Datos | null>(null)
@@ -64,13 +71,13 @@ function Bitacora() {
     return () => clearTimeout(t)
   }, [busqueda])
 
-  const clave = JSON.stringify([estId, tipo, estado, estadoTarea, loteId, texto, incluirAnuladas, version])
+  const clave = JSON.stringify([estId, tipo, estado, estadoTarea, estadoDecision, loteId, texto, version])
 
   useEffect(() => {
     if (!estId) return
     let vigente = true
     Promise.all([
-      getEntradas(estId, { tipo, estadoIdea: estado, estadoTarea, loteId: loteId || null, texto, incluirAnuladas }),
+      getEntradas(estId, { tipo, estadoIdea: estado, estadoTarea, estadoDecision, loteId: loteId || null, texto }),
       getPersonas(estId),
       getLotes(estId, "activo"),
       getLotes(estId, "cerrado"),
@@ -78,7 +85,7 @@ function Bitacora() {
       .then(([entradas, personas, activos, cerrados]) => {
         if (!vigente) return
         setDatos({
-          clave: JSON.stringify([estId, tipo, estado, estadoTarea, loteId, texto, incluirAnuladas, version]),
+          clave: JSON.stringify([estId, tipo, estado, estadoTarea, estadoDecision, loteId, texto, version]),
           entradas,
           personas,
           nombresLote: new Map([...activos, ...cerrados].map(l => [l.id, l.nombre])),
@@ -87,7 +94,7 @@ function Bitacora() {
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar la bitácora")) })
     return () => { vigente = false }
-  }, [estId, tipo, estado, estadoTarea, loteId, texto, incluirAnuladas, version])
+  }, [estId, tipo, estado, estadoTarea, estadoDecision, loteId, texto, version])
 
   if (cargandoCtx) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
   if (!establecimientoActivo) {
@@ -119,10 +126,16 @@ function Bitacora() {
         </div>
 
         <div className="-mx-4 px-4 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Tipo">
-          <button type="button" className={chip(!tipo)} onClick={() => { setTipo(null); setEstado(null); setEstadoTarea(null) }}>Todas</button>
+          <button type="button" className={chip(!tipo)}
+            onClick={() => { setTipo(null); setEstado(null); setEstadoTarea(null); setEstadoDecision(null) }}>Todas</button>
           {TIPOS_ENTRADA.map(t => (
             <button key={t} type="button" aria-pressed={tipo === t} className={chip(tipo === t)}
-              onClick={() => { setTipo(t); if (t !== "idea") setEstado(null); if (t !== "tarea") setEstadoTarea(null) }}>
+              onClick={() => {
+                setTipo(t)
+                if (t !== "idea") setEstado(null)
+                if (t !== "tarea") setEstadoTarea(null)
+                if (t !== "decision") setEstadoDecision(null)
+              }}>
               {ETIQUETA_TIPO[t]}
             </button>
           ))}
@@ -136,12 +149,18 @@ function Bitacora() {
               <option value={loteId}>{datos.nombresLote.get(loteId) ?? "Lote"}</option>
             )}
           </select>
-          {/* Estado: de las tareas si se filtra por tarea; si no, de las ideas */}
+          {/* Estado: de las tareas o las decisiones si se filtra por ese tipo; si no, de las ideas */}
           {tipo === "tarea" ? (
             <select aria-label="Estado de la tarea" className={SELECT_NATIVO} value={estadoTarea ?? ""}
               onChange={e => { const v = e.target.value; setEstadoTarea(esEstadoTarea(v) ? v : null) }}>
               <option value="">Tareas: todas</option>
               {ESTADOS_TAREA.map(e => <option key={e} value={e}>Tareas {ETIQUETA_ESTADO_TAREA[e].toLowerCase()}s</option>)}
+            </select>
+          ) : tipo === "decision" ? (
+            <select aria-label="Estado de la decisión" className={SELECT_NATIVO} value={estadoDecision ?? ""}
+              onChange={e => { const v = e.target.value; setEstadoDecision(esEstadoDecision(v) ? v : null) }}>
+              <option value="">Decisiones: todas</option>
+              {ESTADOS_DECISION.map(e => <option key={e} value={e}>Decisiones {ETIQUETA_ESTADO_TAREA[e].toLowerCase()}s</option>)}
             </select>
           ) : (
             <select aria-label="Estado de la idea" className={SELECT_NATIVO} value={estado ?? ""}
@@ -151,11 +170,6 @@ function Bitacora() {
             </select>
           )}
         </div>
-
-        <label className="flex items-center gap-2 min-h-11 cursor-pointer select-none w-fit">
-          <input type="checkbox" className="h-5 w-5 accent-primary" checked={incluirAnuladas} onChange={e => setIncluirAnuladas(e.target.checked)} />
-          <span className="text-sm">Ver anuladas</span>
-        </label>
       </div>
 
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}

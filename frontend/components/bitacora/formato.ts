@@ -1,27 +1,24 @@
 import { fechaCorta } from "@/components/lotes/formato"
-import type { EstadoIdea, EstadoTarea, TipoEntrada } from "@/types/bitacora"
+import type { EntradaBitacora, EstadoDecision, EstadoIdea, EstadoTarea, TipoEntrada } from "@/types/bitacora"
 
-export const TIPOS_ENTRADA: TipoEntrada[] = ["decision", "idea", "observacion", "compra_venta_gasto", "tarea"]
+export const TIPOS_ENTRADA: TipoEntrada[] = ["tarea", "decision", "idea"]
 
 export const ETIQUETA_TIPO: Record<TipoEntrada, string> = {
+  tarea: "Tarea",
   decision: "Decisión",
   idea: "Idea",
-  observacion: "Observación",
-  compra_venta_gasto: "Compra, venta o gasto",
-  tarea: "Tarea",
 }
 
 // Chip de tipo: tokens de globals.css (contraste texto/fondo de 8,8:1 o más)
 export const COLOR_TIPO: Record<TipoEntrada, string> = {
   decision: "bg-accent text-accent-foreground",
   idea: "bg-(--etiqueta-idea) text-(--etiqueta-idea-texto)",
-  observacion: "bg-(--etiqueta-observacion) text-(--etiqueta-observacion-texto)",
-  compra_venta_gasto: "bg-(--etiqueta-compra) text-(--etiqueta-compra-texto)",
   tarea: "bg-(--etiqueta-tarea) text-(--etiqueta-tarea-texto)",
 }
 
 export const ESTADOS_IDEA: EstadoIdea[] = ["abierta", "decidida", "descartada"]
-export const ESTADOS_TAREA: EstadoTarea[] = ["pendiente", "hecha", "cancelada"]
+export const ESTADOS_TAREA: EstadoTarea[] = ["pendiente", "realizada"]
+export const ESTADOS_DECISION: EstadoDecision[] = ["pendiente", "realizada"]
 
 export const ETIQUETA_ESTADO: Record<EstadoIdea, string> = {
   abierta: "Abierta",
@@ -29,10 +26,20 @@ export const ETIQUETA_ESTADO: Record<EstadoIdea, string> = {
   descartada: "Descartada",
 }
 
-export const ETIQUETA_ESTADO_TAREA: Record<EstadoTarea, string> = {
+// Tarea y decisión tienen los mismos estados
+export const ETIQUETA_ESTADO_TAREA: Record<EstadoTarea | EstadoDecision, string> = {
   pendiente: "Pendiente",
-  hecha: "Hecha",
-  cancelada: "Cancelada",
+  realizada: "Realizada",
+}
+
+// El estado de una entrada, sea del tipo que sea
+export const estadoDe = (e: Pick<EntradaBitacora, "tipo" | "estado_tarea" | "estado_decision" | "estado_idea">) =>
+  e.tipo === "tarea" ? e.estado_tarea : e.tipo === "decision" ? e.estado_decision : e.estado_idea
+
+export const etiquetaEstado = (e: Pick<EntradaBitacora, "tipo" | "estado_tarea" | "estado_decision" | "estado_idea">) => {
+  const estado = estadoDe(e)
+  if (!estado) return ""
+  return e.tipo === "idea" ? ETIQUETA_ESTADO[estado as EstadoIdea] : ETIQUETA_ESTADO_TAREA[estado as EstadoTarea]
 }
 
 // Días entre dos fechas YYYY-MM-DD (b - a)
@@ -49,7 +56,7 @@ export function textoVencimiento(vencimiento: string, hoy: string) {
 }
 
 // La siguiente de una tarea repetida vence N días después del vencimiento, o de hoy si ya pasó (como la base)
-export function mensajeTareaHecha(vencimiento: string, dias: number, hoy: string) {
+export function mensajeTareaRealizada(vencimiento: string, dias: number, hoy: string) {
   const base = vencimiento > hoy ? vencimiento : hoy
   const d = new Date(base + "T00:00:00Z")
   d.setUTCDate(d.getUTCDate() + dias)

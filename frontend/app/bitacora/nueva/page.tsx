@@ -49,7 +49,7 @@ function NuevaEntrada() {
   if (cargando || cargandoOrigen) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
   if (!establecimientoActivo) return <PageContainer>{volver}<p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   if (!puedeOperar) return <PageContainer>{volver}<p className="text-muted-foreground">No tenés permiso de carga en este establecimiento.</p></PageContainer>
-  if (origenId && (!origen?.entrada || origen.entrada.anulada_en || origen.entrada.tipo === "tarea")) {
+  if (origenId && (!origen?.entrada || origen.entrada.tipo === "tarea")) {
     return <PageContainer>{volver}<p className="text-muted-foreground">{origen?.error ?? "No se puede crear una tarea desde esa nota."}</p></PageContainer>
   }
 

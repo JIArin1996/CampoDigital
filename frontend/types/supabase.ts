@@ -848,6 +848,7 @@ export type Database = {
           editada_por: string | null
           entrada_origen_id: string | null
           establecimiento_id: string
+          estado_decision: string | null
           estado_idea: string | null
           estado_tarea: string | null
           fecha: string
@@ -873,6 +874,7 @@ export type Database = {
           editada_por?: string | null
           entrada_origen_id?: string | null
           establecimiento_id: string
+          estado_decision?: string | null
           estado_idea?: string | null
           estado_tarea?: string | null
           fecha?: string
@@ -898,6 +900,7 @@ export type Database = {
           editada_por?: string | null
           entrada_origen_id?: string | null
           establecimiento_id?: string
+          estado_decision?: string | null
           estado_idea?: string | null
           estado_tarea?: string | null
           fecha?: string
@@ -3429,10 +3432,6 @@ export type Database = {
         }
         Returns: string
       }
-      anular_entrada_bitacora: {
-        Args: { p_entrada_id: string; p_motivo: string }
-        Returns: undefined
-      }
       anular_liquidacion: {
         Args: { p_id: string; p_motivo: string }
         Returns: undefined
@@ -3443,6 +3442,10 @@ export type Database = {
       }
       asignar_rol: {
         Args: { p_establecimiento_id: string; p_rol: string; p_user_id: string }
+        Returns: undefined
+      }
+      cambiar_estado_decision: {
+        Args: { p_entrada_id: string; p_estado: string }
         Returns: undefined
       }
       cambiar_estado_idea: {
@@ -3711,6 +3714,10 @@ export type Database = {
         Args: { p_actividad_id: string }
         Returns: undefined
       }
+      eliminar_entrada_bitacora: {
+        Args: { p_entrada_id: string }
+        Returns: undefined
+      }
       guardar_forma_potrero: {
         Args: {
           p_actualizar_superficie?: boolean
@@ -3963,10 +3970,6 @@ export type Database = {
       }
       restaurar_archivo_lote: {
         Args: { p_archivo_id: string; p_lote_id: string }
-        Returns: undefined
-      }
-      restaurar_entrada_bitacora: {
-        Args: { p_entrada_id: string }
         Returns: undefined
       }
       stock_al: {

@@ -16,9 +16,9 @@ type Persona = Awaited<ReturnType<typeof getPersonas>>[number]
 const CUANTAS = 5
 
 /**
- * Últimas entradas abiertas de bitácora que etiquetan este lote: notas, ideas abiertas y tareas
- * pendientes. Las cerradas (tareas hechas o canceladas, ideas decididas o descartadas) pasan al
- * historial del lote; onCambio avisa a la ficha para que lo recargue.
+ * Últimas entradas abiertas de bitácora que etiquetan este lote: tareas y decisiones pendientes e
+ * ideas abiertas. Las cerradas (tareas y decisiones realizadas, ideas decididas o descartadas) pasan
+ * al historial del lote; onCambio avisa a la ficha para que lo recargue.
  */
 export function BitacoraDelLote({
   establecimientoId, loteId, puedeOperar, onCambio,
@@ -67,7 +67,7 @@ export function BitacoraDelLote({
           <div className="h-16 rounded bg-muted animate-pulse" />
         ) : datos.entradas.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No hay notas abiertas sobre este lote. Las tareas y las ideas cerradas quedan en el historial.
+            No hay notas abiertas sobre este lote. Las cerradas quedan en el historial.
           </p>
         ) : (
           <>

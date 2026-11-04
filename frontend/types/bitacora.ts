@@ -1,16 +1,18 @@
 // Tipos de la bitácora, derivados de types/supabase.ts (generado desde la base).
-// Se angostan las columnas restringidas con un check (tipo, estado_idea, estado_tarea).
+// Se angostan las columnas restringidas con un check (tipo, estado_idea, estado_tarea, estado_decision).
 
 import type { Tables } from './supabase'
 
-export type TipoEntrada = 'decision' | 'idea' | 'observacion' | 'compra_venta_gasto' | 'tarea'
+export type TipoEntrada = 'tarea' | 'decision' | 'idea'
 export type EstadoIdea = 'abierta' | 'decidida' | 'descartada'
-export type EstadoTarea = 'pendiente' | 'hecha' | 'cancelada'
+export type EstadoTarea = 'pendiente' | 'realizada'
+export type EstadoDecision = 'pendiente' | 'realizada'
 
-export type EntradaBitacora = Omit<Tables<'bitacora_entradas'>, 'tipo' | 'estado_idea' | 'estado_tarea'> & {
+export type EntradaBitacora = Omit<Tables<'bitacora_entradas'>, 'tipo' | 'estado_idea' | 'estado_tarea' | 'estado_decision'> & {
   tipo: TipoEntrada
   estado_idea: EstadoIdea | null
   estado_tarea: EstadoTarea | null
+  estado_decision: EstadoDecision | null
 }
 
 export type BitacoraLote = Tables<'bitacora_lotes'>

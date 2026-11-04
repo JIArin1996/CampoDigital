@@ -37,7 +37,21 @@ Cada una tiene sus estados:
 - **Calendario**: la próxima dosis dada figura como `realizada`, igual que las tareas.
 - En la base, los tipos y el estado "cancelada" que ya no existen solo se aceptan en entradas eliminadas.
 
-## 4. Pruebas viejas puestas al día
+## 4. App
+
+- **Tarjeta de la entrada:**
+  - La tarea y la decisión pendientes tienen el botón Realizada; ya realizadas, tienen Reabrir.
+  - La idea sigue con Abierta, Decidida y Descartada.
+  - Eliminar aparece solo para el Administrador, también en la ficha del lote y en el inicio, y pide confirmación.
+  - No hay Cancelar, Anular ni Restaurar.
+- **Bitácora:**
+  - Los filtros por tipo son Tarea, Decisión e Idea, y el filtro de estado sigue al tipo elegido.
+  - No hay "Ver anuladas".
+- **Formulario:** tiene los tres tipos y arranca en Idea. Desde el calendario o con `?tipo=tarea` arranca en Tarea.
+- **Calendario:** Realizada en lugar de Hecha y Cancelar.
+- **Historial del lote:** muestra también las decisiones realizadas.
+
+## 5. Pruebas viejas puestas al día
 
 `etapa5_rls`, `etapa8_tareas`, `responsables`, `eliminar_actividades`, `editar_resto_de_actividades` y `auditoria_permisos`
 (siguen siendo 146 funciones: entran dos y salen dos). Las cantidades esperadas no cambian.

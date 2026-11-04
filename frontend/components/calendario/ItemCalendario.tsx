@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Check, ChevronRight, Pencil, Repeat, RotateCcw, Syringe, X } from "lucide-react"
+import { Check, ChevronRight, Pencil, Repeat, RotateCcw, Syringe } from "lucide-react"
 import { toast } from "sonner"
 
 import { cambiarEstadoTarea } from "@/lib/queries/bitacora"
@@ -11,7 +11,7 @@ import { mensajeDeError } from "@/lib/supabase/errores"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChipResponsables } from "@/components/shared/Responsables"
 import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
-import { ETIQUETA_ESTADO_TAREA, fechaHora, mensajeTareaHecha, textoRepeticion, textoVencimiento } from "@/components/bitacora/formato"
+import { ETIQUETA_ESTADO_TAREA, fechaHora, mensajeTareaRealizada, textoRepeticion, textoVencimiento } from "@/components/bitacora/formato"
 import { cn } from "@/lib/utils"
 import type { EstadoTarea, FilaCalendario } from "@/types/bitacora"
 
@@ -25,7 +25,7 @@ interface Props {
 
 /**
  * Una tarea o una próxima dosis en el Calendario (y en el inicio), con sus acciones:
- * tarea: Hecha, Cancelar, Editar o Reabrir; dosis: Dada o Desmarcar (cargar la sanidad siguiente es aparte).
+ * tarea: Realizada, Editar o Reabrir; dosis: Dada o Desmarcar (cargar la sanidad siguiente es aparte).
  */
 export function ItemCalendario({ fila, nombresLote, nombrePersona, puedeOperar, onCambio }: Props) {
   const [trabajando, setTrabajando] = useState(false)
@@ -51,8 +51,8 @@ export function ItemCalendario({ fila, nombresLote, nombrePersona, puedeOperar, 
   const cambiarTarea = (estado: EstadoTarea) =>
     ejecutar(async () => {
       const siguiente = await cambiarEstadoTarea(fila.entrada_id!, estado)
-      if (siguiente && fila.repetir_cada_dias) toast.info(mensajeTareaHecha(fila.fecha, fila.repetir_cada_dias, hoy))
-    }, estado === "hecha" ? "Tarea hecha" : estado === "cancelada" ? "Tarea cancelada" : "Tarea reabierta")
+      if (siguiente && fila.repetir_cada_dias) toast.info(mensajeTareaRealizada(fila.fecha, fila.repetir_cada_dias, hoy))
+    }, estado === "realizada" ? "Tarea realizada" : "Tarea reabierta")
 
   const marcarDosis = (dada: boolean) =>
     ejecutar(() => marcarDosisDada(fila.actividad_id!, fila.orden!, dada), dada ? "Dosis marcada como dada" : "Dosis pendiente otra vez")
@@ -74,13 +74,13 @@ export function ItemCalendario({ fila, nombresLote, nombrePersona, puedeOperar, 
         </span>
       </div>
 
-      <p className={cn("mt-2 whitespace-pre-line text-base md:text-sm", fila.estado === "cancelada" && "line-through text-muted-foreground")}>
+      <p className="mt-2 whitespace-pre-line text-base md:text-sm">
         {esDosis && <Syringe className="inline h-4 w-4 mr-1 -mt-0.5" />}
         {fila.texto}
       </p>
 
       <p className={cn("mt-1 text-sm", vencida ? "font-medium text-destructive" : "text-muted-foreground")}>
-        {pendiente ? textoVencimiento(fila.fecha, hoy) : fila.hecha_en ? `${esDosis ? "Dada" : "Hecha"} el ${fechaHora(fila.hecha_en)}` : null}
+        {pendiente ? textoVencimiento(fila.fecha, hoy) : fila.hecha_en ? `${esDosis ? "Dada" : "Realizada"} el ${fechaHora(fila.hecha_en)}` : null}
         {fila.repetir_cada_dias && (
           <span className="text-muted-foreground font-normal">
             {pendiente ? " · " : ""}<Repeat className="inline h-3.5 w-3.5 -mt-0.5" /> {textoRepeticion(fila.repetir_cada_dias)}
@@ -102,11 +102,8 @@ export function ItemCalendario({ fila, nombresLote, nombrePersona, puedeOperar, 
       <div className="mt-3 flex flex-wrap gap-2">
         {puedeOperar && !esDosis && pendiente && (
           <>
-            <Button type="button" size="sm" disabled={trabajando} onClick={() => cambiarTarea("hecha")}>
-              <Check className="h-4 w-4 mr-1" /> Hecha
-            </Button>
-            <Button type="button" size="sm" variant="outline" disabled={trabajando} onClick={() => cambiarTarea("cancelada")}>
-              <X className="h-4 w-4 mr-1" /> Cancelar
+            <Button type="button" size="sm" disabled={trabajando} onClick={() => cambiarTarea("realizada")}>
+              <Check className="h-4 w-4 mr-1" /> Realizada
             </Button>
             <Link href={`/bitacora/${fila.entrada_id}/editar`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
               <Pencil className="h-4 w-4 mr-1" /> Editar
