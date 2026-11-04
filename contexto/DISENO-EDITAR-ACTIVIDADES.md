@@ -133,6 +133,11 @@ El rastro de lo borrado queda en `actividad_versiones`, que guarda los eventos v
   - Al editar, cada producto existente viaja con su `id`: si trae `id` se actualiza, si no trae se crea, y si falta se borra junto con su marca de dosis dada.
   - El orden queda solo para mostrar. Reordenar no mueve ninguna marca.
 - **Destete:** se edita con la misma condición que para eliminarlo: los lotes de destino no tuvieron otros movimientos ni una pesada. Si los tuvieron, la app avisa que primero hay que eliminar esos movimientos.
+  - **Destinos fijos (decidido en el paso 2b):** los destinos son los mismos lotes que creó el destete. No se agregan ni se sacan; para eso, se elimina el destete y se carga de nuevo.
+  - **Qué se puede cambiar:** la fecha (sin adelantarla antes de la apertura de los destinos), los orígenes, las cabezas que salen y entran, las notas y los responsables.
+  - **Orígenes:** el que queda vacío se cierra ("Destetado"). El que vuelve a tener animales se reabre ("Edición de destete").
+  - **Linaje:** se rehace con las operaciones nuevas.
+  - **Archivos heredados:** los de un origen que se saca quedan en los destinos.
 - **Tipo:** no se cambia. Una pesada no pasa a ser una venta: para eso se elimina y se carga la otra.
 
 ## 5. Economía (compra y venta)
