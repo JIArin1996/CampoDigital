@@ -9,6 +9,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getConceptos, getPendientes, getResultadoDetalle, getRubrosTodos, getSinPrecio, getTitulares } from "@/lib/queries/economia"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DialogoAnular, DialogoPagar } from "@/components/economia/Dialogos"
@@ -40,7 +41,7 @@ interface Datos {
 export default function EconomiaPage() {
   // useSearchParams necesita Suspense
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <Economia />
     </Suspense>
   )
@@ -86,7 +87,7 @@ function Economia() {
     return () => { vigente = false }
   }, [estId, desde, hasta, version])
 
-  if (cargando) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer><Cargando /></PageContainer>
   if (!establecimientoActivo) return <PageContainer><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
 
   const listos = datos?.clave === clave ? datos : null
@@ -142,7 +143,7 @@ function Economia() {
       </div>
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      {!listos && !error ? <div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /> : listos && (
+      {!listos && !error ? <Cargando /> : listos && (
         <div className={cn("space-y-4", pestana !== "movimientos" && pestana !== "saldos" && "max-w-3xl")}>
           {/* Aviso: lo que el resultado no cuenta */}
           {listos.sinPrecio.length > 0 && pestana !== "sin_precio" && (

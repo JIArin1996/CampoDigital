@@ -13,6 +13,7 @@ import { getPersonas } from "@/lib/queries/bitacora"
 import { getCategorias, getLote, getLotesPorIds } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArchivosDeActividad } from "@/components/actividades/ArchivosDeActividad"
@@ -81,7 +82,7 @@ export default function ActividadPage() {
 
   if (error && !ficha) return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
   if (ficha === undefined || cargandoCtx) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!ficha) return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró la actividad.</p></PageContainer>
 

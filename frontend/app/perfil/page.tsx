@@ -10,6 +10,7 @@ import { updatePerfil } from "@/lib/queries/usuarios"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { createClient } from "@/lib/supabase/client"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -24,7 +25,7 @@ export default function PerfilPage() {
   const { perfil, esAdmin, establecimientos, rolEn, cargando, recargarPerfil } = useEstablecimiento()
 
   if (cargando) {
-    return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer><Cargando /></PageContainer>
   }
 
   if (!perfil) {

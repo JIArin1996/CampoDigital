@@ -11,6 +11,7 @@ import { crearLote, getCategorias, getEspecies } from "@/lib/queries/lotes"
 import { getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -137,7 +138,7 @@ export default function NuevoLotePage() {
   )
 
   if (cargandoCtx || (estId && !listos && !error)) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
 
   if (!establecimientoActivo) {

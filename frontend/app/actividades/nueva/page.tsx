@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, TIPOS_6A, TIPOS_6B1, esTipo6a, esTipoCargable } from "@/components/actividades/formato"
 import { cargarDatosCarga, type DatosCarga } from "@/components/actividades/datosCarga"
@@ -18,7 +19,7 @@ import type { TipoCargable } from "@/types/actividades"
 
 export default function NuevaActividadPage() {
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <NuevaActividad />
     </Suspense>
   )
@@ -47,7 +48,7 @@ function NuevaActividad() {
     ? <VolverAlLote href={`/lotes/${loteParam}`} />
     : <VolverAlLote href="/actividades" texto="Volver a actividades" />
 
-  if (cargando) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!establecimientoActivo) {
     return <PageContainer>{volver}<p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   }
@@ -94,7 +95,7 @@ function NuevaActividad() {
 
   if (error) return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
   if (!datos || datos.estId !== estId) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
 
   // key: un formulario nuevo (con su propio id) por tipo y lote de entrada

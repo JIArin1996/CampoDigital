@@ -8,6 +8,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { actualizarEspecie, cambiarEstadoCategoria, crearCategoria, crearEspecie, definirCria, getCatalogoEspecies, getStockCategoria } from "@/lib/queries/especies"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,7 +53,7 @@ export default function EspeciesPage() {
     return () => { vigente = false }
   }, [estId, version])
 
-  if (cargando) return <PageContainer><div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer><Cargando /></PageContainer>
   if (!establecimientoActivo) return <PageContainer title="Especies"><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   if (!esAdmin) return <PageContainer title="Especies"><p className="text-muted-foreground">Solo el administrador configura las especies.</p></PageContainer>
 
@@ -89,7 +90,7 @@ export default function EspeciesPage() {
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}
 
       {!listo ? (
-        <div className="h-64 rounded-lg border bg-muted/30 animate-pulse" />
+        <Cargando />
       ) : (
         <div className="space-y-4 max-w-xl">
           {listo.especies.map(especie => (

@@ -9,6 +9,7 @@ import { getAportes, getIndicadores } from "@/lib/queries/indicadores"
 import { getEspecies, getLotesPorIds } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { colorDeEspecie } from "@/components/lotes/agrupacion"
@@ -47,7 +48,7 @@ export default function IndicadoresPage() {
   }, [estId])
 
   if (cargando || (estId && !datos && !error)) {
-    return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer><Cargando /></PageContainer>
   }
   if (!establecimientoActivo) {
     return <PageContainer><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>

@@ -9,6 +9,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { dividirLote, getContextoLote, type DestinoDivision } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,7 +55,7 @@ export default function DividirLotePage() {
   const volver = <VolverAlLote href={`/lotes/${id}`} />
 
   if (ctx === undefined || cargandoCtx) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!ctx) {
     return <PageContainer>{volver}<p className="text-muted-foreground">{error ?? "No se encontró el lote."}</p></PageContainer>

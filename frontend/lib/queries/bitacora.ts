@@ -61,6 +61,35 @@ export async function getEntradas(establecimiento_id: string, filtros: FiltrosBi
   return conLotes(entradas)
 }
 
+// Tipo y estados de las entradas que cumplen tipo, lote y texto (sin el filtro de estado): para contar
+// cuántas hay en cada estado
+export type EstadoDeEntrada = Pick<EntradaBitacora, 'tipo' | 'estado_tarea' | 'estado_decision' | 'estado_idea' | 'cerrada_en'>
+
+export async function getEstadosDeEntradas(
+  establecimiento_id: string, filtros: Pick<FiltrosBitacora, 'tipo' | 'loteId' | 'texto'> = {},
+): Promise<EstadoDeEntrada[]> {
+  const supabase = createClient()
+  let ids: string[] | null = null
+  if (filtros.loteId) {
+    const { data, error } = await supabase.from('bitacora_lotes').select('entrada_id').eq('lote_id', filtros.loteId)
+    if (error) throw error
+    ids = (data ?? []).map(x => x.entrada_id)
+    if (ids.length === 0) return []
+  }
+  let query = supabase
+    .from('bitacora_entradas')
+    .select('tipo, estado_tarea, estado_decision, estado_idea, cerrada_en')
+    .eq('establecimiento_id', establecimiento_id)
+    .limit(5000)
+  if (ids) query = query.in('id', ids)
+  if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
+  const texto = filtros.texto?.trim()
+  if (texto) query = query.ilike('texto', `%${texto.replace(/[\\%_]/g, c => '\\' + c)}%`)
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as EstadoDeEntrada[]
+}
+
 export async function getEntrada(id: string): Promise<EntradaConLotes | null> {
   const supabase = createClient()
   const { data, error } = await supabase.from('bitacora_entradas').select('*').eq('id', id).maybeSingle()

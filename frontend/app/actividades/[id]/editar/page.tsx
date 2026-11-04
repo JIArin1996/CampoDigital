@@ -7,6 +7,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getActividadParaEditar, type ActividadParaEditar } from "@/lib/queries/actividades"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { esTipo6a } from "@/components/actividades/formato"
 import { cargarDatosCarga, type DatosCarga } from "@/components/actividades/datosCarga"
@@ -42,7 +43,7 @@ export default function EditarActividadPage() {
 
   if (error) return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
   if (carga === undefined || cargando) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!carga) return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró la actividad.</p></PageContainer>
 

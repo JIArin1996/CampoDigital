@@ -13,6 +13,7 @@ import { getActividades, getCarencias } from "@/lib/queries/actividades"
 import { getEntradas, getPersonas, type Persona } from "@/lib/queries/bitacora"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -108,7 +109,7 @@ export default function LotePage() {
   }
 
   if (!vigente || cargandoCtx) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
 
   const { lote } = vigente
@@ -229,7 +230,7 @@ export default function LotePage() {
 
       {/* Operaciones de lote */}
       {operable && (
-        <nav aria-label="Operaciones del lote" className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        <nav aria-label="Operaciones del lote" className="grid grid-cols-2 sm:grid-cols-4 md:flex md:[&>*]:flex-1 gap-2 mb-6">
           <Link href={`/actividades/nueva?lote=${lote.id}`} className={accion}>
             <ClipboardList className="h-5 w-5" />
             Actividad

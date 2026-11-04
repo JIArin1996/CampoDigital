@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { FormularioMovimiento } from "@/components/economia/FormularioMovimiento"
 
@@ -16,7 +17,7 @@ export default function NuevoMovimientoPage() {
   const { establecimientoActivo, puedeOperar, cargando } = useEstablecimiento()
 
   const volver = <VolverAlLote href="/economia" texto="Volver a economía" />
-  if (cargando) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!establecimientoActivo) return <PageContainer>{volver}<p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   if (!puedeOperar) return <PageContainer>{volver}<p className="text-muted-foreground">No tenés permiso de carga en este establecimiento.</p></PageContainer>
 

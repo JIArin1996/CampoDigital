@@ -7,6 +7,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getMovimiento } from "@/lib/queries/economia"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { FormularioMovimiento } from "@/components/economia/FormularioMovimiento"
 
@@ -31,7 +32,7 @@ export default function EditarMovimientoPage() {
   const volver = <VolverAlLote href="/economia" texto="Volver a economía" />
   const listo = datos?.id === id ? datos : null
   if (error) return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
-  if (cargando || !listo) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando || !listo) return <PageContainer>{volver}<Cargando /></PageContainer>
 
   const m = listo.cargado?.movimiento
   if (!m) return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró el movimiento.</p></PageContainer>

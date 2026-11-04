@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react"
 import { getEstablecimiento } from "@/lib/queries/establecimientos"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { EstablecimientoForm } from "@/components/forms/EstablecimientoForm"
 import type { Establecimiento } from "@/types/database"
 
@@ -15,7 +16,7 @@ import type { Establecimiento } from "@/types/database"
 export default function EditarEstablecimientoPage() {
   // useSearchParams necesita un Suspense alrededor
   return (
-    <Suspense fallback={<PageContainer><div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <EditarEstablecimiento />
     </Suspense>
   )
@@ -48,7 +49,7 @@ function EditarEstablecimiento() {
   )
 
   if (estado === "cargando" || cargandoCtx) {
-    return <PageContainer>{volver}<div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
 
   if (estado === "no-encontrado" || !establecimiento) {

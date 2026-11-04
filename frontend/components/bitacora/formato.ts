@@ -42,6 +42,37 @@ export const etiquetaEstado = (e: Pick<EntradaBitacora, "tipo" | "estado_tarea" 
   return e.tipo === "idea" ? ETIQUETA_ESTADO[estado as EstadoIdea] : ETIQUETA_ESTADO_TAREA[estado as EstadoTarea]
 }
 
+// Filtro de estado de la bitácora: sin tipo, abiertas o cerradas; con tipo, los estados de ese tipo
+export type FiltroEstado = "todos" | "abiertas" | "cerradas" | EstadoTarea | EstadoDecision | EstadoIdea
+
+const PLURAL: Record<EstadoTarea | EstadoDecision | EstadoIdea, string> = {
+  pendiente: "Pendientes", realizada: "Realizadas", abierta: "Abiertas", decidida: "Decididas", descartada: "Descartadas",
+}
+
+export function opcionesEstado(tipo: TipoEntrada | null): { valor: FiltroEstado; etiqueta: string }[] {
+  const estados: (EstadoTarea | EstadoDecision | EstadoIdea)[] =
+    tipo === "tarea" ? ESTADOS_TAREA : tipo === "decision" ? ESTADOS_DECISION : tipo === "idea" ? ESTADOS_IDEA : []
+  return tipo
+    ? [{ valor: "todos", etiqueta: "Todas" }, ...estados.map(e => ({ valor: e, etiqueta: PLURAL[e] }))]
+    : [{ valor: "abiertas", etiqueta: "Abiertas" }, { valor: "cerradas", etiqueta: "Cerradas" }, { valor: "todos", etiqueta: "Todas" }]
+}
+
+type ConEstado = Pick<EntradaBitacora, "tipo" | "estado_tarea" | "estado_decision" | "estado_idea" | "cerrada_en">
+
+export const cumpleEstado = (e: ConEstado, filtro: FiltroEstado) =>
+  filtro === "todos" || (filtro === "abiertas" ? !e.cerrada_en : filtro === "cerradas" ? !!e.cerrada_en : estadoDe(e) === filtro)
+
+// El día en que se ubica una entrada: el vencimiento de una tarea pendiente, el día del cierre de una cerrada
+// (en la hora local) o la fecha de la nota
+export function fechaQueManda(e: Pick<EntradaBitacora, "tipo" | "estado_tarea" | "vencimiento" | "cerrada_en" | "fecha">) {
+  if (e.tipo === "tarea" && e.estado_tarea === "pendiente" && e.vencimiento) return e.vencimiento
+  if (e.cerrada_en) return new Date(e.cerrada_en).toLocaleDateString("en-CA")
+  return e.fecha
+}
+
+export const esVencida = (e: Pick<EntradaBitacora, "tipo" | "estado_tarea" | "vencimiento">, hoy: string) =>
+  e.tipo === "tarea" && e.estado_tarea === "pendiente" && !!e.vencimiento && e.vencimiento < hoy
+
 // Días entre dos fechas YYYY-MM-DD (b - a)
 export const diasEntre = (a: string, b: string) =>
   Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86_400_000)

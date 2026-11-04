@@ -11,6 +11,7 @@ import { getPersonas } from "@/lib/queries/bitacora"
 import { getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { buttonVariants } from "@/components/ui/button"
 import { LineaDeTiempo, LineaDeTiempoCargando } from "@/components/actividades/LineaDeTiempo"
 import { ETIQUETA_ACTIVIDAD, TIPOS_CARGABLES, esTipoCargable } from "@/components/actividades/formato"
@@ -28,7 +29,7 @@ interface Datos {
 
 export default function ActividadesPage() {
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <Actividades />
     </Suspense>
   )
@@ -71,7 +72,7 @@ function Actividades() {
     return () => { vigente = false }
   }, [estId, tipo, loteId])
 
-  if (cargandoCtx) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargandoCtx) return <PageContainer><Cargando /></PageContainer>
   if (!establecimientoActivo) {
     return <PageContainer title="Actividades"><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   }
