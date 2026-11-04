@@ -140,18 +140,21 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261104000100, eliminar actividades): 115 filas, todas con ok = true.
+-- ESPERADO (después de 20261104000200, editar compra, venta y pesada): 125 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
 -- +3 de 20261030000100: adjuntar_archivo_actividad, quitar_archivo_actividad y el trigger proteger_actividad_archivo;
 -- +7 de 20261104000100: _actividad_marcada, _eliminar_actividad, _marcar_actividad, _version_actividad,
--- eliminar_actividad y los triggers marcar_cierre_entrada y proteger_dato_de_actividad.)
+-- eliminar_actividad y los triggers marcar_cierre_entrada y proteger_dato_de_actividad;
+-- +10 de 20261104000200: _actualizar_movimiento_actividad, _cargar_compraventa, _cargar_pesada, _empezar_edicion,
+-- _lotes_de_actividad, _responsables_de_actividad, _terminar_edicion, editar_compra, editar_venta y editar_pesada.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
 --   _actividad_marcada          | false            | false         | false | false
 --   _actividad_ya_registrada    | false            | false         | false | false
+--   _actualizar_movimiento_actividad | false            | false         | false | false
 --   _anios_de_jsonb             | false            | false         | false | false
 --   _anios_de_texto             | false            | false         | false | false
 --   _archivo_permitido          | false            | false         | false | false
@@ -160,10 +163,13 @@ order by 1 desc, 2, 3, 4;
 --   _bloquear_lotes_actividad   | false            | false         | false | false
 --   _cabezas                    | false            | false         | false | false
 --   _cargar_catalogos_base      | false            | false         | false | false
+--   _cargar_compraventa         | false            | false         | false | false
 --   _cargar_conceptos_base      | false            | false         | false | false
+--   _cargar_pesada              | false            | false         | false | false
 --   _cerrar_si_vacio            | false            | false         | false | false
 --   _concepto_por_defecto       | false            | false         | false | false
 --   _eliminar_actividad         | false            | false         | false | false
+--   _empezar_edicion            | false            | false         | false | false
 --   _entero_jsonb               | false            | false         | false | false
 --   _exigir_categoria           | false            | false         | false | false
 --   _fichas_de_admins           | false            | false         | false | false
@@ -174,13 +180,16 @@ order by 1 desc, 2, 3, 4;
 --   _guardar_responsables_entrada | false            | false         | false | false
 --   _guardar_titulares          | false            | false         | false | false
 --   _insertar_lineas            | false            | false         | false | false
+--   _lotes_de_actividad         | false            | false         | false | false
 --   _marcar_actividad           | false            | false         | false | false
 --   _parte_de_saldo             | false            | false         | false | false
 --   _precio_valido              | false            | false         | false | false
 --   _registrar_movimiento       | false            | false         | false | false
+--   _responsables_de_actividad  | false            | false         | false | false
 --   _rubro_de_especie           | false            | false         | false | false
 --   _sincronizar_potrero_lote   | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
+--   _terminar_edicion           | false            | false         | false | false
 --   _validar_datos_tarea        | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
@@ -211,8 +220,11 @@ order by 1 desc, 2, 3, 4;
 --   definir_admin               | true             | true          | false | false
 --   deshacer_cambio_potrero     | true             | true          | false | false
 --   dividir_lote                | true             | true          | false | false
+--   editar_compra               | true             | true          | false | false
 --   editar_entrada_bitacora     | true             | true          | false | false
 --   editar_movimiento           | true             | true          | false | false
+--   editar_pesada               | true             | true          | false | false
+--   editar_venta                | true             | true          | false | false
 --   eliminar_actividad          | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
@@ -319,7 +331,8 @@ select
                                             'sincronizar_potrero_lote', 'estadia_alta_lote', 'estadia_cambio_estado_lote',
                                             'adjuntar_archivo_movimiento', 'quitar_archivo_movimiento', 'editar_movimiento',
                                             'registrar_liquidacion', 'anular_liquidacion', 'sincronizar_nombre_persona',
-                                            'adjuntar_archivo_actividad', 'quitar_archivo_actividad', 'eliminar_actividad'))
+                                            'adjuntar_archivo_actividad', 'quitar_archivo_actividad', 'eliminar_actividad',
+                                            'editar_compra', 'editar_venta', 'editar_pesada'))
   ) as ok
 from f
 order by f.funcion;

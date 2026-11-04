@@ -123,6 +123,11 @@ El rastro de lo borrado queda en `actividad_versiones`, que guarda los eventos v
 ### 4.3 Casos especiales
 
 - **Compra o parición que creó un lote nuevo:** al editar, el destino queda fijo en ese lote. Ya no se ofrece "lote nuevo" ni elegir otro. El nombre, el potrero y los años se cambian desde la ficha del lote.
+  - **Fecha (decidido en el paso 2a):** la nueva no puede ser anterior a la apertura del lote, que es la fecha original de esa compra o parición. Se puede atrasar, pero no adelantar. La apertura del lote no se mueve.
+- **Lote que se vuelve a cerrar sin registro (paso 2a):** un lote que estaba cerrado y después de la edición sigue vacío se cierra otra vez sin dejar registro.
+  - Si se había cerrado en su último movimiento, como al vender todo, la fecha de cierre pasa a ser la del último movimiento después de la edición.
+  - Si se había cerrado a mano en otra fecha, la conserva.
+  - El registro de cierre anterior queda con su fecha, porque esos registros no se modifican.
 - **Sanidad, productos por id:**
   - `act_sanidad_productos` tiene hoy como clave `(actividad_id, orden)` y `sanidad_dosis_dadas` apunta a esa posición. Se les agrega un `id` a los productos, y la marca de dosis dada pasa a apuntar a ese `id`. La migración convierte las marcas que ya existen.
   - Al editar, cada producto existente viaja con su `id`: si trae `id` se actualiza, si no trae se crea, y si falta se borra junto con su marca de dosis dada.
