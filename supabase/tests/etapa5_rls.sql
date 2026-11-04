@@ -5,6 +5,7 @@
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ETAPA 5: N OK, M FALLA ...", que deshace todo.
 --      El resultado esperado es "0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      Al día con 20261104000600_bitacora_tres_tipos: solo tarea, decisión e idea; eliminar en lugar de anular.
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA y no
 --      como FALLA: corregir primero las PREP, que son la causa raíz.
 --
@@ -389,7 +390,7 @@ select pruebas.espera_valor('B01 Una idea nueva arranca abierta, con 2 lotes y f
   $q$ select e.estado_idea || '/' || (select count(*) from public.bitacora_lotes l where l.entrada_id = e.id) || '/' || (e.fecha = public.fecha_hoy())::text
       from public.bitacora_entradas e where e.id = pruebas.id('e_idea') $q$, 'abierta/2/true');
 select pruebas.guardar('e_dec', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), pruebas.d(2), 'decision', 'Vender los toros en marzo') $q$);
-select pruebas.espera_valor('B02 Lo que no es idea no tiene estado',
+select pruebas.espera_valor('B02 Lo que no es idea no tiene estado de idea',
   $q$ select coalesce(estado_idea, 'sin estado') from public.bitacora_entradas where id = pruebas.id('e_dec') $q$, 'sin estado');
 select pruebas.espera_ok('B03 Cambiar el estado de la idea a decidida',
   $q$ select public.cambiar_estado_idea(pruebas.id('e_idea'), 'decidida') $q$);
@@ -398,18 +399,18 @@ select pruebas.espera_valor('B04 Cambiar el estado NO cuenta como edición',
 select pruebas.espera_error('B05 Cambiar el estado de algo que no es idea',
   $q$ select public.cambiar_estado_idea(pruebas.id('e_dec'), 'decidida') $q$, '22023');
 select pruebas.espera_error('B06 Crear con fecha futura',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), pruebas.d(-1), 'observacion', 'x') $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), pruebas.d(-1), 'decision', 'x') $q$, '22023');
 select pruebas.espera_error('B07 Crear con texto vacío',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', '   ') $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', '   ') $q$, '22023');
 select pruebas.espera_error('B08 Operador escribe en un establecimiento donde no está asignado',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_x'), null, 'observacion', 'x', array[pruebas.id('L1')]) $q$, '42501');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_x'), null, 'decision', 'x', array[pruebas.id('L1')]) $q$, '42501');
 select pruebas.espera_error('B09 Responsable de otro establecimiento',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, array[pruebas.id('persona_x')]) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null, array[pruebas.id('persona_x')]) $q$, '22023');
 
 -- Edición por otro usuario (admin): created_by no cambia, editada_* sí
 select pruebas.como('u_admin');
-select pruebas.espera_ok('B10 El admin edita la idea: pasa a observación, con un solo lote',
-  $q$ select public.editar_entrada_bitacora(pruebas.id('e_idea'), public.fecha_hoy(), 'observacion',
+select pruebas.espera_ok('B10 El admin edita la idea: pasa a decisión, con un solo lote',
+  $q$ select public.editar_entrada_bitacora(pruebas.id('e_idea'), public.fecha_hoy(), 'decision',
       'Se probó suplemento en los terneros', array[pruebas.id('L1')], array[pruebas.id('persona_o')]) $q$);
 select pruebas.espera_valor('B11 Después de editar: sin estado, 1 lote, created_by = operador, editada_por = admin',
   $q$ select coalesce(e.estado_idea, 'sin estado') || '/' || (select count(*) from public.bitacora_lotes l where l.entrada_id = e.id)
@@ -421,35 +422,36 @@ select pruebas.espera_valor('B13 Estado abierta y sin lotes (null los reemplaza 
   $q$ select e.estado_idea || '/' || (select count(*) from public.bitacora_lotes l where l.entrada_id = e.id)
       from public.bitacora_entradas e where e.id = pruebas.id('e_idea') $q$, 'abierta/0');
 
--- Anular y restaurar
+-- Eliminar (solo el administrador; reemplaza a anular y restaurar)
 select pruebas.como('u_operador');
-select pruebas.espera_error('B14 Anular sin motivo',
-  $q$ select public.anular_entrada_bitacora(pruebas.id('e_idea'), ' ') $q$, '22023');
-select pruebas.espera_ok('B15 Anular con motivo',
-  $q$ select public.anular_entrada_bitacora(pruebas.id('e_idea'), 'Cargada por error') $q$);
-select pruebas.espera_valor('B16 Datos de la anulación completos',
-  $q$ select (anulada_en is not null and anulada_por = pruebas.id('u_operador') and motivo_anulacion = 'Cargada por error')::text
-      from public.bitacora_entradas where id = pruebas.id('e_idea') $q$, 'true');
-select pruebas.espera_error('B17 Una entrada anulada no se edita',
-  $q$ select public.editar_entrada_bitacora(pruebas.id('e_idea'), public.fecha_hoy(), 'idea', 'x') $q$, '22023');
-select pruebas.espera_error('B18 Una entrada anulada no cambia de estado',
-  $q$ select public.cambiar_estado_idea(pruebas.id('e_idea'), 'descartada') $q$, '22023');
-select pruebas.espera_valor('B19 Ideas abiertas para el inicio: excluye las anuladas',
+select pruebas.guardar('e_borrar', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'idea', 'Cargada por error') $q$);
+select pruebas.espera_error('B14 El operador no elimina',
+  $q$ select public.eliminar_entrada_bitacora(pruebas.id('e_borrar')) $q$, '42501');
+select pruebas.como('u_admin');
+select pruebas.espera_ok('B15 El administrador elimina',
+  $q$ select public.eliminar_entrada_bitacora(pruebas.id('e_borrar')) $q$);
+select pruebas.como('u_operador');
+select pruebas.espera_valor('B16 La eliminada no se lee',
+  $q$ select count(*)::text from public.bitacora_entradas where id = pruebas.id('e_borrar') $q$, '0');
+select pruebas.espera_error('B17 Una entrada eliminada no se edita',
+  $q$ select public.editar_entrada_bitacora(pruebas.id('e_borrar'), public.fecha_hoy(), 'idea', 'x') $q$, '22023');
+select pruebas.espera_error('B18 Una entrada eliminada no cambia de estado',
+  $q$ select public.cambiar_estado_idea(pruebas.id('e_borrar'), 'descartada') $q$, '22023');
+select pruebas.espera_valor('B19 Ideas abiertas para el inicio: sin la eliminada',
   $q$ select count(*) from public.bitacora_entradas where establecimiento_id = pruebas.id('est_a')
-      and tipo = 'idea' and estado_idea = 'abierta' and anulada_en is null $q$, '0');
-select pruebas.espera_ok('B20 Restaurar',
-  $q$ select public.restaurar_entrada_bitacora(pruebas.id('e_idea')) $q$);
-select pruebas.espera_valor('B21 Restaurada: sin datos de anulación y vuelve a contar como idea abierta',
-  $q$ select (anulada_en is null and anulada_por is null and motivo_anulacion is null)::text
-           || '/' || (select count(*) from public.bitacora_entradas where establecimiento_id = pruebas.id('est_a')
-                      and tipo = 'idea' and estado_idea = 'abierta' and anulada_en is null)
-      from public.bitacora_entradas where id = pruebas.id('e_idea') $q$, 'true/1');
+      and tipo = 'idea' and estado_idea = 'abierta' $q$, '1');
+select pruebas.como('u_admin');
+select pruebas.espera_error('B20 Eliminarla otra vez',
+  $q$ select public.eliminar_entrada_bitacora(pruebas.id('e_borrar')) $q$, '22023');
+select pruebas.espera_error('B21 Restaurar ya no existe',
+  $q$ select public.restaurar_entrada_bitacora(pruebas.id('e_borrar')) $q$, '42883');
+select pruebas.como('u_operador');
 
 -- No se borra ni se escribe directo
 select pruebas.espera_error('B22 Borrar una entrada (operador)',
   $q$ delete from public.bitacora_entradas where id = pruebas.id('e_dec') $q$, '42501');
 select pruebas.espera_error('B23 Insertar directo en bitacora_entradas',
-  $q$ insert into public.bitacora_entradas (establecimiento_id, tipo, texto) values (pruebas.id('est_a'), 'observacion', 'x') $q$, '42501');
+  $q$ insert into public.bitacora_entradas (establecimiento_id, tipo, texto) values (pruebas.id('est_a'), 'idea', 'x') $q$, '42501');
 select pruebas.espera_error('B24 Actualizar directo (dejar una idea sin estado)',
   $q$ update public.bitacora_entradas set estado_idea = null where id = pruebas.id('e_idea') $q$, '42501');
 select pruebas.espera_error('B25 Borrar etiquetas directo',
@@ -476,15 +478,15 @@ select pruebas.espera_error('Q06 Consulta: recategorizar_lote',
   $q$ select public.recategorizar_lote(pruebas.id('L1'), public.fecha_hoy(),
       jsonb_build_array(jsonb_build_object('desde_categoria_id', pruebas.id('terneros'), 'hacia_categoria_id', pruebas.id('novillos'), 'cabezas', 1))) $q$, '42501');
 select pruebas.espera_error('Q07 Consulta: crear_entrada_bitacora',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x') $q$, '42501');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x') $q$, '42501');
 select pruebas.espera_error('Q08 Consulta: editar_entrada_bitacora',
   $q$ select public.editar_entrada_bitacora(pruebas.id('e_dec'), public.fecha_hoy(), 'decision', 'x') $q$, '42501');
 select pruebas.espera_error('Q09 Consulta: cambiar_estado_idea',
   $q$ select public.cambiar_estado_idea(pruebas.id('e_idea'), 'decidida') $q$, '42501');
-select pruebas.espera_error('Q10 Consulta: anular_entrada_bitacora',
-  $q$ select public.anular_entrada_bitacora(pruebas.id('e_dec'), 'x') $q$, '42501');
-select pruebas.espera_error('Q11 Consulta: restaurar_entrada_bitacora',
-  $q$ select public.restaurar_entrada_bitacora(pruebas.id('e_dec')) $q$, '42501');
+select pruebas.espera_error('Q10 Consulta: eliminar_entrada_bitacora',
+  $q$ select public.eliminar_entrada_bitacora(pruebas.id('e_dec')) $q$, '42501');
+select pruebas.espera_error('Q11 Consulta: cambiar_estado_decision',
+  $q$ select public.cambiar_estado_decision(pruebas.id('e_dec'), 'realizada') $q$, '42501');
 select pruebas.espera_error('Q12 Consulta: borrar una entrada',
   $q$ delete from public.bitacora_entradas where id = pruebas.id('e_dec') $q$, '42501');
 
@@ -505,11 +507,11 @@ select pruebas.espera_error('X04 X divide un lote ajeno',
   $q$ select public.dividir_lote(pruebas.id('L1'), public.fecha_hoy(),
       jsonb_build_array(jsonb_build_object('nombre', 'X', 'composicion', pruebas.comp('terneros', 1)))) $q$, '42501');
 select pruebas.espera_error('X05 X escribe en la bitácora ajena',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x') $q$, '42501');
-select pruebas.espera_error('X06 X anula una entrada ajena',
-  $q$ select public.anular_entrada_bitacora(pruebas.id('e_dec'), 'x') $q$, '42501');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x') $q$, '42501');
+select pruebas.espera_error('X06 X elimina una entrada ajena',
+  $q$ select public.eliminar_entrada_bitacora(pruebas.id('e_dec')) $q$, '42501');
 select pruebas.espera_error('X07 X etiqueta un lote ajeno en su propia bitácora',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_x'), null, 'observacion', 'x', array[pruebas.id('L1')]) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_x'), null, 'decision', 'x', array[pruebas.id('L1')]) $q$, '22023');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 9. Sin sesión (anon): ninguna función nueva
@@ -524,11 +526,11 @@ select pruebas.espera_error('N02 anon: unir_lotes',          $q$ select public.u
 select pruebas.espera_error('N03 anon: recategorizar_lote',  $q$ select public.recategorizar_lote(pruebas.id('L1'), public.fecha_hoy(), '[]'::jsonb) $q$, '42501');
 select pruebas.espera_error('N04 anon: linaje_lote',         $q$ select * from public.linaje_lote(pruebas.id('L1')) $q$, '42501');
 select pruebas.espera_error('N05 anon: stock_al',            $q$ select * from public.stock_al(pruebas.id('est_a'), public.fecha_hoy()) $q$, '42501');
-select pruebas.espera_error('N06 anon: crear_entrada_bitacora', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x') $q$, '42501');
+select pruebas.espera_error('N06 anon: crear_entrada_bitacora', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x') $q$, '42501');
 select pruebas.espera_error('N07 anon: editar_entrada_bitacora', $q$ select public.editar_entrada_bitacora(pruebas.id('e_dec'), public.fecha_hoy(), 'decision', 'x') $q$, '42501');
 select pruebas.espera_error('N08 anon: cambiar_estado_idea', $q$ select public.cambiar_estado_idea(pruebas.id('e_idea'), 'decidida') $q$, '42501');
-select pruebas.espera_error('N09 anon: anular_entrada_bitacora', $q$ select public.anular_entrada_bitacora(pruebas.id('e_dec'), 'x') $q$, '42501');
-select pruebas.espera_error('N10 anon: restaurar_entrada_bitacora', $q$ select public.restaurar_entrada_bitacora(pruebas.id('e_dec')) $q$, '42501');
+select pruebas.espera_error('N09 anon: eliminar_entrada_bitacora', $q$ select public.eliminar_entrada_bitacora(pruebas.id('e_dec')) $q$, '42501');
+select pruebas.espera_error('N10 anon: cambiar_estado_decision', $q$ select public.cambiar_estado_decision(pruebas.id('e_dec'), 'realizada') $q$, '42501');
 select pruebas.espera_error('N11 anon: leer la bitácora',     $q$ select count(*) from public.bitacora_entradas $q$, '42501');
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -541,8 +543,8 @@ select pruebas.espera_error('P01 Una idea no puede quedar sin estado (check, aun
   $q$ update public.bitacora_entradas set estado_idea = null where id = pruebas.id('e_idea') $q$, '23514');
 select pruebas.espera_error('P02 Lo que no es idea no puede tener estado',
   $q$ update public.bitacora_entradas set estado_idea = 'abierta' where id = pruebas.id('e_dec') $q$, '23514');
-select pruebas.espera_error('P03 Anulación incompleta (sin motivo)',
-  $q$ update public.bitacora_entradas set anulada_en = now(), anulada_por = pruebas.id('u_admin') where id = pruebas.id('e_dec') $q$, '23514');
+select pruebas.espera_error('P03 Un motivo sin eliminación',
+  $q$ update public.bitacora_entradas set motivo_anulacion = 'x' where id = pruebas.id('e_dec') $q$, '23514');
 select pruebas.espera_error('P04 Borrar una entrada, aun como postgres',
   $q$ delete from public.bitacora_entradas where id = pruebas.id('e_dec') $q$, '42501');
 select pruebas.espera_error('P05 Etiquetar un lote de otro establecimiento (FK compuesta)',
@@ -557,7 +559,7 @@ select pruebas.espera_valor('P07 Funciones nuevas: escritura sin anon; internas 
       where p.pronamespace = 'public'::regnamespace
         and p.proname in ('dividir_lote', 'unir_lotes', 'recategorizar_lote', 'linaje_lote', 'stock_al',
                           'crear_entrada_bitacora', 'editar_entrada_bitacora', 'cambiar_estado_idea',
-                          'anular_entrada_bitacora', 'restaurar_entrada_bitacora',
+                          'cambiar_estado_decision', 'eliminar_entrada_bitacora',
                           '_validar_fecha_operacion', '_cabezas', '_exigir_categoria', '_cerrar_si_vacio',
                           '_validar_entrada_bitacora', '_guardar_lotes_bitacora', '_bloquear_entrada_bitacora',
                           'bloquear_borrado') $q$, 'true');

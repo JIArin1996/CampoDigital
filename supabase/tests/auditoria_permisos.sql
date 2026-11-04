@@ -140,7 +140,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261104000400, sin anular_actividad): 146 filas, todas con ok = true.
+-- ESPERADO (después de 20261104000600, bitácora con tres tipos): 146 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -152,7 +152,9 @@ order by 1 desc, 2, 3, 4;
 -- +22 de 20261104000300: 13 internas (_actividad_para_editar, _actualizar_actividad, _cargar_destete, _cargar_diagnostico,
 -- _cargar_esquila, _cargar_mortandad, _cargar_paricion, _cargar_personalizada, _cargar_productos_sanidad, _cargar_servicio,
 -- _lote_para_editar, _origenes_destete, _validar_lote_cria), el trigger proteger_vinculo_de_actividad y las 8 editar_<tipo>;
--- -1 de 20261104000400: sale anular_actividad.)
+-- -1 de 20261104000400: sale anular_actividad;
+-- 0 de 20261104000600: entran cambiar_estado_decision y eliminar_entrada_bitacora, salen anular_entrada_bitacora
+-- y restaurar_entrada_bitacora.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -218,12 +220,12 @@ order by 1 desc, 2, 3, 4;
 --   adjuntar_archivo_actividad  | true             | true          | false | false
 --   adjuntar_archivo_lote       | true             | true          | false | false
 --   adjuntar_archivo_movimiento | true             | true          | false | false
---   anular_entrada_bitacora     | true             | true          | false | false
 --   anular_liquidacion          | true             | true          | false | false
 --   anular_movimiento           | true             | true          | false | false
 --   asignar_rol                 | true             | true          | false | false
 --   bloquear_borrado            | false            | false         | false | false
 --   bloquear_modificacion       | false            | false         | false | false
+--   cambiar_estado_decision     | true             | true          | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
 --   cambiar_estado_tarea        | true             | true          | false | false
 --   cambiar_potrero_lote        | true             | true          | false | false
@@ -250,6 +252,7 @@ order by 1 desc, 2, 3, 4;
 --   editar_servicio             | true             | true          | false | false
 --   editar_venta                | true             | true          | false | false
 --   eliminar_actividad          | true             | true          | false | false
+--   eliminar_entrada_bitacora   | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
 --   estadia_alta_lote           | true             | false         | false | false
@@ -293,7 +296,6 @@ order by 1 desc, 2, 3, 4;
 --   registrar_servicio          | true             | true          | false | false
 --   registrar_venta             | true             | true          | false | false
 --   restaurar_archivo_lote      | true             | true          | false | false
---   restaurar_entrada_bitacora  | true             | true          | false | false
 --   set_updated_at              | false            | false         | false | false
 --   sincronizar_nombre_persona  | true             | false         | false | false
 --   sincronizar_potrero_lote    | true             | false         | false | false
@@ -343,7 +345,7 @@ select
                                             'asignar_rol', 'quitar_acceso', 'definir_admin', 'definir_activo',
                                             'dividir_lote', 'unir_lotes', 'recategorizar_lote',
                                             'crear_entrada_bitacora', 'editar_entrada_bitacora', 'cambiar_estado_idea',
-                                            'anular_entrada_bitacora', 'restaurar_entrada_bitacora',
+                                            'cambiar_estado_decision', 'eliminar_entrada_bitacora',
                                             'registrar_pesada', 'registrar_mortandad', 'registrar_compra',
                                             'registrar_venta', 'registrar_paricion',
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',

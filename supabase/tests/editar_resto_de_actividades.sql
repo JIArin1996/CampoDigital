@@ -6,6 +6,7 @@
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS EDITAR EL RESTO DE LAS ACTIVIDADES: N OK, ...", que deshace todo.
 --      El resultado esperado es "68 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      Al día con 20261104000600_bitacora_tres_tipos: la próxima dosis dada figura como realizada en el calendario.
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
 --
 -- Las pruebas B05 y B06 miran los datos reales (antes de cargar los de prueba): verifican que las
@@ -423,7 +424,7 @@ select pruebas.espera_ok('D01 Reordenar: Ivermectina, Aftosa, Clostridial (cada 
 select pruebas.espera_valor('D02 El orden cambia y las marcas siguen con su producto (no con la posición)',
   $q$ select pruebas.productos('san') || '|' || pruebas.dadas('san')
           || '|' || (select string_agg(estado, ',' order by orden) from public.v_calendario where actividad_id = pruebas.id('san')) $q$,
-  'Ivermectina,Aftosa,Clostridial|Aftosa,Ivermectina|hecha,hecha');
+  'Ivermectina,Aftosa,Clostridial|Aftosa,Ivermectina|realizada,realizada');
 select pruebas.espera_valor('D03 Los productos conservan su id',
   $q$ select (pruebas.producto('san', 'Ivermectina') = pruebas.id('pI') and pruebas.producto('san', 'Aftosa') = pruebas.id('pA'))::text $q$, 'true');
 

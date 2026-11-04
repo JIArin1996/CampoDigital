@@ -1,7 +1,7 @@
 -- Campo Digital v2 — Pruebas de eliminar actividades, versiones anteriores y bitácora cerrada (paso 1)
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261104000500_arreglo_proteger_dato_de_actividad).
+--   1. Con todas las migraciones aplicadas (hasta 20261104000600_bitacora_tres_tipos).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ELIMINAR ACTIVIDADES: N OK, ...", que deshace todo.
 --      El resultado esperado es "76 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
@@ -293,7 +293,8 @@ select pruebas.espera_valor('B08 v_actividades no trae ninguna eliminada',
   $q$ select count(*)::text from public.v_actividades where anulada_en is not null $q$, '0');
 select pruebas.espera_valor('B09 Las entradas de bitácora cerradas tienen cuándo, y las abiertas no',
   $q$ select count(*)::text from public.bitacora_entradas
-      where coalesce((tipo = 'tarea' and estado_tarea in ('hecha', 'cancelada')) or (tipo = 'idea' and estado_idea in ('decidida', 'descartada')), false)
+      where coalesce((tipo = 'tarea' and estado_tarea in ('realizada', 'cancelada')) or (tipo = 'decision' and estado_decision = 'realizada')
+                     or (tipo = 'idea' and estado_idea in ('decidida', 'descartada')), false)
             <> (cerrada_en is not null) $q$, '0');
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -501,12 +502,12 @@ select pruebas.guardar('t1', $q$ select public.crear_entrada_bitacora(pruebas.id
       array[pruebas.id('LV')], null, pruebas.d(-3)) $q$);
 select pruebas.espera_valor('K01 Tarea pendiente: sin cerrada_en',
   $q$ select coalesce(cerrada_en::text, 'abierta') from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'abierta');
-select pruebas.espera_ok('K02 El operador la marca hecha',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'hecha') $q$);
-select pruebas.espera_valor('K03 Hecha: cerrada_en y cerrada_por (el operador)',
+select pruebas.espera_ok('K02 El operador la marca realizada',
+  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'realizada') $q$);
+select pruebas.espera_valor('K03 Realizada: cerrada_en y cerrada_por (el operador)',
   $q$ select (cerrada_en is not null)::text || '|' || (cerrada_por = pruebas.id('u_operador'))::text
       from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'true|true');
-select pruebas.espera_ok('K04 Editar el texto de la tarea hecha',
+select pruebas.espera_ok('K04 Editar el texto de la tarea realizada',
   $q$ select public.editar_entrada_bitacora(pruebas.id('t1'), public.fecha_hoy(), 'tarea', 'Revisar las aguadas del fondo',
       array[pruebas.id('LV')], null, pruebas.d(-3)) $q$);
 select pruebas.espera_valor('K05 Editar no cambia cuándo ni quién la cerró',
@@ -518,9 +519,9 @@ select pruebas.espera_valor('K07 Pendiente otra vez: sin cerrada_en ni cerrada_p
   $q$ select coalesce(cerrada_en::text, 'abierta') || '|' || coalesce(cerrada_por::text, 'nadie')
       from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'abierta|nadie');
 select pruebas.como('u_admin');
-select pruebas.espera_ok('K08 El administrador la cancela',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'cancelada') $q$);
-select pruebas.espera_valor('K09 Cancelada: cerrada por el administrador',
+select pruebas.espera_ok('K08 El administrador la marca realizada',
+  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'realizada') $q$);
+select pruebas.espera_valor('K09 Realizada: cerrada por el administrador',
   $q$ select (cerrada_en is not null and cerrada_por = pruebas.id('u_admin'))::text
       from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'true');
 
@@ -537,12 +538,12 @@ select pruebas.espera_ok('K13 Vuelve a abierta',
   $q$ select public.cambiar_estado_idea(pruebas.id('i1'), 'abierta') $q$);
 select pruebas.espera_valor('K14 Abierta otra vez: sin cerrada_en',
   $q$ select coalesce(cerrada_en::text, 'abierta') from public.bitacora_entradas where id = pruebas.id('i1') $q$, 'abierta');
-select pruebas.guardar('n1', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'Se cortó el alambrado', array[pruebas.id('LV')]) $q$);
-select pruebas.espera_valor('K15 Una observación nunca está cerrada',
+select pruebas.guardar('n1', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'Arreglar el alambrado', array[pruebas.id('LV')]) $q$);
+select pruebas.espera_valor('K15 Una decisión pendiente no está cerrada',
   $q$ select coalesce(cerrada_en::text, 'abierta') from public.bitacora_entradas where id = pruebas.id('n1') $q$, 'abierta');
 
 reset role;
-select pruebas.espera_ok('K16 Ni la base le pone cerrada_en a una observación...',
+select pruebas.espera_ok('K16 Ni la base le pone cerrada_en a una decisión pendiente...',
   $q$ update public.bitacora_entradas set cerrada_en = now(), cerrada_por = pruebas.id('u_admin') where id = pruebas.id('n1') $q$);
 select pruebas.espera_valor('K17 ...el trigger la deja vacía',
   $q$ select coalesce(cerrada_en::text, 'abierta') || '|' || coalesce(cerrada_por::text, 'nadie')

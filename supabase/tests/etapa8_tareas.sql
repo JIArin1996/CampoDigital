@@ -5,6 +5,7 @@
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS ETAPA 8 (TAREAS): N OK, ...", que deshace todo.
 --      El resultado esperado es "44 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      Al día con 20261104000600_bitacora_tres_tipos: la tarea es pendiente o realizada (sin cancelar) y se elimina.
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
 --
 -- Fechas relativas a hoy (fecha de Montevideo): "d-10" = hace 10 días.
@@ -218,6 +219,17 @@ begin
   perform set_config('request.jwt.claims', v_antes, true);
 end $$;
 
+-- Elimina una entrada de bitácora como administrador (desde 20261104000600 solo él elimina) y vuelve
+-- al usuario que estaba
+create function pruebas.eliminar_entrada(p_entrada uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_entrada_bitacora(p_entrada);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -273,7 +285,7 @@ select pruebas.espera_valor('T01 Tarea: pendiente, con vencimiento, responsable 
 select pruebas.espera_error('T02 Una tarea sin vencimiento',
   $q$ select pruebas.tarea('Algún día', null) $q$, '22023');
 select pruebas.espera_error('T03 Una nota que no es tarea no lleva vencimiento',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, null, pruebas.d(-1)) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null, null, pruebas.d(-1)) $q$, '22023');
 select pruebas.espera_error('T04 Repetición de 0 días',
   $q$ select pruebas.tarea('x', pruebas.d(-1), 0) $q$, '22023');
 select pruebas.espera_ok('T05 Editar la tarea: otro texto y otro vencimiento',
@@ -282,26 +294,26 @@ select pruebas.espera_ok('T05 Editar la tarea: otro texto y otro vencimiento',
 select pruebas.espera_valor('T06 Sigue pendiente, con el vencimiento nuevo, y cuenta como editada',
   $q$ select estado_tarea || '|' || (vencimiento = pruebas.d(-7))::text || '|' || (editada_en is not null)::text
       from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'pendiente|true|true');
-select pruebas.espera_valor('T07 Marcar hecha: sin repetición, no crea otra',
-  $q$ select coalesce(public.cambiar_estado_tarea(pruebas.id('t1'), 'hecha')::text, 'sin siguiente') $q$, 'sin siguiente');
-select pruebas.espera_valor('T08 Hecha, con quién y cuándo',
+select pruebas.espera_valor('T07 Marcar realizada: sin repetición, no crea otra',
+  $q$ select coalesce(public.cambiar_estado_tarea(pruebas.id('t1'), 'realizada')::text, 'sin siguiente') $q$, 'sin siguiente');
+select pruebas.espera_valor('T08 Realizada, con quién y cuándo',
   $q$ select estado_tarea || '|' || (completada_por = pruebas.id('u_operador'))::text || '|' || (completada_en is not null)::text
-      from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'hecha|true|true');
-select pruebas.espera_error('T09 Ya hecha: no se vuelve a marcar',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'hecha') $q$, '22023');
+      from public.bitacora_entradas where id = pruebas.id('t1') $q$, 'realizada|true|true');
+select pruebas.espera_error('T09 Ya realizada: no se vuelve a marcar',
+  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'realizada') $q$, '22023');
 select pruebas.espera_ok('T10 Reabrir',
   $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'pendiente') $q$);
-select pruebas.espera_valor('T11 Reabierta: pendiente y sin datos de hecha',
+select pruebas.espera_valor('T11 Reabierta: pendiente y sin datos de realizada',
   $q$ select estado_tarea || '|' || (completada_en is null and completada_por is null)::text from public.bitacora_entradas where id = pruebas.id('t1') $q$,
   'pendiente|true');
-select pruebas.espera_ok('T12 Cancelar',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'cancelada') $q$);
-select pruebas.preparar('anular_t1', $q$ select public.anular_entrada_bitacora(pruebas.id('t1'), 'Cargada de más') $q$);
-select pruebas.espera_error('T13 Una tarea anulada no cambia de estado',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'pendiente') $q$, '22023');
-select pruebas.guardar('nota', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'Aguada baja') $q$);
+select pruebas.espera_error('T12 Cancelar ya no existe',
+  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'cancelada') $q$, '22023');
+select pruebas.preparar('eliminar_t1', $q$ select pruebas.eliminar_entrada(pruebas.id('t1')) $q$);
+select pruebas.espera_error('T13 Una tarea eliminada no cambia de estado',
+  $q$ select public.cambiar_estado_tarea(pruebas.id('t1'), 'realizada') $q$, '22023');
+select pruebas.guardar('nota', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'Bajar la carga del bajo') $q$);
 select pruebas.espera_error('T14 Una nota que no es tarea no tiene este estado',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('nota'), 'hecha') $q$, '22023');
+  $q$ select public.cambiar_estado_tarea(pruebas.id('nota'), 'realizada') $q$, '22023');
 select pruebas.espera_valor('T15 Una nota que no es tarea no tiene vencimiento ni estado de tarea',
   $q$ select coalesce(vencimiento::text, 'sin vencimiento') || '|' || coalesce(estado_tarea, 'sin estado') from public.bitacora_entradas where id = pruebas.id('nota') $q$,
   'sin vencimiento|sin estado');
@@ -313,23 +325,25 @@ select pruebas.espera_valor('T15 Una nota que no es tarea no tiene vencimiento n
 -- Adelantada (vence en 10 días, cada 7, hecha hoy): la siguiente vence en 17 (conserva el ritmo).
 
 select pruebas.guardar('r1', $q$ select pruebas.tarea('Revisar aguadas', pruebas.d(30), 15, null, array[pruebas.id('LV')]) $q$);
-select pruebas.guardar('r1_sig', $q$ select public.cambiar_estado_tarea(pruebas.id('r1'), 'hecha') $q$);
+select pruebas.guardar('r1_sig', $q$ select public.cambiar_estado_tarea(pruebas.id('r1'), 'realizada') $q$);
 select pruebas.espera_valor('R01 Atrasada: la siguiente vence hoy + 15, pendiente, con el mismo texto, lote, repetición y la anterior',
   $q$ select (s.vencimiento = public.fecha_hoy() + 15)::text || '|' || s.estado_tarea || '|' || s.texto || '|' || s.repetir_cada_dias || '|'
           || (s.tarea_anterior_id = pruebas.id('r1'))::text || '|' || (select count(*) from public.bitacora_lotes l where l.entrada_id = s.id)
       from public.bitacora_entradas s where s.id = pruebas.id('r1_sig') $q$, 'true|pendiente|Revisar aguadas|15|true|1');
 select pruebas.guardar('r2', $q$ select pruebas.tarea('Recorrer alambrados', pruebas.d(-10), 7) $q$);
-select pruebas.guardar('r2_sig', $q$ select public.cambiar_estado_tarea(pruebas.id('r2'), 'hecha') $q$);
+select pruebas.guardar('r2_sig', $q$ select public.cambiar_estado_tarea(pruebas.id('r2'), 'realizada') $q$);
 select pruebas.espera_valor('R02 Adelantada: la siguiente vence en 17 días (vencimiento + 7), no en 7',
   $q$ select (vencimiento = public.fecha_hoy() + 17)::text from public.bitacora_entradas where id = pruebas.id('r2_sig') $q$, 'true');
-select pruebas.espera_error('R03 Reabrir una que ya generó la siguiente: hay que anular esa antes',
+select pruebas.espera_error('R03 Reabrir una que ya generó la siguiente: hay que eliminar esa antes',
   $q$ select public.cambiar_estado_tarea(pruebas.id('r1'), 'pendiente') $q$, '22023');
-select pruebas.preparar('anular_r1_sig', $q$ select public.anular_entrada_bitacora(pruebas.id('r1_sig'), 'Se reabre la anterior') $q$);
-select pruebas.espera_ok('R04 Con la siguiente anulada, se reabre',
+select pruebas.preparar('eliminar_r1_sig', $q$ select pruebas.eliminar_entrada(pruebas.id('r1_sig')) $q$);
+select pruebas.espera_ok('R04 Con la siguiente eliminada, se reabre',
   $q$ select public.cambiar_estado_tarea(pruebas.id('r1'), 'pendiente') $q$);
 select pruebas.guardar('r3', $q$ select pruebas.tarea('Revisar bebederos', pruebas.d(-3), 30) $q$);
-select pruebas.espera_valor('R05 Cancelar una repetida termina la repetición: no crea la siguiente',
-  $q$ select coalesce(public.cambiar_estado_tarea(pruebas.id('r3'), 'cancelada')::text, 'sin siguiente') $q$, 'sin siguiente');
+select pruebas.preparar('sin_repetir_r3', $q$ select public.editar_entrada_bitacora(pruebas.id('r3'), public.fecha_hoy(), 'tarea',
+      'Revisar bebederos', null, null, pruebas.d(-3)) $q$);
+select pruebas.espera_valor('R05 Sacarle la repetición al editarla termina la repetición: realizada no crea la siguiente',
+  $q$ select coalesce(public.cambiar_estado_tarea(pruebas.id('r3'), 'realizada')::text, 'sin siguiente') $q$, 'sin siguiente');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 5. Tarea desde una nota
@@ -344,9 +358,9 @@ select pruebas.espera_error('O02 La nota de origen no puede ser otra tarea',
   $q$ select pruebas.tarea('x', pruebas.d(-1), null, pruebas.id('t_idea')) $q$, '22023');
 select pruebas.espera_error('O03 Ni una inexistente (o de otro establecimiento)',
   $q$ select pruebas.tarea('x', pruebas.d(-1), null, gen_random_uuid()) $q$, '22023');
-select pruebas.espera_ok('O04 Una tarea pasa a ser observación',
-  $q$ select public.editar_entrada_bitacora(pruebas.id('t_idea'), public.fecha_hoy(), 'observacion', 'Comprar ración') $q$);
-select pruebas.espera_valor('O05 ...y pierde vencimiento, estado y vínculo',
+select pruebas.espera_ok('O04 Una tarea pasa a ser decisión',
+  $q$ select public.editar_entrada_bitacora(pruebas.id('t_idea'), public.fecha_hoy(), 'decision', 'Comprar ración') $q$);
+select pruebas.espera_valor('O05 ...y pierde vencimiento, estado de tarea y vínculo',
   $q$ select coalesce(vencimiento::text, '-') || '|' || coalesce(estado_tarea, '-') || '|' || coalesce(entrada_origen_id::text, '-')
       from public.bitacora_entradas where id = pruebas.id('t_idea') $q$, '-|-|-');
 
@@ -363,8 +377,8 @@ select pruebas.espera_valor('D01 La próxima dosis aparece sola en el calendario
       from public.v_calendario where origen = 'dosis' and actividad_id = pruebas.id('san') $q$, 'Próxima dosis: Aftosa|pendiente|true|true');
 select pruebas.espera_ok('D02 Marcar la dosis como dada',
   $q$ select public.marcar_dosis_dada(pruebas.id('san'), 1) $q$);
-select pruebas.espera_valor('D03 En el calendario figura hecha',
-  $q$ select estado from public.v_calendario where origen = 'dosis' and actividad_id = pruebas.id('san') $q$, 'hecha');
+select pruebas.espera_valor('D03 En el calendario figura realizada',
+  $q$ select estado from public.v_calendario where origen = 'dosis' and actividad_id = pruebas.id('san') $q$, 'realizada');
 select pruebas.espera_ok('D04 Desmarcarla',
   $q$ select public.marcar_dosis_dada(pruebas.id('san'), 1, false) $q$);
 select pruebas.espera_valor('D05 Vuelve a pendiente (la marca no se borra: queda deshecha)',
@@ -372,10 +386,10 @@ select pruebas.espera_valor('D05 Vuelve a pendiente (la marca no se borra: queda
           || (select count(*) from public.sanidad_dosis_dadas where actividad_id = pruebas.id('san')) $q$, 'pendiente|1');
 select pruebas.espera_error('D06 Un producto sin próxima dosis no se marca',
   $q$ select public.marcar_dosis_dada(pruebas.id('san'), 2) $q$, '22023');
-select pruebas.espera_valor('D07 El calendario muestra las tareas no anuladas con su fecha y estado (r1 pendiente, r2 hecha y su siguiente)',
+select pruebas.espera_valor('D07 El calendario muestra las tareas no eliminadas con su fecha y estado (r1 pendiente, r2 realizada y su siguiente)',
   $q$ select string_agg(estado, ',' order by fecha) from public.v_calendario
       where origen = 'tarea' and entrada_id in (pruebas.id('r1'), pruebas.id('r2'), pruebas.id('r2_sig'), pruebas.id('r1_sig')) $q$,
-  'pendiente,hecha,pendiente');
+  'pendiente,realizada,pendiente');
 select pruebas.preparar('anular_san', $q$ select pruebas.eliminar(pruebas.id('san')) $q$);
 select pruebas.espera_valor('D08 Si se anula la sanidad, la próxima dosis desaparece del calendario',
   $q$ select count(*)::text from public.v_calendario where origen = 'dosis' and actividad_id = pruebas.id('san') $q$, '0');
@@ -392,13 +406,13 @@ select pruebas.espera_valor('Q01 Consulta ve el calendario',
 select pruebas.espera_error('Q02 Consulta no crea tareas',
   $q$ select pruebas.tarea('x', pruebas.d(-1)) $q$, '42501');
 select pruebas.espera_error('Q03 Consulta no marca tareas',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('r2_sig'), 'hecha') $q$, '42501');
+  $q$ select public.cambiar_estado_tarea(pruebas.id('r2_sig'), 'realizada') $q$, '42501');
 
 select pruebas.como('u_ajeno');
 select pruebas.espera_valor('X01 Otro establecimiento no ve el calendario de Santa Remigia',
   $q$ select count(*)::text from public.v_calendario where establecimiento_id = pruebas.id('est_a') $q$, '0');
 select pruebas.espera_error('X02 ...ni marca sus tareas',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('r2_sig'), 'hecha') $q$, '42501');
+  $q$ select public.cambiar_estado_tarea(pruebas.id('r2_sig'), 'realizada') $q$, '42501');
 
 reset role;
 set local role anon;
@@ -406,7 +420,7 @@ select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select pruebas.espera_error('N01 anon no lee el calendario',
   $q$ select count(*) from public.v_calendario $q$, '42501');
 select pruebas.espera_error('N02 anon no marca tareas',
-  $q$ select public.cambiar_estado_tarea(pruebas.id('r2_sig'), 'hecha') $q$, '42501');
+  $q$ select public.cambiar_estado_tarea(pruebas.id('r2_sig'), 'realizada') $q$, '42501');
 
 reset role;
 
