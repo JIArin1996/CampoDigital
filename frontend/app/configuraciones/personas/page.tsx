@@ -9,6 +9,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { actualizarPersona, crearPersona, getPersonas, type Persona } from "@/lib/queries/bitacora"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -36,7 +37,7 @@ export default function ConfiguracionPersonasPage() {
     </Link>
   )
 
-  if (cargando) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!esAdmin) return <PageContainer>{volver}<p className="text-muted-foreground">Las personas las administra el administrador.</p></PageContainer>
   if (!establecimientoActivo) return <PageContainer>{volver}<p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
 

@@ -367,6 +367,7 @@ export type Database = {
           dosis: string | null
           establecimiento_id: string
           fecha_proxima_dosis: string | null
+          id: string
           orden: number
           producto: string
           via: string | null
@@ -380,6 +381,7 @@ export type Database = {
           dosis?: string | null
           establecimiento_id: string
           fecha_proxima_dosis?: string | null
+          id?: string
           orden: number
           producto: string
           via?: string | null
@@ -393,6 +395,7 @@ export type Database = {
           dosis?: string | null
           establecimiento_id?: string
           fecha_proxima_dosis?: string | null
+          id?: string
           orden?: number
           producto?: string
           via?: string | null
@@ -720,6 +723,8 @@ export type Database = {
           anulada_por: string | null
           created_at: string
           created_by: string | null
+          editada_en: string | null
+          editada_por: string | null
           establecimiento_id: string
           fecha: string
           id: string
@@ -734,6 +739,8 @@ export type Database = {
           anulada_por?: string | null
           created_at?: string
           created_by?: string | null
+          editada_en?: string | null
+          editada_por?: string | null
           establecimiento_id: string
           fecha: string
           id?: string
@@ -748,6 +755,8 @@ export type Database = {
           anulada_por?: string | null
           created_at?: string
           created_by?: string | null
+          editada_en?: string | null
+          editada_por?: string | null
           establecimiento_id?: string
           fecha?: string
           id?: string
@@ -829,6 +838,8 @@ export type Database = {
         Row: {
           anulada_en: string | null
           anulada_por: string | null
+          cerrada_en: string | null
+          cerrada_por: string | null
           completada_en: string | null
           completada_por: string | null
           created_at: string
@@ -837,6 +848,7 @@ export type Database = {
           editada_por: string | null
           entrada_origen_id: string | null
           establecimiento_id: string
+          estado_decision: string | null
           estado_idea: string | null
           estado_tarea: string | null
           fecha: string
@@ -852,6 +864,8 @@ export type Database = {
         Insert: {
           anulada_en?: string | null
           anulada_por?: string | null
+          cerrada_en?: string | null
+          cerrada_por?: string | null
           completada_en?: string | null
           completada_por?: string | null
           created_at?: string
@@ -860,6 +874,7 @@ export type Database = {
           editada_por?: string | null
           entrada_origen_id?: string | null
           establecimiento_id: string
+          estado_decision?: string | null
           estado_idea?: string | null
           estado_tarea?: string | null
           fecha?: string
@@ -875,6 +890,8 @@ export type Database = {
         Update: {
           anulada_en?: string | null
           anulada_por?: string | null
+          cerrada_en?: string | null
+          cerrada_por?: string | null
           completada_en?: string | null
           completada_por?: string | null
           created_at?: string
@@ -883,6 +900,7 @@ export type Database = {
           editada_por?: string | null
           entrada_origen_id?: string | null
           establecimiento_id?: string
+          estado_decision?: string | null
           estado_idea?: string | null
           estado_tarea?: string | null
           fecha?: string
@@ -2534,7 +2552,7 @@ export type Database = {
           deshecha_en: string | null
           deshecha_por: string | null
           establecimiento_id: string
-          orden: number
+          producto_id: string
         }
         Insert: {
           actividad_id: string
@@ -2543,7 +2561,7 @@ export type Database = {
           deshecha_en?: string | null
           deshecha_por?: string | null
           establecimiento_id: string
-          orden: number
+          producto_id?: string
         }
         Update: {
           actividad_id?: string
@@ -2552,7 +2570,7 @@ export type Database = {
           deshecha_en?: string | null
           deshecha_por?: string | null
           establecimiento_id?: string
-          orden?: number
+          producto_id?: string
         }
         Relationships: [
           {
@@ -2669,6 +2687,8 @@ export type Database = {
           contraparte: string | null
           created_at: string | null
           created_by: string | null
+          editada_en: string | null
+          editada_por: string | null
           establecimiento_id: string | null
           fecha: string | null
           id: string | null
@@ -2734,6 +2754,7 @@ export type Database = {
           lotes: string[] | null
           orden: number | null
           origen: string | null
+          producto_id: string | null
           repetir_cada_dias: number | null
           responsables: string[] | null
           texto: string | null
@@ -3411,14 +3432,6 @@ export type Database = {
         }
         Returns: string
       }
-      anular_actividad: {
-        Args: { p_actividad_id: string; p_motivo: string }
-        Returns: undefined
-      }
-      anular_entrada_bitacora: {
-        Args: { p_entrada_id: string; p_motivo: string }
-        Returns: undefined
-      }
       anular_liquidacion: {
         Args: { p_id: string; p_motivo: string }
         Returns: undefined
@@ -3429,6 +3442,10 @@ export type Database = {
       }
       asignar_rol: {
         Args: { p_establecimiento_id: string; p_rol: string; p_user_id: string }
+        Returns: undefined
+      }
+      cambiar_estado_decision: {
+        Args: { p_entrada_id: string; p_estado: string }
         Returns: undefined
       }
       cambiar_estado_idea: {
@@ -3527,6 +3544,44 @@ export type Database = {
         }
         Returns: string
       }
+      editar_compra: {
+        Args: {
+          p_actividad_id: string
+          p_contraparte?: string
+          p_fecha: string
+          p_kg_gancho?: number
+          p_lineas: Json
+          p_lote_id?: string
+          p_modalidad: string
+          p_notas?: string
+          p_precio?: Json
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_destete: {
+        Args: {
+          p_actividad_id: string
+          p_destinos: Json
+          p_fecha: string
+          p_notas?: string
+          p_origenes: Json
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_diagnostico: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_lote_id: string
+          p_notas?: string
+          p_responsables?: string[]
+          p_vacas_diagnosticadas: number
+          p_vacas_prenadas: number
+        }
+        Returns: string
+      }
       editar_entrada_bitacora: {
         Args: {
           p_entrada_id: string
@@ -3539,6 +3594,30 @@ export type Database = {
           p_vencimiento?: string
         }
         Returns: undefined
+      }
+      editar_esquila: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_kg_lana_total: number
+          p_lotes: string[]
+          p_notas?: string
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_mortandad: {
+        Args: {
+          p_actividad_id: string
+          p_causa?: string
+          p_fecha: string
+          p_lineas: Json
+          p_lote_id: string
+          p_notas?: string
+          p_observaciones?: string
+          p_responsables?: string[]
+        }
+        Returns: string
       }
       editar_movimiento: {
         Args: {
@@ -3557,6 +3636,88 @@ export type Database = {
       es_admin: { Args: never; Returns: boolean }
       es_miembro: { Args: { p_est: string }; Returns: boolean }
       fecha_hoy: { Args: never; Returns: string }
+      editar_paricion: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_lineas: Json
+          p_lote_cria_id?: string
+          p_lote_madres_id: string
+          p_nacidos_muertos?: number
+          p_notas?: string
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_personalizada: {
+        Args: {
+          p_actividad_id: string
+          p_campos?: Json
+          p_fecha: string
+          p_lotes: string[]
+          p_nombre: string
+          p_notas?: string
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_pesada: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_lineas: Json
+          p_lote_id: string
+          p_notas?: string
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_sanidad: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_lotes: string[]
+          p_notas?: string
+          p_productos: Json
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      editar_servicio: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_lote_id: string
+          p_notas?: string
+          p_responsables?: string[]
+          p_toros?: number
+          p_vacas_entoradas: number
+        }
+        Returns: string
+      }
+      editar_venta: {
+        Args: {
+          p_actividad_id: string
+          p_contraparte?: string
+          p_fecha: string
+          p_kg_gancho?: number
+          p_lineas: Json
+          p_lote_id: string
+          p_modalidad: string
+          p_notas?: string
+          p_precio?: Json
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      eliminar_actividad: {
+        Args: { p_actividad_id: string }
+        Returns: undefined
+      }
+      eliminar_entrada_bitacora: {
+        Args: { p_entrada_id: string }
+        Returns: undefined
+      }
       guardar_forma_potrero: {
         Args: {
           p_actualizar_superficie?: boolean
@@ -3809,10 +3970,6 @@ export type Database = {
       }
       restaurar_archivo_lote: {
         Args: { p_archivo_id: string; p_lote_id: string }
-        Returns: undefined
-      }
-      restaurar_entrada_bitacora: {
-        Args: { p_entrada_id: string }
         Returns: undefined
       }
       stock_al: {

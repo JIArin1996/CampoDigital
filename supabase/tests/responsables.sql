@@ -5,6 +5,7 @@
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS RESPONSABLES: N OK, ...", que deshace todo.
 --      El resultado esperado es "47 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      Al día con 20261104000600_bitacora_tres_tipos: las notas son decisiones y la tarea se marca realizada.
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
 --
 -- Fechas relativas a hoy (fecha de Montevideo): "d-10" = hace 10 días.
@@ -198,15 +199,26 @@ exception when others then
   end if;
 end $$;
 
--- Línea de una actividad: {"categoria_id", "cabezas"}
-create function pruebas.lin(p_cat text, p_cabezas int) returns jsonb language sql stable as $$
-  select jsonb_build_object('categoria_id', pruebas.id(p_cat), 'cabezas', p_cabezas)
+-- Línea de una actividad: {"categoria_id", "cabezas", "peso_vivo_total_kg"?} (sin peso, la clave no va)
+create function pruebas.lin(p_cat text, p_cabezas int, p_peso numeric default null) returns jsonb language sql stable as $$
+  select jsonb_strip_nulls(jsonb_build_object('categoria_id', pruebas.id(p_cat), 'cabezas', p_cabezas, 'peso_vivo_total_kg', p_peso))
 $$;
 
 -- Cuántos responsables tiene una nota o tarea
 create function pruebas.resp_entrada(p_clave text) returns int language sql stable as $$
   select count(*)::int from public.bitacora_responsables where entrada_id = pruebas.id(p_clave)
 $$;
+
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
 
 grant execute on all functions in schema pruebas to authenticated, anon;
 
@@ -310,15 +322,15 @@ select pruebas.espera_valor('E02 Tarea con el operador, el administrador y algui
 select pruebas.espera_valor('E03 v_calendario trae los 3, ordenados',
   $q$ select (responsables = (select array_agg(x order by x) from unnest(array[pruebas.id('per_oper'), pruebas.id('per_admin'), pruebas.id('per_juan')]) x))::text
       from public.v_calendario where entrada_id = pruebas.id('t1') $q$, 'true');
-select pruebas.guardar('n1', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'Se cortó el alambrado') $q$);
+select pruebas.guardar('n1', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'Arreglar el alambrado') $q$);
 select pruebas.espera_valor('E04 Nota sin responsables: ninguna fila',
   $q$ select pruebas.resp_entrada('n1')::text $q$, '0');
 select pruebas.espera_error('E05 Responsable de otro establecimiento',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, array[pruebas.id('per_ajeno')]) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null, array[pruebas.id('per_ajeno')]) $q$, '22023');
 select pruebas.espera_error('E06 Un responsable vacío en la lista',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, array[pruebas.id('per_oper'), null]) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null, array[pruebas.id('per_oper'), null]) $q$, '22023');
 select pruebas.espera_error('E07 Más de 10 responsables',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null,
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null,
       array(select gen_random_uuid() from generate_series(1, 11))) $q$, '22023');
 
 -- Responsables inactivos: no se asignan, pero los que ya estaban se pueden dejar
@@ -329,7 +341,7 @@ select pruebas.espera_ok('E08 El administrador desactiva a la veterinaria',
   $q$ update public.personas set activo = false where id = pruebas.id('per_vete') $q$);
 select pruebas.como('u_operador');
 select pruebas.espera_error('E09 No se asigna una persona inactiva',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, array[pruebas.id('per_vete')]) $q$, '22023');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null, array[pruebas.id('per_vete')]) $q$, '22023');
 select pruebas.espera_ok('E10 Al editar, la inactiva que ya tenía se puede dejar (y se suma otra)',
   $q$ select public.editar_entrada_bitacora(pruebas.id('t2'), public.fecha_hoy(), 'tarea', 'Vacunar las vaquillonas', null,
       array[pruebas.id('per_vete'), pruebas.id('per_oper')], pruebas.d(-10)) $q$);
@@ -352,7 +364,7 @@ select pruebas.espera_valor('E16 La tarea t2 queda sin responsables',
 -- Tarea repetida: la siguiente copia los responsables
 select pruebas.guardar('t3', $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'tarea', 'Recorrer los potreros', null,
       array[pruebas.id('per_oper'), pruebas.id('per_juan')], pruebas.d(-1), 7) $q$);
-select pruebas.guardar('t3_sig', $q$ select public.cambiar_estado_tarea(pruebas.id('t3'), 'hecha') $q$);
+select pruebas.guardar('t3_sig', $q$ select public.cambiar_estado_tarea(pruebas.id('t3'), 'realizada') $q$);
 select pruebas.espera_valor('E17 La tarea siguiente tiene los mismos 2 responsables',
   $q$ select (array(select persona_id from public.bitacora_responsables where entrada_id = pruebas.id('t3_sig') order by persona_id)
              = array(select persona_id from public.bitacora_responsables where entrada_id = pruebas.id('t3') order by persona_id)
@@ -369,13 +381,13 @@ select pruebas.espera_valor('E18 Las vencidas que le tocan al operador: las que 
 select pruebas.guardar('LV', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'LV Novillos', pruebas.d(60), pruebas.comp('novillos', 20)) $q$);
 select pruebas.guardar('pe_id', $q$ select gen_random_uuid() $q$);
 select pruebas.guardar('pe1', $q$ select public.registrar_pesada(p_id => pruebas.id('pe_id'), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(2),
-      p_lineas => jsonb_build_array(pruebas.lin('novillos', 20)),
+      p_lineas => jsonb_build_array(pruebas.lin('novillos', 20, 8000)),
       p_responsables => array[pruebas.id('per_oper'), pruebas.id('per_admin'), pruebas.id('per_juan')]) $q$);
 select pruebas.espera_valor('C01 Pesada con 3 responsables: v_actividades los trae',
   $q$ select cardinality(responsables)::text from public.v_actividades where id = pruebas.id('pe1') $q$, '3');
 select pruebas.espera_ok('C02 La misma pesada otra vez (mismo id, otro responsable): no hace nada',
   $q$ select public.registrar_pesada(p_id => pruebas.id('pe_id'), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(2),
-      p_lineas => jsonb_build_array(pruebas.lin('novillos', 20)), p_responsables => array[pruebas.id('per_oper')]) $q$);
+      p_lineas => jsonb_build_array(pruebas.lin('novillos', 20, 8000)), p_responsables => array[pruebas.id('per_oper')]) $q$);
 select pruebas.espera_valor('C03 Siguen los 3 responsables',
   $q$ select count(*)::text from public.actividad_responsables where actividad_id = pruebas.id('pe1') $q$, '3');
 select pruebas.guardar('m1', $q$ select public.registrar_mortandad(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(1),
@@ -384,15 +396,15 @@ select pruebas.espera_valor('C04 Mortandad sin responsables: lista vacía',
   $q$ select responsables::text from public.v_actividades where id = pruebas.id('m1') $q$, '{}');
 select pruebas.espera_error('C05 Actividad con una persona inactiva',
   $q$ select public.registrar_pesada(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(1),
-      p_lineas => jsonb_build_array(pruebas.lin('novillos', 19)), p_responsables => array[pruebas.id('per_vete')]) $q$, '22023');
+      p_lineas => jsonb_build_array(pruebas.lin('novillos', 19, 7600)), p_responsables => array[pruebas.id('per_vete')]) $q$, '22023');
 select pruebas.espera_error('C06 Actividad con un responsable de otro establecimiento',
   $q$ select public.registrar_pesada(p_id => gen_random_uuid(), p_lote_id => pruebas.id('LV'), p_fecha => pruebas.d(1),
-      p_lineas => jsonb_build_array(pruebas.lin('novillos', 19)), p_responsables => array[pruebas.id('per_ajeno')]) $q$, '22023');
+      p_lineas => jsonb_build_array(pruebas.lin('novillos', 19, 7600)), p_responsables => array[pruebas.id('per_ajeno')]) $q$, '22023');
 select pruebas.espera_error('C07 El operador no escribe directo en los responsables de una actividad',
   $q$ insert into public.actividad_responsables (establecimiento_id, actividad_id, persona_id)
       values (pruebas.id('est_a'), pruebas.id('m1'), pruebas.id('per_oper')) $q$, '42501');
-select pruebas.espera_ok('C08 Anular la pesada sigue funcionando (proteger_actividad sin la columna)',
-  $q$ select public.anular_actividad(pruebas.id('pe1'), 'Pesada repetida') $q$);
+select pruebas.espera_ok('C08 Eliminar la pesada (administrador) sigue funcionando',
+  $q$ select pruebas.eliminar(pruebas.id('pe1')) $q$);
 
 reset role;
 select pruebas.espera_error('C09 Ni la base puede cambiar los responsables de una actividad',
@@ -410,7 +422,7 @@ select pruebas.espera_error('Q02 Consulta no escribe responsables',
   $q$ insert into public.bitacora_responsables (establecimiento_id, entrada_id, persona_id)
       values (pruebas.id('est_a'), pruebas.id('n1'), pruebas.id('per_juan')) $q$, '42501');
 select pruebas.espera_error('Q03 Consulta no carga notas con responsables',
-  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'observacion', 'x', null, array[pruebas.id('per_juan')]) $q$, '42501');
+  $q$ select public.crear_entrada_bitacora(pruebas.id('est_a'), null, 'decision', 'x', null, array[pruebas.id('per_juan')]) $q$, '42501');
 select pruebas.como('u_ajeno');
 select pruebas.espera_valor('Q04 El operador de otro campo no ve los responsables de Santa Remigia',
   $q$ select ((select count(*) from public.bitacora_responsables where establecimiento_id = pruebas.id('est_a'))

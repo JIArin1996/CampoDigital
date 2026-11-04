@@ -220,6 +220,17 @@ create function pruebas.estadias(p_lote text) returns text language sql stable a
   from public.lote_estadias e join public.potreros p on p.id = e.potrero_id
   where e.lote_id = pruebas.id(p_lote)
 $$;
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -447,7 +458,7 @@ select pruebas.espera_valor('D01 Destete: LC se cierra y cierra su estadía; LD 
   $q$ select (select estado from public.lotes where id = pruebas.id('LC')) || '|' || pruebas.estadias('LC') || ' / ' || pruebas.estadias('LD') $q$,
   'cerrado|Potrero 3 100-10 cierre alta / Potrero 2 10-abierta - alta');
 select pruebas.espera_ok('D02 Anular el destete',
-  $q$ select public.anular_actividad(pruebas.id('dest'), 'Prueba') $q$);
+  $q$ select pruebas.eliminar(pruebas.id('dest')) $q$);
 select pruebas.espera_valor('D03 Anulación: LC se reabre en la MISMA estadía (abierta otra vez); LD se cierra con la suya',
   $q$ select (select estado from public.lotes where id = pruebas.id('LC')) || '|'
           || (select (fecha_salida is null and cerrada_por is null)::text from public.lote_estadias where id = pruebas.id('LC_est')) || '|'

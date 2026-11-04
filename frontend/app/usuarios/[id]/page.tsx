@@ -11,6 +11,7 @@ import { asignarRol, definirAdmin, getMembresias, getPerfil, quitarAcceso, updat
 import { cambiarEmail, cambiarEstadoUsuario, resetearContrasena } from "@/app/usuarios/acciones"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,13 +52,13 @@ export default function UsuarioPage() {
     </Link>
   )
 
-  if (cargando) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!esAdmin) return <PageContainer>{volver}<p className="text-muted-foreground">Solo un administrador puede gestionar usuarios.</p></PageContainer>
 
   // Mientras recarga se sigue mostrando la ficha anterior
   const vigente = ficha && ficha.clave.startsWith(`${id}:`) ? ficha : null
   if (error && !vigente) return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
-  if (!vigente) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (!vigente) return <PageContainer>{volver}<Cargando /></PageContainer>
 
   const { perfil, membresias } = vigente
   if (!perfil) return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró el usuario.</p></PageContainer>

@@ -34,7 +34,7 @@ const REPETICIONES = [7, 15, 30, 60, 90, 180, 365]
 export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInicial, venceInicial, origen }: Props) {
   const router = useRouter()
   const [opciones, setOpciones] = useState<{ lotes: Lote[]; personas: Persona[] } | null>(null)
-  const [tipo, setTipo] = useState<TipoEntrada>(inicial?.tipo ?? (origen ? "tarea" : tipoInicial ?? "observacion"))
+  const [tipo, setTipo] = useState<TipoEntrada>(inicial?.tipo ?? (origen ? "tarea" : tipoInicial ?? "idea"))
   const [fecha, setFecha] = useState(inicial?.fecha ?? hoyLocal())
   const [texto, setTexto] = useState(inicial?.texto ?? origen?.texto ?? "")
   const [lotes, setLotes] = useState<string[]>(inicial?.lotes ?? origen?.lotes ?? (loteInicial ? [loteInicial] : []))
@@ -80,7 +80,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
         toast.success(esTarea ? "Tarea editada" : "Entrada editada")
       } else {
         await crearEntrada(establecimientoId, datos, origen?.id)
-        toast.success(tipo === "idea" ? "Idea anotada (abierta)" : esTarea ? "Tarea anotada (pendiente)" : "Entrada guardada")
+        toast.success(tipo === "idea" ? "Idea anotada (abierta)" : esTarea ? "Tarea anotada (pendiente)" : "Decisión anotada (pendiente)")
       }
       // Desde el Calendario, el "+" o la tarjeta de otra nota: vuelve a donde estaba
       if (origen || inicial?.tipo === "tarea" || (!inicial && tipoInicial === "tarea")) router.back()
@@ -105,7 +105,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
 
       <fieldset disabled={!!origen}>
         <legend className="text-sm font-medium mb-2">Tipo</legend>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {TIPOS_ENTRADA.map(t => (
             <Button key={t} type="button" variant={tipo === t ? "default" : "outline"} aria-pressed={tipo === t}
               className="h-auto min-h-11 whitespace-normal py-2" onClick={() => setTipo(t)}>
@@ -118,8 +118,13 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
             {inicial?.tipo === "idea" ? "Conserva su estado actual." : "Arranca abierta; después se marca decidida o descartada."}
           </p>
         )}
+        {tipo === "decision" && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {inicial?.tipo === "decision" ? "Conserva su estado actual." : "Arranca pendiente; después se marca realizada."}
+          </p>
+        )}
         {esTarea && !inicial?.estado_tarea && (
-          <p className="text-xs text-muted-foreground mt-2">Arranca pendiente y aparece en el Calendario; después se marca hecha o cancelada.</p>
+          <p className="text-xs text-muted-foreground mt-2">Arranca pendiente y aparece en el Calendario; después se marca realizada.</p>
         )}
         {inicial?.tipo === "tarea" && !esTarea && (
           <p className="text-xs text-muted-foreground mt-2">Deja de ser tarea: se le borran el vencimiento, el estado y la repetición.</p>
@@ -128,7 +133,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
 
       <div className="space-y-1.5">
         <Label htmlFor="ent-texto">Texto</Label>
-        <textarea id="ent-texto" rows={5} className={TEXTAREA} placeholder={esTarea ? "Qué hay que hacer. Ej: vacunar contra aftosa" : "Qué se habló, qué se decidió, qué se vio en el campo..."}
+        <textarea id="ent-texto" rows={5} className={TEXTAREA} placeholder={esTarea ? "Qué hay que hacer. Ej: vacunar contra aftosa" : tipo === "decision" ? "Qué se decidió. Ej: vender los toros en marzo" : "La idea, para pensarla. Ej: probar suplementación"}
           value={texto} onChange={e => setTexto(e.target.value)} />
       </div>
 
@@ -156,7 +161,7 @@ export function EntradaForm({ establecimientoId, inicial, loteInicial, tipoInici
           )}
           {repetir && (
             <p className="col-span-2 text-xs text-muted-foreground">
-              Al marcarla hecha se anota la siguiente: vence {repetir} {repetir === "1" ? "día" : "días"} después del vencimiento (o de hoy, si ya pasó).
+              Al marcarla realizada se anota la siguiente: vence {repetir} {repetir === "1" ? "día" : "días"} después del vencimiento (o de hoy, si ya pasó).
             </p>
           )}
         </div>

@@ -199,6 +199,17 @@ exception when others then
 end $$;
 
 
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -324,8 +335,8 @@ select pruebas.espera_valor('V01 La venta que deja el lote en cero lo cierra',
   $q$ select estado from public.lotes where id = pruebas.id('LV') $q$, 'cerrado');
 select pruebas.espera_filas('V02 Lote cerrado por venta: no se edita',
   $q$ update public.lotes set notas = 'x' where id = pruebas.id('LV') $q$, 0);
-select pruebas.espera_ok('V03 anular_actividad sigue funcionando',
-  $q$ select public.anular_actividad(pruebas.id('v1'), 'Venta cargada por error') $q$);
+select pruebas.espera_ok('V03 eliminar_actividad (administrador) reabre el lote vendido',
+  $q$ select pruebas.eliminar(pruebas.id('v1')) $q$);
 select pruebas.espera_valor('V04 La anulación reabre el lote',
   $q$ select estado from public.lotes where id = pruebas.id('LV') $q$, 'activo');
 select pruebas.espera_filas('V05 Reabierto por la anulación: se edita',
@@ -378,7 +389,7 @@ select pruebas.espera_valor('Z04 Las 12 funciones que escriben o cierran lotes s
       where p.pronamespace = 'public'::regnamespace
         and p.proname in ('crear_lote', 'registrar_ajuste', 'cerrar_lote', 'reabrir_lote', 'dividir_lote', 'unir_lotes',
                           'recategorizar_lote', 'registrar_compra', 'registrar_venta', 'registrar_mortandad',
-                          'registrar_paricion', 'anular_actividad') $q$, '12/12');
+                          'registrar_paricion', 'eliminar_actividad') $q$, '12/12');
 select pruebas.espera_valor('Z05 _cerrar_si_vacio no la puede llamar la app: solo corre dentro de las funciones',
   $q$ select (not has_function_privilege('authenticated', 'public._cerrar_si_vacio(uuid, date, text)', 'execute')
               and not has_function_privilege('anon', 'public._cerrar_si_vacio(uuid, date, text)', 'execute'))::text $q$, 'true');

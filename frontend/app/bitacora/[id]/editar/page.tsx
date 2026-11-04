@@ -7,6 +7,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getEntrada } from "@/lib/queries/bitacora"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { EntradaForm } from "@/components/bitacora/EntradaForm"
 import type { EntradaConLotes } from "@/types/bitacora"
@@ -28,16 +29,13 @@ export default function EditarEntradaPage() {
   const volver = <VolverAlLote href="/bitacora" texto="Volver a la bitácora" />
 
   if (entrada === undefined || cargando) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!entrada) {
     return <PageContainer>{volver}<p className="text-muted-foreground">{error ?? "No se encontró la entrada."}</p></PageContainer>
   }
   if (!puedeOperarEn(entrada.establecimiento_id)) {
     return <PageContainer>{volver}<p className="text-muted-foreground">No tenés permiso de carga en este establecimiento.</p></PageContainer>
-  }
-  if (entrada.anulada_en) {
-    return <PageContainer>{volver}<p className="text-muted-foreground">La entrada está anulada: restaurala desde la bitácora para poder editarla.</p></PageContainer>
   }
 
   return (

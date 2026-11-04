@@ -136,6 +136,8 @@ En la 6a **solo lo escriben `registrar_compra` y `registrar_venta`**. La carga m
 
 ## 5. Anular una actividad [Decidido]
 
+> **Reemplazado el 2026-11-04** (`DISENO-EDITAR-ACTIVIDADES.md`). Las actividades **se editan** (Administrador y Operador) y **se eliminan** (solo el Administrador). Eliminar borra los eventos de stock en lugar de insertar inversos, guarda la versión anterior en `actividad_versiones` y deja la actividad oculta. Las anuladas que había pasaron a eliminadas. `anular_actividad` ya no existe (migración `20261104000400`). Lo que sigue queda como referencia de cómo era.
+
 Las actividades **no se editan**: un error se corrige **anulando y volviendo a cargar**.
 
 `anular_actividad(actividad, motivo)`:

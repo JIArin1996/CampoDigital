@@ -1,17 +1,20 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
-import type { EntradaBitacora, EntradaConLotes, EstadoIdea, EstadoTarea, TipoEntrada } from '@/types/bitacora'
+import type { EntradaBitacora, EntradaConLotes, EstadoDecision, EstadoIdea, EstadoTarea, TipoEntrada } from '@/types/bitacora'
 
 // ── Lectura ──────────────────────────────────────────────────────────────────
+// Las eliminadas no llegan nunca: el RLS las deja afuera.
 
 export interface FiltrosBitacora {
   tipo?: TipoEntrada | null
   estadoIdea?: EstadoIdea | null
   estadoTarea?: EstadoTarea | null
+  estadoDecision?: EstadoDecision | null
   loteId?: string | null
   texto?: string | null
-  incluirAnuladas?: boolean
   sinTareas?: boolean        // el calendario muestra las tareas por su vencimiento, aparte
+  // Cerradas: tareas y decisiones realizadas e ideas decididas o descartadas (las que tienen cerrada_en)
+  cierre?: 'abiertas' | 'cerradas' | null
   desde?: string | null      // fecha de la nota, inclusive (YYYY-MM-DD)
   hasta?: string | null
   limite?: number
@@ -41,11 +44,13 @@ export async function getEntradas(establecimiento_id: string, filtros: FiltrosBi
   if (ids) query = query.in('id', ids)
   if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
   if (filtros.sinTareas) query = query.neq('tipo', 'tarea')
+  if (filtros.cierre === 'abiertas') query = query.is('cerrada_en', null)
+  if (filtros.cierre === 'cerradas') query = query.not('cerrada_en', 'is', null)
   if (filtros.desde) query = query.gte('fecha', filtros.desde)
   if (filtros.hasta) query = query.lte('fecha', filtros.hasta)
   if (filtros.estadoIdea) query = query.eq('tipo', 'idea').eq('estado_idea', filtros.estadoIdea)
   if (filtros.estadoTarea) query = query.eq('tipo', 'tarea').eq('estado_tarea', filtros.estadoTarea)
-  if (!filtros.incluirAnuladas) query = query.is('anulada_en', null)
+  if (filtros.estadoDecision) query = query.eq('tipo', 'decision').eq('estado_decision', filtros.estadoDecision)
   const texto = filtros.texto?.trim()
   // Los comodines de ilike (% y _) se escapan: se busca el texto tal cual
   if (texto) query = query.ilike('texto', `%${texto.replace(/[\\%_]/g, c => '\\' + c)}%`)
@@ -54,6 +59,35 @@ export async function getEntradas(establecimiento_id: string, filtros: FiltrosBi
   if (error) throw error
   const entradas = (data ?? []) as EntradaBitacora[]
   return conLotes(entradas)
+}
+
+// Tipo y estados de las entradas que cumplen tipo, lote y texto (sin el filtro de estado): para contar
+// cuántas hay en cada estado
+export type EstadoDeEntrada = Pick<EntradaBitacora, 'tipo' | 'estado_tarea' | 'estado_decision' | 'estado_idea' | 'cerrada_en'>
+
+export async function getEstadosDeEntradas(
+  establecimiento_id: string, filtros: Pick<FiltrosBitacora, 'tipo' | 'loteId' | 'texto'> = {},
+): Promise<EstadoDeEntrada[]> {
+  const supabase = createClient()
+  let ids: string[] | null = null
+  if (filtros.loteId) {
+    const { data, error } = await supabase.from('bitacora_lotes').select('entrada_id').eq('lote_id', filtros.loteId)
+    if (error) throw error
+    ids = (data ?? []).map(x => x.entrada_id)
+    if (ids.length === 0) return []
+  }
+  let query = supabase
+    .from('bitacora_entradas')
+    .select('tipo, estado_tarea, estado_decision, estado_idea, cerrada_en')
+    .eq('establecimiento_id', establecimiento_id)
+    .limit(5000)
+  if (ids) query = query.in('id', ids)
+  if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
+  const texto = filtros.texto?.trim()
+  if (texto) query = query.ilike('texto', `%${texto.replace(/[\\%_]/g, c => '\\' + c)}%`)
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []) as EstadoDeEntrada[]
 }
 
 export async function getEntrada(id: string): Promise<EntradaConLotes | null> {
@@ -65,7 +99,7 @@ export async function getEntrada(id: string): Promise<EntradaConLotes | null> {
   return entrada
 }
 
-// Cantidad de ideas abiertas (sin las anuladas), para el inicio
+// Cantidad de ideas abiertas, para el inicio
 export async function contarIdeasAbiertas(establecimiento_id: string) {
   const supabase = createClient()
   const { count, error } = await supabase
@@ -74,7 +108,6 @@ export async function contarIdeasAbiertas(establecimiento_id: string) {
     .eq('establecimiento_id', establecimiento_id)
     .eq('tipo', 'idea')
     .eq('estado_idea', 'abierta')
-    .is('anulada_en', null)
   if (error) throw error
   return count ?? 0
 }
@@ -91,7 +124,6 @@ async function conLotes(entradas: EntradaBitacora[]): Promise<EntradaConLotes[]>
     supabase.from('bitacora_entradas')
       .select('id, entrada_origen_id, texto, vencimiento, estado_tarea')
       .in('entrada_origen_id', ids)
-      .is('anulada_en', null)
       .order('vencimiento', { ascending: false }),
     idsOrigen.length > 0
       ? supabase.from('bitacora_entradas').select('id, tipo, texto').in('id', idsOrigen)
@@ -172,14 +204,21 @@ export async function editarEntrada(entrada_id: string, datos: DatosEntrada) {
   if (error) throw error
 }
 
-// No cuenta como edición
+// Abierta, decidida o descartada; no cuenta como edición
 export async function cambiarEstadoIdea(entrada_id: string, estado: EstadoIdea) {
   const supabase = createClient()
   const { error } = await supabase.rpc('cambiar_estado_idea', { p_entrada_id: entrada_id, p_estado: estado })
   if (error) throw error
 }
 
-// Pendiente, hecha o cancelada; no cuenta como edición. Si se marca hecha una tarea repetida,
+// Pendiente o realizada; no cuenta como edición
+export async function cambiarEstadoDecision(entrada_id: string, estado: EstadoDecision) {
+  const supabase = createClient()
+  const { error } = await supabase.rpc('cambiar_estado_decision', { p_entrada_id: entrada_id, p_estado: estado })
+  if (error) throw error
+}
+
+// Pendiente o realizada; no cuenta como edición. Si se marca realizada una tarea repetida,
 // la base crea la siguiente y devuelve su id (si no, null).
 export async function cambiarEstadoTarea(entrada_id: string, estado: EstadoTarea) {
   const supabase = createClient()
@@ -188,15 +227,10 @@ export async function cambiarEstadoTarea(entrada_id: string, estado: EstadoTarea
   return (data as string | null) ?? null
 }
 
-export async function anularEntrada(entrada_id: string, motivo: string) {
+// Solo el administrador. Desaparece de la app (queda un rastro oculto en la base).
+export async function eliminarEntrada(entrada_id: string) {
   const supabase = createClient()
-  const { error } = await supabase.rpc('anular_entrada_bitacora', { p_entrada_id: entrada_id, p_motivo: motivo })
-  if (error) throw error
-}
-
-export async function restaurarEntrada(entrada_id: string) {
-  const supabase = createClient()
-  const { error } = await supabase.rpc('restaurar_entrada_bitacora', { p_entrada_id: entrada_id })
+  const { error } = await supabase.rpc('eliminar_entrada_bitacora', { p_entrada_id: entrada_id })
   if (error) throw error
 }
 

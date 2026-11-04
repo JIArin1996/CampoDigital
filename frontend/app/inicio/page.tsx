@@ -9,6 +9,7 @@ import { contarIdeasAbiertas, getEntradas, getPersonas } from "@/lib/queries/bit
 import { getCategorias, getEspecies, getLotes, getStockAl, getStockEstablecimiento } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -83,7 +84,7 @@ export default function InicioPage() {
   }, [estId, fechaStock])
 
   if (cargando) {
-    return <PageContainer><div className="h-64 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer><Cargando /></PageContainer>
   }
 
   const listos = datos && datos.estId === estId ? datos : null

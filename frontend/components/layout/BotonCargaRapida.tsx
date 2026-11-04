@@ -17,7 +17,7 @@ interface Opcion {
 }
 
 const OPCIONES: Opcion[] = [
-  { label: "Nota de bitácora", descripcion: "Decisión, idea u observación", icon: NotebookPen, href: "/bitacora/nueva" },
+  { label: "Nota de bitácora", descripcion: "Decisión o idea", icon: NotebookPen, href: "/bitacora/nueva" },
   { label: "Actividad", descripcion: "Pesada, venta, compra, parición, destete, sanidad...", icon: ClipboardList, href: "/actividades/nueva" },
   { label: "Ingreso o gasto", descripcion: "Sueldos, insumos, arrendamiento, impuestos...", icon: Wallet, href: "/economia/nuevo" },
   { label: "Cambio de potrero", descripcion: "Mover un lote a otro potrero", icon: MapPin, href: "/lotes?cambiar=potrero" },

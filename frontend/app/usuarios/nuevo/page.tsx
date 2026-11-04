@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { crearUsuario } from "@/app/usuarios/acciones"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,7 +39,7 @@ export default function NuevoUsuarioPage() {
     </Link>
   )
 
-  if (cargando) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!esAdmin) return <PageContainer>{volver}<p className="text-muted-foreground">Solo un administrador puede crear usuarios.</p></PageContainer>
 
   const onSubmit = async (e: React.FormEvent) => {

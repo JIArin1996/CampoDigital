@@ -140,14 +140,29 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261028000200, nombre de usuarios): 105 filas, todas con ok = true.
+-- ESPERADO (después de 20261104000600, bitácora con tres tipos): 146 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
--- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona.)
+-- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
+-- +3 de 20261030000100: adjuntar_archivo_actividad, quitar_archivo_actividad y el trigger proteger_actividad_archivo;
+-- +7 de 20261104000100: _actividad_marcada, _eliminar_actividad, _marcar_actividad, _version_actividad,
+-- eliminar_actividad y los triggers marcar_cierre_entrada y proteger_dato_de_actividad;
+-- +10 de 20261104000200: _actualizar_movimiento_actividad, _cargar_compraventa, _cargar_pesada, _empezar_edicion,
+-- _lotes_de_actividad, _responsables_de_actividad, _terminar_edicion, editar_compra, editar_venta y editar_pesada;
+-- +22 de 20261104000300: 13 internas (_actividad_para_editar, _actualizar_actividad, _cargar_destete, _cargar_diagnostico,
+-- _cargar_esquila, _cargar_mortandad, _cargar_paricion, _cargar_personalizada, _cargar_productos_sanidad, _cargar_servicio,
+-- _lote_para_editar, _origenes_destete, _validar_lote_cria), el trigger proteger_vinculo_de_actividad y las 8 editar_<tipo>;
+-- -1 de 20261104000400: sale anular_actividad;
+-- 0 de 20261104000600: entran cambiar_estado_decision y eliminar_entrada_bitacora, salen anular_entrada_bitacora
+-- y restaurar_entrada_bitacora.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
+--   _actividad_marcada          | false            | false         | false | false
+--   _actividad_para_editar      | false            | false         | false | false
 --   _actividad_ya_registrada    | false            | false         | false | false
+--   _actualizar_actividad       | false            | false         | false | false
+--   _actualizar_movimiento_actividad | false            | false         | false | false
 --   _anios_de_jsonb             | false            | false         | false | false
 --   _anios_de_texto             | false            | false         | false | false
 --   _archivo_permitido          | false            | false         | false | false
@@ -155,42 +170,62 @@ order by 1 desc, 2, 3, 4;
 --   _bloquear_lote_editable     | false            | false         | false | false
 --   _bloquear_lotes_actividad   | false            | false         | false | false
 --   _cabezas                    | false            | false         | false | false
---   _cargar_conceptos_base      | false            | false         | false | false
 --   _cargar_catalogos_base      | false            | false         | false | false
+--   _cargar_compraventa         | false            | false         | false | false
+--   _cargar_conceptos_base      | false            | false         | false | false
+--   _cargar_destete             | false            | false         | false | false
+--   _cargar_diagnostico         | false            | false         | false | false
+--   _cargar_esquila             | false            | false         | false | false
+--   _cargar_mortandad           | false            | false         | false | false
+--   _cargar_paricion            | false            | false         | false | false
+--   _cargar_personalizada       | false            | false         | false | false
+--   _cargar_pesada              | false            | false         | false | false
+--   _cargar_productos_sanidad   | false            | false         | false | false
+--   _cargar_servicio            | false            | false         | false | false
 --   _cerrar_si_vacio            | false            | false         | false | false
 --   _concepto_por_defecto       | false            | false         | false | false
+--   _eliminar_actividad         | false            | false         | false | false
+--   _empezar_edicion            | false            | false         | false | false
 --   _entero_jsonb               | false            | false         | false | false
 --   _exigir_categoria           | false            | false         | false | false
 --   _fichas_de_admins           | false            | false         | false | false
 --   _fuente_tipo_cambio         | false            | false         | false | false
---   _guardar_pago_y_factura     | false            | false         | false | false
 --   _guardar_lotes_bitacora     | false            | false         | false | false
+--   _guardar_pago_y_factura     | false            | false         | false | false
 --   _guardar_responsables_actividad | false            | false         | false | false
 --   _guardar_responsables_entrada | false            | false         | false | false
 --   _guardar_titulares          | false            | false         | false | false
 --   _insertar_lineas            | false            | false         | false | false
+--   _lote_para_editar           | false            | false         | false | false
+--   _lotes_de_actividad         | false            | false         | false | false
+--   _marcar_actividad           | false            | false         | false | false
+--   _origenes_destete           | false            | false         | false | false
 --   _parte_de_saldo             | false            | false         | false | false
 --   _precio_valido              | false            | false         | false | false
 --   _registrar_movimiento       | false            | false         | false | false
---   _sincronizar_potrero_lote   | false            | false         | false | false
+--   _responsables_de_actividad  | false            | false         | false | false
 --   _rubro_de_especie           | false            | false         | false | false
+--   _sincronizar_potrero_lote   | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
+--   _terminar_edicion           | false            | false         | false | false
 --   _validar_datos_tarea        | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
+--   _validar_lote_cria          | false            | false         | false | false
 --   _validar_responsables       | false            | false         | false | false
 --   _validar_saldo              | false            | false         | false | false
+--   _version_actividad          | false            | false         | false | false
 --   actividad_lotes_desde_actividad | true             | false         | false | false
 --   actividad_lotes_desde_paricion | true             | false         | false | false
+--   adjuntar_archivo_actividad  | true             | true          | false | false
 --   adjuntar_archivo_lote       | true             | true          | false | false
 --   adjuntar_archivo_movimiento | true             | true          | false | false
---   anular_actividad            | true             | true          | false | false
---   anular_entrada_bitacora     | true             | true          | false | false
 --   anular_liquidacion          | true             | true          | false | false
 --   anular_movimiento           | true             | true          | false | false
 --   asignar_rol                 | true             | true          | false | false
 --   bloquear_borrado            | false            | false         | false | false
 --   bloquear_modificacion       | false            | false         | false | false
+--   cambiar_estado_decision     | true             | true          | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
 --   cambiar_estado_tarea        | true             | true          | false | false
 --   cambiar_potrero_lote        | true             | true          | false | false
@@ -203,8 +238,21 @@ order by 1 desc, 2, 3, 4;
 --   definir_admin               | true             | true          | false | false
 --   deshacer_cambio_potrero     | true             | true          | false | false
 --   dividir_lote                | true             | true          | false | false
---   editar_movimiento           | true             | true          | false | false
+--   editar_compra               | true             | true          | false | false
+--   editar_destete              | true             | true          | false | false
+--   editar_diagnostico          | true             | true          | false | false
 --   editar_entrada_bitacora     | true             | true          | false | false
+--   editar_esquila              | true             | true          | false | false
+--   editar_mortandad            | true             | true          | false | false
+--   editar_movimiento           | true             | true          | false | false
+--   editar_paricion             | true             | true          | false | false
+--   editar_personalizada        | true             | true          | false | false
+--   editar_pesada               | true             | true          | false | false
+--   editar_sanidad              | true             | true          | false | false
+--   editar_servicio             | true             | true          | false | false
+--   editar_venta                | true             | true          | false | false
+--   eliminar_actividad          | true             | true          | false | false
+--   eliminar_entrada_bitacora   | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
 --   estadia_alta_lote           | true             | false         | false | false
@@ -212,18 +260,23 @@ order by 1 desc, 2, 3, 4;
 --   fecha_hoy                   | false            | true          | false | false
 --   guardar_forma_potrero       | true             | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
+--   marcar_cierre_entrada       | false            | false         | false | false
 --   marcar_dosis_dada           | true             | true          | false | false
 --   marcar_pagado               | true             | true          | false | false
 --   mi_rol                      | true             | true          | false | false
 --   potreros_superpuestos       | false            | true          | false | false
 --   proteger_actividad          | false            | false         | false | false
+--   proteger_actividad_archivo  | false            | false         | false | false
+--   proteger_dato_de_actividad  | false            | false         | false | false
 --   proteger_lote_archivo       | false            | false         | false | false
 --   proteger_movimiento_archivo | false            | false         | false | false
 --   proteger_nombre_persona     | false            | false         | false | false
 --   proteger_potrero_ocupado    | false            | false         | false | false
 --   proteger_ultimo_admin       | false            | false         | false | false
+--   proteger_vinculo_de_actividad | false            | false         | false | false
 --   puede_operar                | true             | true          | false | false
 --   quitar_acceso               | true             | true          | false | false
+--   quitar_archivo_actividad    | true             | true          | false | false
 --   quitar_archivo_lote         | true             | true          | false | false
 --   quitar_archivo_movimiento   | true             | true          | false | false
 --   reabrir_lote                | true             | true          | false | false
@@ -243,7 +296,6 @@ order by 1 desc, 2, 3, 4;
 --   registrar_servicio          | true             | true          | false | false
 --   registrar_venta             | true             | true          | false | false
 --   restaurar_archivo_lote      | true             | true          | false | false
---   restaurar_entrada_bitacora  | true             | true          | false | false
 --   set_updated_at              | false            | false         | false | false
 --   sincronizar_nombre_persona  | true             | false         | false | false
 --   sincronizar_potrero_lote    | true             | false         | false | false
@@ -283,7 +335,9 @@ select
                                                                            'validar_estadia', 'sincronizar_potrero_lote', 'estadia_alta_lote',
                                                                            'estadia_cambio_estado_lote', 'proteger_potrero_ocupado',
                                                                            'proteger_movimiento_archivo', 'proteger_nombre_persona',
-                                                                           'sincronizar_nombre_persona'))
+                                                                           'sincronizar_nombre_persona', 'proteger_actividad_archivo',
+                                                                           'proteger_dato_de_actividad', 'marcar_cierre_entrada',
+                                                                           'proteger_vinculo_de_actividad'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -291,9 +345,9 @@ select
                                             'asignar_rol', 'quitar_acceso', 'definir_admin', 'definir_activo',
                                             'dividir_lote', 'unir_lotes', 'recategorizar_lote',
                                             'crear_entrada_bitacora', 'editar_entrada_bitacora', 'cambiar_estado_idea',
-                                            'anular_entrada_bitacora', 'restaurar_entrada_bitacora',
+                                            'cambiar_estado_decision', 'eliminar_entrada_bitacora',
                                             'registrar_pesada', 'registrar_mortandad', 'registrar_compra',
-                                            'registrar_venta', 'registrar_paricion', 'anular_actividad',
+                                            'registrar_venta', 'registrar_paricion',
                                             'registrar_sanidad', 'registrar_servicio', 'registrar_diagnostico',
                                             'registrar_esquila', 'registrar_personalizada', 'registrar_destete',
                                             'registrar_movimiento', 'cargar_precio_actividad', 'marcar_pagado', 'anular_movimiento',
@@ -304,7 +358,11 @@ select
                                             'cambiar_potrero_lote', 'deshacer_cambio_potrero', 'guardar_forma_potrero',
                                             'sincronizar_potrero_lote', 'estadia_alta_lote', 'estadia_cambio_estado_lote',
                                             'adjuntar_archivo_movimiento', 'quitar_archivo_movimiento', 'editar_movimiento',
-                                            'registrar_liquidacion', 'anular_liquidacion', 'sincronizar_nombre_persona'))
+                                            'registrar_liquidacion', 'anular_liquidacion', 'sincronizar_nombre_persona',
+                                            'adjuntar_archivo_actividad', 'quitar_archivo_actividad', 'eliminar_actividad',
+                                            'editar_compra', 'editar_venta', 'editar_pesada', 'editar_mortandad', 'editar_paricion',
+                                            'editar_sanidad', 'editar_servicio', 'editar_diagnostico', 'editar_esquila',
+                                            'editar_personalizada', 'editar_destete'))
   ) as ok
 from f
 order by f.funcion;

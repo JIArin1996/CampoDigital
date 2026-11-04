@@ -7,6 +7,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getEntrada } from "@/lib/queries/bitacora"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { EntradaForm } from "@/components/bitacora/EntradaForm"
 import type { EntradaConLotes } from "@/types/bitacora"
@@ -14,7 +15,7 @@ import type { EntradaConLotes } from "@/types/bitacora"
 export default function NuevaEntradaPage() {
   // useSearchParams necesita un Suspense alrededor
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <NuevaEntrada />
     </Suspense>
   )
@@ -46,10 +47,10 @@ function NuevaEntrada() {
     : <VolverAlLote href="/bitacora" texto="Volver a la bitácora" />
 
   const cargandoOrigen = !!origenId && origen?.id !== origenId
-  if (cargando || cargandoOrigen) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando || cargandoOrigen) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!establecimientoActivo) return <PageContainer>{volver}<p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   if (!puedeOperar) return <PageContainer>{volver}<p className="text-muted-foreground">No tenés permiso de carga en este establecimiento.</p></PageContainer>
-  if (origenId && (!origen?.entrada || origen.entrada.anulada_en || origen.entrada.tipo === "tarea")) {
+  if (origenId && (!origen?.entrada || origen.entrada.tipo === "tarea")) {
     return <PageContainer>{volver}<p className="text-muted-foreground">{origen?.error ?? "No se puede crear una tarea desde esa nota."}</p></PageContainer>
   }
 

@@ -10,6 +10,7 @@ import { getPersonas } from "@/lib/queries/bitacora"
 import { getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { buttonVariants } from "@/components/ui/button"
 import { VistaLista } from "@/components/calendario/VistaLista"
 import { PUNTO, VistaMes, type ClaseItem } from "@/components/calendario/VistaMes"
@@ -31,7 +32,7 @@ const CLASES: { clase: ClaseItem; label: string; enLista: boolean }[] = [
 
 export default function CalendarioPage() {
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <Calendario />
     </Suspense>
   )
@@ -69,7 +70,7 @@ function Calendario() {
     return () => { vigente = false }
   }, [estId])
 
-  if (cargandoCtx) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargandoCtx) return <PageContainer><Cargando /></PageContainer>
   if (!establecimientoActivo || !estId) {
     return <PageContainer title="Calendario"><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   }
@@ -152,7 +153,7 @@ function Calendario() {
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}
 
       {!listos ? (
-        <div className="h-96 rounded-lg border bg-muted/30 animate-pulse" />
+        <Cargando />
       ) : vista === "mes" ? (
         <VistaMes estId={estId} mes={mes} onMes={setMes} dia={dia} onDia={setDia} clases={clases} pasa={pasa}
           nombresLote={listos.nombresLote} personas={listos.personas} puedeOperar={puedeOperar} />

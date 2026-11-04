@@ -11,6 +11,7 @@ import { formatoAnios, normalizarAnios } from "@/components/lotes/anios"
 import { getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,7 +33,7 @@ interface Datos {
 export default function UnirLotesPage() {
   // useSearchParams necesita un Suspense alrededor
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <UnirLotes />
     </Suspense>
   )
@@ -70,7 +71,7 @@ function UnirLotes() {
   const listos = datos && datos.estId === estId ? datos : null
 
   if (cargandoCtx || (estId && !listos && !error)) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!establecimientoActivo || !listos) {
     return <PageContainer>{volver}<p className="text-muted-foreground">{error ?? "Elegí un establecimiento."}</p></PageContainer>

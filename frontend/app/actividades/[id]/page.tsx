@@ -2,27 +2,27 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
-import { Ban } from "lucide-react"
+import { useParams, useRouter } from "next/navigation"
+import { Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { anularActividad, getActividad, getLotesConRol, getRubros } from "@/lib/queries/actividades"
+import { eliminarActividad, getActividad, getLotesConRol, getRubros } from "@/lib/queries/actividades"
+import { getPagadores } from "@/lib/queries/economia"
 import { getPersonas } from "@/lib/queries/bitacora"
 import { getCategorias, getLote, getLotesPorIds } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Cargando } from "@/components/shared/Cargando"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArchivosDeActividad } from "@/components/actividades/ArchivosDeActividad"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
 import { CargarPrecio } from "@/components/economia/CargarPrecio"
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, kg, porcentaje, usd } from "@/components/actividades/formato"
 import { fechaCorta } from "@/components/lotes/formato"
-import { BOTON, TEXTAREA } from "@/components/shared/estilos"
+import { BOTON } from "@/components/shared/estilos"
 import { textoResponsables } from "@/components/shared/Responsables"
 import type { CategoriaAnimal, Lote } from "@/types/lotes"
 
@@ -37,18 +37,19 @@ interface Ficha extends Detalle {
   categorias: CategoriaAnimal[]
   personas: Awaited<ReturnType<typeof getPersonas>>
   rubros: Awaited<ReturnType<typeof getRubros>>
+  pagadores: Awaited<ReturnType<typeof getPagadores>>
 }
 
 export default function ActividadPage() {
   const { id } = useParams<{ id: string }>()
+  const router = useRouter()
   const { puedeOperarEn, esAdmin, cargando: cargandoCtx } = useEstablecimiento()
   const [ficha, setFicha] = useState<Ficha | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
-  const [anulando, setAnulando] = useState(false)
-  const [motivo, setMotivo] = useState("")
+  const [eliminando, setEliminando] = useState(false)
   const [enviando, setEnviando] = useState(false)
-  const [errorAnular, setErrorAnular] = useState<string | null>(null)
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null)
 
   useEffect(() => {
     let vigente = true
@@ -57,7 +58,7 @@ export default function ActividadPage() {
       .then(async detalle => {
         if (!detalle) return null
         const a = detalle.actividad
-        const [lote, loteCria, lotesActividad, categorias, personas, rubros, roles] = await Promise.all([
+        const [lote, loteCria, lotesActividad, categorias, personas, rubros, roles, pagadores] = await Promise.all([
           a.lote_id ? getLote(a.lote_id) : null,
           a.lote_cria_id ? getLote(a.lote_cria_id) : null,
           getLotesPorIds(a.lotes ?? []),
@@ -65,8 +66,12 @@ export default function ActividadPage() {
           getPersonas(a.establecimiento_id),
           getRubros(a.establecimiento_id),
           a.tipo === "destete" ? getLotesConRol(a.id) : Promise.resolve([]),
+          // Para el aviso al eliminar una compra o venta que ya figura como pagada o cobrada
+          detalle.movimientos.some(m => !m.anulado_en && m.pagador_id)
+            ? getPagadores(a.establecimiento_id).catch(() => [])
+            : Promise.resolve([]),
         ])
-        return { ...detalle, clave, lote, loteCria, lotesActividad, categorias, personas, rubros, roles }
+        return { ...detalle, clave, lote, loteCria, lotesActividad, categorias, personas, rubros, roles, pagadores }
       })
       .then(f => { if (vigente) setFicha(f) })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar la actividad")) })
@@ -77,14 +82,15 @@ export default function ActividadPage() {
 
   if (error && !ficha) return <PageContainer>{volver}<p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
   if (ficha === undefined || cargandoCtx) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!ficha) return <PageContainer>{volver}<p className="text-muted-foreground">No se encontró la actividad.</p></PageContainer>
 
   const { actividad: a, lineas, productos, movimientos, lote, loteCria, lotesActividad } = ficha
   const titulo = a.tipo === "personalizada" && a.personalizada ? a.personalizada : ETIQUETA_ACTIVIDAD[a.tipo]
-  const anulada = !!a.anulada_en
-  const puedeAnular = puedeOperarEn(a.establecimiento_id) && !anulada
+  const puedeEditar = puedeOperarEn(a.establecimiento_id)
+  const movimiento = movimientos.find(m => !m.anulado_en) ?? null
+  const pagador = movimiento?.pagador_id ? ficha.pagadores.find(p => p.id === movimiento.pagador_id)?.nombre ?? "un pagador" : null
   const nombreCategoria = (catId: string) => ficha.categorias.find(c => c.id === catId)?.nombre ?? "—"
   const responsables = textoResponsables(a.responsables ?? [], id => ficha.personas.find(p => p.id === id)?.nombre, Infinity)
   const rubro = (rubroId: string) => ficha.rubros.find(r => r.id === rubroId)?.nombre ?? "—"
@@ -95,19 +101,15 @@ export default function ActividadPage() {
     </div>
   )
 
-  const confirmarAnulacion = async () => {
-    if (!motivo.trim()) return setErrorAnular("Indicá el motivo de la anulación")
+  const confirmarEliminacion = async () => {
     setEnviando(true)
-    setErrorAnular(null)
+    setErrorEliminar(null)
     try {
-      await anularActividad(a.id, motivo.trim())
-      toast.success("Actividad anulada")
-      setAnulando(false)
-      setMotivo("")
-      setVersion(v => v + 1)
+      await eliminarActividad(a.id)
+      toast.success(`${titulo} eliminada`)
+      router.push("/actividades")
     } catch (err) {
-      setErrorAnular(mensajeDeError(err, "No se pudo anular"))
-    } finally {
+      setErrorEliminar(mensajeDeError(err, "No se pudo eliminar"))
       setEnviando(false)
     }
   }
@@ -117,13 +119,12 @@ export default function ActividadPage() {
       {volver}
 
       <div className="mb-6">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className={`text-2xl font-bold ${anulada ? "line-through text-muted-foreground" : ""}`}>{titulo}</h1>
-          {anulada && <Badge variant="secondary">anulada</Badge>}
-        </div>
+        <h1 className="text-2xl font-bold">{titulo}</h1>
         <p className="text-sm text-muted-foreground mt-1">{fechaCorta(a.fecha)}{responsables ? ` · ${responsables}` : ""}</p>
-        {anulada && a.motivo_anulacion && (
-          <p className="text-sm mt-2">Motivo de la anulación: {a.motivo_anulacion}</p>
+        {a.editada_en && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Editada el {new Date(a.editada_en).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" })}
+          </p>
         )}
       </div>
 
@@ -180,7 +181,7 @@ export default function ActividadPage() {
             <h2 className="font-semibold">{productos.length === 1 ? "Producto" : "Productos"}</h2>
             <ul className="rounded-lg border divide-y bg-card">
               {productos.map(p => (
-                <li key={p.orden} className="px-4 py-3 space-y-0.5">
+                <li key={p.id} className="px-4 py-3 space-y-0.5">
                   <p className="text-sm font-medium">{p.producto} <span className="font-normal text-muted-foreground">· {p.categoria}</span></p>
                   <p className="text-xs text-muted-foreground">
                     {[
@@ -225,7 +226,7 @@ export default function ActividadPage() {
               {!movimientos.some(m => !m.anulado_en) && !puedeOperarEn(a.establecimiento_id) && (
                 <p className="text-sm text-muted-foreground">Sin precio cargado.</p>
               )}
-              {!anulada && !movimientos.some(m => !m.anulado_en) && puedeOperarEn(a.establecimiento_id) && (
+              {!movimientos.some(m => !m.anulado_en) && puedeOperarEn(a.establecimiento_id) && (
                 <CargarPrecio actividadId={a.id} establecimientoId={a.establecimiento_id} fecha={a.fecha} venta={a.tipo === "venta"} rubros={ficha.rubros} onHecho={() => setVersion(v => v + 1)} />
               )}
               {movimientos.map(m => (
@@ -245,39 +246,46 @@ export default function ActividadPage() {
           </Card>
         )}
 
-        <ArchivosDeActividad key={`${a.id}:${anulada}`} actividadId={a.id} establecimientoId={a.establecimiento_id}
-          puedeAdjuntar={puedeOperarEn(a.establecimiento_id) && !anulada} esAdmin={esAdmin} />
+        <ArchivosDeActividad key={a.id} actividadId={a.id} establecimientoId={a.establecimiento_id}
+          puedeAdjuntar={puedeOperarEn(a.establecimiento_id)} esAdmin={esAdmin} />
 
-        {puedeAnular && (
-          <div>
-            <Button variant="outline" className={`${BOTON} text-destructive`} onClick={() => { setErrorAnular(null); setAnulando(true) }}>
-              <Ban className="h-4 w-4 mr-1" /> Anular
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2">Las actividades no se editan: si hay un error, se anula y se carga de nuevo.</p>
+        {(puedeEditar || esAdmin) && (
+          <div className="flex flex-wrap gap-3">
+            {puedeEditar && (
+              <Link href={`/actividades/${a.id}/editar`} className={buttonVariants({ variant: "outline", className: BOTON })}>
+                <Pencil className="h-4 w-4 mr-1" /> Editar
+              </Link>
+            )}
+            {esAdmin && (
+              <Button variant="outline" className={`${BOTON} text-destructive`} onClick={() => { setErrorEliminar(null); setEliminando(true) }}>
+                <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+              </Button>
+            )}
           </div>
         )}
       </div>
 
-      <Dialog open={anulando} onOpenChange={setAnulando}>
+      <Dialog open={eliminando} onOpenChange={setEliminando}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Anular {titulo.toLowerCase()}</DialogTitle>
+            <DialogTitle>Eliminar {titulo.toLowerCase()}</DialogTitle>
             <DialogDescription>
-              {!["compra", "venta", "mortandad", "paricion"].includes(a.tipo)
-                ? "Queda tachada en el historial, con su motivo. No cambia el stock."
-                : "El stock vuelve a como estaba (con la fecha de la actividad) y el precio, si había, se anula. No se puede deshacer."}
+              {["compra", "venta", "mortandad", "paricion", "destete"].includes(a.tipo)
+                ? "Deja de verse en toda la app y el stock vuelve a como estaba. Si tiene precio, el movimiento de Economía se anula."
+                : "Deja de verse en toda la app. No cambia el stock."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-1.5">
-            <Label htmlFor="anular-motivo">Motivo</Label>
-            <textarea id="anular-motivo" rows={3} className={TEXTAREA} value={motivo} onChange={e => setMotivo(e.target.value)} />
-          </div>
-          {errorAnular && <p role="alert" className="text-sm text-destructive">{errorAnular}</p>}
+          {pagador && (
+            <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Este movimiento ya figura como {a.tipo === "venta" ? "cobrado" : "pagado"} por {pagador}: al eliminarlo cambian los saldos entre pagadores.
+            </p>
+          )}
+          {errorEliminar && <p role="alert" className="text-sm text-destructive">{errorEliminar}</p>}
           <div className="flex gap-3">
-            <Button variant="destructive" className={BOTON} disabled={enviando} onClick={confirmarAnulacion}>
-              {enviando ? "Anulando..." : "Anular"}
+            <Button variant="destructive" className={BOTON} disabled={enviando} onClick={confirmarEliminacion}>
+              {enviando ? "Eliminando..." : pagador ? "Eliminar igual" : "Eliminar"}
             </Button>
-            <Button variant="outline" className={BOTON} disabled={enviando} onClick={() => setAnulando(false)}>Cancelar</Button>
+            <Button variant="outline" className={BOTON} disabled={enviando} onClick={() => setEliminando(false)}>Cancelar</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { SeccionRubros } from "@/components/economia/catalogos/SeccionRubros"
 import { SeccionConceptos } from "@/components/economia/catalogos/SeccionConceptos"
 import { SeccionTitulares } from "@/components/economia/catalogos/SeccionTitulares"
@@ -24,7 +25,7 @@ type IdSeccion = (typeof SECCIONES)[number]["id"]
 export default function ConfiguracionEconomiaPage() {
   // useSearchParams necesita un Suspense alrededor
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <ConfiguracionEconomia />
     </Suspense>
   )
@@ -50,7 +51,7 @@ function ConfiguracionEconomia() {
     </Link>
   )
 
-  if (cargando) return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargando) return <PageContainer>{volver}<Cargando /></PageContainer>
   if (!esAdmin) return <PageContainer>{volver}<p className="text-muted-foreground">Los catálogos de la economía los administra el administrador.</p></PageContainer>
   if (!establecimientoActivo) return <PageContainer>{volver}<p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
 

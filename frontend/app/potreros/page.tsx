@@ -11,6 +11,7 @@ import {
 } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PotreroForm } from "@/components/forms/PotreroForm"
@@ -121,7 +122,7 @@ export default function PotrerosPage() {
     },
   }
 
-  const skeleton = <div className="h-96 rounded-lg border bg-muted/30 animate-pulse" />
+  const skeleton = <Cargando />
 
   if (cargandoCtx) return <PageContainer>{skeleton}</PageContainer>
 

@@ -11,6 +11,7 @@ import { getPersonas } from "@/lib/queries/bitacora"
 import { getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { buttonVariants } from "@/components/ui/button"
 import { LineaDeTiempo, LineaDeTiempoCargando } from "@/components/actividades/LineaDeTiempo"
 import { ETIQUETA_ACTIVIDAD, TIPOS_CARGABLES, esTipoCargable } from "@/components/actividades/formato"
@@ -28,7 +29,7 @@ interface Datos {
 
 export default function ActividadesPage() {
   return (
-    <Suspense fallback={<PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>}>
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
       <Actividades />
     </Suspense>
   )
@@ -42,18 +43,17 @@ function Actividades() {
   // Filtros (se pueden pasar por la URL: ?tipo=venta&lote=<id>)
   const [tipo, setTipo] = useState<TipoCargable | null>(esTipoCargable(params.get("tipo")) ? (params.get("tipo") as TipoCargable) : null)
   const [loteId, setLoteId] = useState(params.get("lote") ?? "")
-  const [incluirAnuladas, setIncluirAnuladas] = useState(false)
 
   const [datos, setDatos] = useState<Datos | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const clave = JSON.stringify([estId, tipo, loteId, incluirAnuladas])
+  const clave = JSON.stringify([estId, tipo, loteId])
 
   useEffect(() => {
     if (!estId) return
     let vigente = true
     Promise.all([
-      getActividades(estId, { tipo, loteId: loteId || null, incluirAnuladas }),
+      getActividades(estId, { tipo, loteId: loteId || null }),
       getLotes(estId, "activo"),
       getLotes(estId, "cerrado"),
       getPersonas(estId),
@@ -61,7 +61,7 @@ function Actividades() {
       .then(([actividades, activos, cerrados, personas]) => {
         if (!vigente) return
         setDatos({
-          clave: JSON.stringify([estId, tipo, loteId, incluirAnuladas]),
+          clave: JSON.stringify([estId, tipo, loteId]),
           actividades,
           nombresLote: new Map([...activos, ...cerrados].map(l => [l.id, l.nombre])),
           lotesActivos: activos.map(l => ({ id: l.id, nombre: l.nombre })),
@@ -70,9 +70,9 @@ function Actividades() {
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudieron cargar las actividades")) })
     return () => { vigente = false }
-  }, [estId, tipo, loteId, incluirAnuladas])
+  }, [estId, tipo, loteId])
 
-  if (cargandoCtx) return <PageContainer><div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+  if (cargandoCtx) return <PageContainer><Cargando /></PageContainer>
   if (!establecimientoActivo) {
     return <PageContainer title="Actividades"><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   }
@@ -111,11 +111,6 @@ function Actividades() {
             <option value={loteId}>{datos.nombresLote.get(loteId) ?? "Lote"}</option>
           )}
         </select>
-
-        <label className="flex items-center gap-2 min-h-11 cursor-pointer select-none w-fit">
-          <input type="checkbox" className="h-5 w-5 accent-primary" checked={incluirAnuladas} onChange={e => setIncluirAnuladas(e.target.checked)} />
-          <span className="text-sm">Ver anuladas</span>
-        </label>
       </div>
 
       {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}

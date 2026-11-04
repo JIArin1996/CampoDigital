@@ -48,6 +48,7 @@ export type Carencia = { [K in keyof Tables<'v_carencias'>]: NonNullable<Tables<
 
 // Producto que se manda a registrar_sanidad
 export type ProductoCarga = {
+  id?: string                // al editar: el producto que ya existe (sin id, uno nuevo)
   producto: string
   categoria: string
   dosis?: string
@@ -75,6 +76,7 @@ export type LineaCarga = {
 }
 
 // Precio de una compra o venta (opcional). Sin precio no se crea movimiento económico.
+// Al editar la actividad, una clave con null borra el dato; una clave que no va lo deja como estaba.
 export type PrecioCarga = {
   monto: number
   moneda: Moneda
@@ -82,16 +84,16 @@ export type PrecioCarga = {
   tipo_cambio_fecha?: string // fecha de la cotización del BCU usada (sin tocar); la base decide si es 'BCU' o 'manual'
   estado: EstadoPago
   fecha_pago?: string
-  vencimiento?: string       // solo pendiente: cuándo se espera cobrar o pagar (carga manual y precio posterior)
-  rubro_id?: string          // por defecto, el rubro con el nombre de la especie del lote
+  vencimiento?: string | null // solo pendiente: cuándo se espera cobrar o pagar (carga manual y precio posterior)
+  rubro_id?: string | null   // por defecto, el rubro con el nombre de la especie del lote
   concepto_id?: string       // por defecto, "Compra de ganado" o "Venta de ganado vacuno/ovino"
   titulares?: { titular_id: string; monto: number }[]   // reparto del monto entre titulares (suma = monto)
-  pagador_id?: string        // de qué bolsillo salió o a cuál entró la plata (para los saldos)
-  factura_nombre?: string    // a nombre de quién está la factura (dato del comprobante)
-  factura_rut?: string       // 12 dígitos
-  numero_comprobante?: string
-  identificador?: string     // nombre propio del movimiento (ej. "Venta terneras refugo"); lo que más se ve en el listado
-  comentario?: string        // solo se ve en el detalle
+  pagador_id?: string | null // de qué bolsillo salió o a cuál entró la plata (para los saldos)
+  factura_nombre?: string | null // a nombre de quién está la factura (dato del comprobante)
+  factura_rut?: string | null // 12 dígitos
+  numero_comprobante?: string | null
+  identificador?: string | null // nombre propio del movimiento (ej. "Venta terneras refugo"); lo que más se ve en el listado
+  comentario?: string | null // solo se ve en el detalle
 }
 
 // Destete: lo que sale de cada origen (solo cría al pie) y lo que entra a cada lote nuevo (ya sexado)

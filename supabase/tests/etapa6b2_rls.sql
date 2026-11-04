@@ -219,6 +219,17 @@ $$;
 create function pruebas.lote(p_nombre text) returns uuid language sql stable as $$
   select id from public.lotes where nombre = p_nombre and establecimiento_id = pruebas.id('est_a')
 $$;
+-- Elimina una actividad como administrador (desde 20261104000100 solo él elimina) y vuelve al
+-- usuario que estaba. Si falla, el error deshace también el cambio de usuario.
+create function pruebas.eliminar(p_actividad uuid) returns void language plpgsql as $$
+declare
+  v_antes text := current_setting('request.jwt.claims', true);
+begin
+  perform pruebas.como('u_admin');
+  perform public.eliminar_actividad(p_actividad);
+  perform set_config('request.jwt.claims', v_antes, true);
+end $$;
+
 grant execute on all functions in schema pruebas to authenticated, anon;
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -230,12 +241,12 @@ select pruebas.espera_valor('B01 lote_eventos y operaciones_lote aceptan el tipo
       from pg_constraint
       where contype = 'c' and conname in ('lote_eventos_tipo_check', 'operaciones_lote_tipo_check', 'lote_eventos_actividad_check') $q$,
   'true|3');
-select pruebas.espera_valor('B02 registrar_destete, anular_actividad y linaje_lote: una versión cada una, search_path fijo, authenticated sí y anon no; las dos primeras security definer',
+select pruebas.espera_valor('B02 registrar_destete, eliminar_actividad y linaje_lote: una versión cada una, search_path fijo, authenticated sí y anon no; las dos primeras security definer',
   $q$ select count(*) filter (where coalesce('search_path=""' = any (p.proconfig), false)
               and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute')
               and (p.prosecdef or p.proname = 'linaje_lote'))::text || '/' || count(*)
       from pg_proc p where p.pronamespace = 'public'::regnamespace
-        and p.proname in ('registrar_destete', 'anular_actividad', 'linaje_lote') $q$, '3/3');
+        and p.proname in ('registrar_destete', 'eliminar_actividad', 'linaje_lote') $q$, '3/3');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 2. Administrador: establecimientos, roles y catálogo
@@ -414,18 +425,18 @@ select pruebas.espera_valor('P01 Destete parcial: LM3 sigue abierto con 1 terner
 -- DP con un ajuste del mismo día del destete, cargado después: bloquea
 select pruebas.preparar('aj_DP', $q$ select public.registrar_ajuste(pruebas.id('DP'), pruebas.id('terneras'), 1, pruebas.d(5), 'Apareció otra') $q$);
 select pruebas.espera_error('A01 No se anula si un destino tuvo un movimiento (aunque sea del mismo día, cargado después)',
-  $q$ select public.anular_actividad(pruebas.id('dest_parcial'), 'Prueba') $q$, '22023');
+  $q$ select pruebas.eliminar(pruebas.id('dest_parcial')) $q$, '22023');
 
 -- d1: una pesada en DM bloquea
 select pruebas.guardar('pe1', $q$ select public.registrar_pesada(p_id => gen_random_uuid(), p_lote_id => pruebas.id('DM'), p_fecha => pruebas.d(9),
       p_lineas => jsonb_build_array(jsonb_build_object('categoria_id', pruebas.id('terneros'), 'cabezas', 18, 'peso_vivo_total_kg', 3240))) $q$);
 select pruebas.espera_error('A02 No se anula con una pesada en un destino',
-  $q$ select public.anular_actividad(pruebas.id('d1'), 'Prueba') $q$, '22023');
-select pruebas.preparar('anul_pe1', $q$ select public.anular_actividad(pruebas.id('pe1'), 'Se carga de nuevo') $q$);
+  $q$ select pruebas.eliminar(pruebas.id('d1')) $q$, '22023');
+select pruebas.preparar('anul_pe1', $q$ select pruebas.eliminar(pruebas.id('pe1')) $q$);
 select pruebas.preparar('san_DH', $q$ select public.registrar_sanidad(p_id => gen_random_uuid(), p_establecimiento_id => pruebas.id('est_a'),
       p_lotes => array[pruebas.id('DH')], p_fecha => pruebas.d(8), p_productos => jsonb_build_array(pruebas.prod('Aftosa', 'Vacunación'))) $q$);
 select pruebas.espera_ok('A03 Con la pesada anulada y una sanidad en DH (no bloquea), se anula',
-  $q$ select public.anular_actividad(pruebas.id('d1'), 'Destete cargado por error') $q$);
+  $q$ select pruebas.eliminar(pruebas.id('d1')) $q$);
 select pruebas.espera_valor('A04 Los orígenes recuperan sus crías (las 20 vuelven sin sexar) y LC se reabre',
   $q$ select pruebas.stock('LM1', 'sin_sexar') || '|' || pruebas.stock('LM2', 'terneros') || '|' || pruebas.stock('LM2', 'terneras') || '|'
           || pruebas.stock('LC', 'terneros') || '|' || (select estado from public.lotes where id = pruebas.id('LC')) $q$, '20|4|5|3|activo');

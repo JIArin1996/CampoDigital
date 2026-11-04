@@ -9,6 +9,7 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getContextoLote, recategorizarLote, type CambioCategoria } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
+import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -51,7 +52,7 @@ export default function RecategorizarLotePage() {
   const volver = <VolverAlLote href={`/lotes/${id}`} />
 
   if (ctx === undefined || cargandoCtx) {
-    return <PageContainer>{volver}<div className="h-96 rounded-lg border bg-muted/30 animate-pulse" /></PageContainer>
+    return <PageContainer>{volver}<Cargando /></PageContainer>
   }
   if (!ctx) {
     return <PageContainer>{volver}<p className="text-muted-foreground">{error ?? "No se encontró el lote."}</p></PageContainer>

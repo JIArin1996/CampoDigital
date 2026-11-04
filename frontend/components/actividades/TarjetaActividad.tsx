@@ -1,10 +1,8 @@
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { ETIQUETA_ACTIVIDAD, ETIQUETA_MODALIDAD, kg, porcentaje, usd } from "@/components/actividades/formato"
 import { fechaCorta } from "@/components/lotes/formato"
-import { cn } from "@/lib/utils"
 import type { ActividadResumen } from "@/types/actividades"
 
 // Resumen de una línea: lo más útil de cada tipo
@@ -32,7 +30,6 @@ function detalle(a: ActividadResumen): string {
 
 export function TarjetaActividad({ actividad, nombresLote }: { actividad: ActividadResumen; nombresLote: Map<string, string> }) {
   const a = actividad
-  const anulada = !!a.anulada_en
   const cria = a.tipo === "paricion" && a.lote_cria_id ? nombresLote.get(a.lote_cria_id) : null
   // Lote principal; en las de varios lotes (lote_id vacío), todos los de la actividad
   const lote = a.lote_id
@@ -45,8 +42,7 @@ export function TarjetaActividad({ actividad, nombresLote }: { actividad: Activi
       className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 hover:bg-muted/50 active:bg-muted transition-colors">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={cn("font-semibold", anulada && "line-through text-muted-foreground")}>{titulo}</span>
-          {anulada && <Badge variant="secondary">anulada</Badge>}
+          <span className="font-semibold">{titulo}</span>
           <span className="text-sm text-muted-foreground">{fechaCorta(a.fecha)}</span>
         </div>
         {(lote || cria) && (
