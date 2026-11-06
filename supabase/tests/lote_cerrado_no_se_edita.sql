@@ -234,8 +234,8 @@ select pruebas.guardar('novillos', $q$ select id from public.categorias_animales
 
 select pruebas.como('u_operador');
 
-select pruebas.guardar('P1', $q$ insert into public.potreros (establecimiento_id, nombre, superficie, uso_actual)
-      values (pruebas.id('est_a'), 'Potrero 1', 50, 'Ganadería') returning id $q$);
+select pruebas.guardar('P1', $q$ insert into public.potreros (establecimiento_id, nombre, uso_actual)
+      values (pruebas.id('est_a'), 'Potrero 1', 'Ganadería') returning id $q$);
 select pruebas.guardar('L1', $q$ select public.crear_lote(p_establecimiento_id => pruebas.id('est_a'), p_especie_id => pruebas.id('vacunos'),
       p_nombre => 'L1', p_fecha_apertura => pruebas.d(20), p_composicion => pruebas.comp('terneros', 5)) $q$);
 

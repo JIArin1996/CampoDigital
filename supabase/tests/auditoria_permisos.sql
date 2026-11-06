@@ -74,7 +74,8 @@ order by 1, 2;
 -- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
 -- dejó de ser editable y su lugar lo toma anios_nacimiento (la columna se borró en 20261020000500). archivos y lote_archivos: solo lectura.
 -- Desde 20261024000100, lotes.potrero_id tampoco: lo mantienen las estadías (lote_estadias, solo lectura), y
--- potreros.forma se escribe solo con guardar_forma_potrero. Economía: concepto_grupos, conceptos y titulares (20261025000200)
+-- potreros.forma se escribe solo con guardar_forma_potrero (y desde 20261106000100 potreros.superficie la calcula
+-- la base del dibujo; establecimientos.superficie_total se borró). Economía: concepto_grupos, conceptos y titulares (20261025000200)
 -- y pagadores (20261027000100) se editan directo, filtrados por las políticas (razones_sociales se borró en 20261027000200:
 -- la factura se escribe en cada movimiento); movimientos, reparto,
 -- liquidaciones y preferencias_economia, solo por funciones.)
@@ -103,14 +104,14 @@ order by 1, 2;
 --   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre, rubro_id
 --   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre, rubro_id
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
---           |               |                     |         | observaciones, paraje, propietario, rut, sistema_productivo, superficie_total
+--           |               |                     |         | observaciones, paraje, propietario, rut, sistema_productivo
 --   columna | authenticated | lotes               | UPDATE  | anios_nacimiento, nombre, notas
 --   columna | authenticated | perfiles            | UPDATE  | apellido, celular, foto_path, nombre
 --   columna | authenticated | personas            | INSERT  | activo, establecimiento_id, nombre, rol, user_id
 --   columna | authenticated | personas            | UPDATE  | activo, nombre, rol, user_id
 --   columna | authenticated | potreros            | INSERT  | aguada, establecimiento_id, estado, nombre, observaciones,
---           |               |                     |         | sombra, superficie, tipo_pastura, uso_actual
---   columna | authenticated | potreros            | UPDATE  | aguada, estado, nombre, observaciones, sombra, superficie,
+--           |               |                     |         | sombra, tipo_pastura, uso_actual
+--   columna | authenticated | potreros            | UPDATE  | aguada, estado, nombre, observaciones, sombra,
 --           |               |                     |         | tipo_pastura, uso_actual
 --   columna | authenticated | rubros              | INSERT  | activo, establecimiento_id, nombre
 --   columna | authenticated | rubros              | UPDATE  | activo, nombre
@@ -140,7 +141,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261104000600, bitácora con tres tipos): 146 filas, todas con ok = true.
+-- ESPERADO (después de 20261106000100, superficie del dibujo): 148 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -154,7 +155,9 @@ order by 1 desc, 2, 3, 4;
 -- _lote_para_editar, _origenes_destete, _validar_lote_cria), el trigger proteger_vinculo_de_actividad y las 8 editar_<tipo>;
 -- -1 de 20261104000400: sale anular_actividad;
 -- 0 de 20261104000600: entran cambiar_estado_decision y eliminar_entrada_bitacora, salen anular_entrada_bitacora
--- y restaurar_entrada_bitacora.)
+-- y restaurar_entrada_bitacora;
+-- +2 de 20261106000100: el trigger calcular_superficie_potrero y la columna calculada superficie_total
+-- (guardar_forma_potrero y crear_establecimiento se recrean con menos parámetros: siguen siendo una cada una).)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -225,6 +228,7 @@ order by 1 desc, 2, 3, 4;
 --   asignar_rol                 | true             | true          | false | false
 --   bloquear_borrado            | false            | false         | false | false
 --   bloquear_modificacion       | false            | false         | false | false
+--   calcular_superficie_potrero | false            | false         | false | false
 --   cambiar_estado_decision     | true             | true          | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
 --   cambiar_estado_tarea        | true             | true          | false | false
@@ -300,6 +304,7 @@ order by 1 desc, 2, 3, 4;
 --   sincronizar_nombre_persona  | true             | false         | false | false
 --   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
+--   superficie_total            | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
 --   validar_anios_nacimiento    | false            | false         | false | false
 --   validar_baja_categoria      | true             | false         | false | false
@@ -337,7 +342,7 @@ select
                                                                            'proteger_movimiento_archivo', 'proteger_nombre_persona',
                                                                            'sincronizar_nombre_persona', 'proteger_actividad_archivo',
                                                                            'proteger_dato_de_actividad', 'marcar_cierre_entrada',
-                                                                           'proteger_vinculo_de_actividad'))
+                                                                           'proteger_vinculo_de_actividad', 'calcular_superficie_potrero'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',

@@ -18,9 +18,6 @@ import type { Potrero } from "@/types/database"
 
 const schema = z.object({
   nombre: z.string().trim().min(1, "El nombre es requerido"),
-  superficie: z
-    .number("Ingresá un número válido")
-    .positive("La superficie tiene que ser mayor a 0"),
   uso_actual: z.string().optional(),
   tipo_pastura: z.string().optional(),
   aguada: z.boolean(),
@@ -55,7 +52,6 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
     resolver: zodResolver(schema),
     defaultValues: {
       nombre: initialData?.nombre ?? "",
-      superficie: initialData?.superficie ?? undefined,
       uso_actual: initialData?.uso_actual ?? "",
       tipo_pastura: initialData?.tipo_pastura ?? "",
       aguada: initialData?.aguada ?? false,
@@ -72,7 +68,6 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
   const onSubmit = async (values: FormValues) => {
     const datos = {
       nombre: values.nombre.trim(),
-      superficie: values.superficie,
       uso_actual: oNull(values.uso_actual),
       tipo_pastura: oNull(values.tipo_pastura),
       aguada: values.aguada,
@@ -115,35 +110,24 @@ export function PotreroForm({ establecimiento_id, initialData, onSuccess, onCanc
         {errors.nombre && <p className="text-sm text-destructive">{errors.nombre.message}</p>}
       </div>
 
-      {/* Superficie + Uso actual */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="potrero-superficie">
-            Superficie (ha) <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="potrero-superficie"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            className={CAMPO}
-            aria-invalid={!!errors.superficie}
-            {...register("superficie", { valueAsNumber: true })}
-          />
-          {errors.superficie && <p className="text-sm text-destructive">{errors.superficie.message}</p>}
-        </div>
+      {/* La superficie no se carga: sale del dibujo en el mapa */}
+      <p className="text-sm text-muted-foreground">
+        La superficie se calcula sola cuando dibujás el potrero en el mapa.
+        {initialData && (initialData.superficie
+          ? ` Hoy: ${Number(initialData.superficie).toLocaleString("es-UY", { maximumFractionDigits: 2 })} ha.`
+          : " Todavía no está dibujado.")}
+      </p>
 
-        <div className="space-y-1.5">
-          <Label>Uso actual</Label>
-          <SelectParametro
-            clave="uso_potrero"
-            value={uso_actual ?? ""}
-            onChange={val => setValue("uso_actual", val)}
-            placeholder="Seleccionar"
-            className={CAMPO}
-          />
-        </div>
+      {/* Uso actual */}
+      <div className="space-y-1.5">
+        <Label>Uso actual</Label>
+        <SelectParametro
+          clave="uso_potrero"
+          value={uso_actual ?? ""}
+          onChange={val => setValue("uso_actual", val)}
+          placeholder="Seleccionar (opcional)"
+          className={CAMPO}
+        />
       </div>
 
       {/* Tipo de pastura */}

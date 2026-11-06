@@ -16,12 +16,14 @@ export type RolMembresia = Exclude<Rol, 'administrador'>
 
 // ── Establecimiento ──────────────────────────────────────────────────────────
 
-export type Establecimiento = Omit<Tables<'establecimientos'>, 'estado'> & { estado: EstadoBase }
+// superficie_total: columna calculada (la suma de los potreros activos dibujados; null sin ninguno). Se pide
+// con select('*, superficie_total') y no se edita.
+export type Establecimiento = Omit<Tables<'establecimientos'>, 'estado'> & { estado: EstadoBase; superficie_total: number | null }
 
 // Datos que se cargan en el alta (crear_establecimiento) y que se pueden editar
 export type EstablecimientoDatos = Pick<
   Establecimiento,
-  | 'nombre' | 'departamento' | 'localidad' | 'paraje' | 'superficie_total' | 'sistema_productivo'
+  | 'nombre' | 'departamento' | 'localidad' | 'paraje' | 'sistema_productivo'
   | 'propietario' | 'rut' | 'dicose' | 'fecha_alta' | 'observaciones'
 >
 
@@ -36,10 +38,11 @@ export type Membresia = Omit<Tables<'membresias'>, 'rol'> & { rol: RolMembresia 
 
 export type Potrero = Omit<Tables<'potreros'>, 'estado'> & { estado: EstadoBase }
 
-// Columnas que authenticated puede insertar y actualizar (GRANT por columna)
+// Columnas que authenticated puede insertar y actualizar (GRANT por columna). La superficie no: la
+// calcula la base del dibujo (null sin dibujar).
 export type PotreroInsert = Pick<
   Potrero,
-  'establecimiento_id' | 'nombre' | 'superficie' | 'uso_actual' | 'tipo_pastura' | 'aguada' | 'sombra' | 'estado' | 'observaciones'
+  'establecimiento_id' | 'nombre' | 'uso_actual' | 'tipo_pastura' | 'aguada' | 'sombra' | 'estado' | 'observaciones'
 >
 export type PotreroUpdate = Partial<Omit<PotreroInsert, 'establecimiento_id'>>
 

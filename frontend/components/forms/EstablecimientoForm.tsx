@@ -23,11 +23,6 @@ const schema = z.object({
   departamento: z.string().min(1, "El departamento es requerido"),
   localidad: z.string().optional(),
   paraje: z.string().optional(),
-  // Se carga como texto para poder dejarla vacía (es opcional)
-  superficie_total: z
-    .string()
-    .optional()
-    .refine(v => !v || Number(v) > 0, "La superficie tiene que ser mayor a 0"),
   sistema_productivo: z.string().optional(),
   propietario: z.string().optional(),
   rut: z.string().optional(),
@@ -72,7 +67,6 @@ export function EstablecimientoForm({ initialData, volverA = "/establecimientos"
       departamento: initialData?.departamento ?? "",
       localidad: initialData?.localidad ?? "",
       paraje: initialData?.paraje ?? "",
-      superficie_total: initialData?.superficie_total?.toString() ?? "",
       sistema_productivo: initialData?.sistema_productivo ?? "",
       propietario: initialData?.propietario ?? "",
       rut: initialData?.rut ?? "",
@@ -95,7 +89,6 @@ export function EstablecimientoForm({ initialData, volverA = "/establecimientos"
       departamento: values.departamento,
       localidad: oNull(values.localidad),
       paraje: oNull(values.paraje),
-      superficie_total: values.superficie_total ? Number(values.superficie_total) : null,
       sistema_productivo: oNull(values.sistema_productivo),
       propietario: oNull(values.propietario),
       rut: oNull(values.rut),
@@ -163,27 +156,10 @@ export function EstablecimientoForm({ initialData, volverA = "/establecimientos"
         </div>
       </div>
 
-      {/* Paraje + Superficie */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="paraje">Paraje</Label>
-          <Input id="paraje" className={CAMPO} {...register("paraje")} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="superficie_total">Superficie (ha)</Label>
-          <Input
-            id="superficie_total"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            className={CAMPO}
-            aria-invalid={!!errors.superficie_total}
-            {...register("superficie_total")}
-          />
-          {errors.superficie_total && <p className="text-sm text-destructive">{errors.superficie_total.message}</p>}
-        </div>
+      {/* Paraje (la superficie no se carga: es la suma de los potreros dibujados) */}
+      <div className="space-y-1.5">
+        <Label htmlFor="paraje">Paraje</Label>
+        <Input id="paraje" className={CAMPO} {...register("paraje")} />
       </div>
 
       {/* Sistema productivo */}

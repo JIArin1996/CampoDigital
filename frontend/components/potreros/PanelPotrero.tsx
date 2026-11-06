@@ -28,10 +28,11 @@ export function PanelPotrero({ potrero, areaDibujada, ultimaSalida, lotes, puede
   resumido?: boolean
   onVerDetalle?: () => void
 }) {
-  // La superficie es la del polígono; sin dibujar, la cargada
-  const superficie = areaDibujada ?? Number(potrero.superficie)
+  // La superficie es la del polígono; sin dibujar no tiene (ni carga por hectárea)
+  const superficie = areaDibujada
   const { cabezas, ug, sinUg } = totales(lotes)
-  const dotacion = superficie > 0 ? `${numero(ug / superficie, 2)} UG/ha` : null
+  const dotacion = superficie !== null && superficie > 0 ? `${numero(ug / superficie, 2)} UG/ha` : null
+  const textoSuperficie = superficie === null ? "Sin dibujar" : `${numero(superficie, 2)} ha`
   const inactivo = potrero.estado === "inactivo"
   const descanso = ultimaSalida ? `Descanso: ${textoDias(diasDesde(ultimaSalida))}` : "Sin animales registrados"
 
@@ -53,7 +54,7 @@ export function PanelPotrero({ potrero, areaDibujada, ultimaSalida, lotes, puede
       {/* Resumen (celular): una línea con lo principal */}
       {resumido && (
         <p className="text-sm">
-          <span className="font-medium">{numero(superficie, 2)} ha</span>
+          <span className="font-medium">{textoSuperficie}</span>
           {!inactivo && (lotes.length === 0 ? <span className="text-muted-foreground"> · vacío · {descanso.toLowerCase()}</span> : (
             <>
               {" · "}<span className="font-semibold tabular-nums">{cabezas}</span> {cabezas === 1 ? "animal" : "animales"}
@@ -70,10 +71,7 @@ export function PanelPotrero({ potrero, areaDibujada, ultimaSalida, lotes, puede
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <div>
               <dt className="flex items-center gap-1 text-muted-foreground"><Ruler className="h-3.5 w-3.5" /> Superficie</dt>
-              <dd className="font-medium">
-                {numero(superficie, 2)} ha
-                {areaDibujada === null && <span className="font-normal text-muted-foreground"> (sin dibujar)</span>}
-              </dd>
+              <dd className="font-medium">{textoSuperficie}</dd>
             </div>
             <div>
               <dt className="flex items-center gap-1 text-muted-foreground"><TreePine className="h-3.5 w-3.5" /> Pastura</dt>

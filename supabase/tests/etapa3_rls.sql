@@ -223,7 +223,7 @@ select pruebas.espera_valor('O03 Operador puede operar y no es admin',
 select pruebas.espera_valor('O04 Stock inicial de terneros (v_stock_lote)',
   $q$ select cabezas from public.v_stock_lote where lote_id = pruebas.id('lote_a') and categoria_id = pruebas.id('cat_terneros') $q$, '120');
 select pruebas.espera_filas('O05 Operador crea un potrero',
-  $q$ insert into public.potreros (establecimiento_id, nombre, superficie, uso_actual) values (pruebas.id('est_a'), 'Potrero 1', 50, 'Ganadería') $q$, 1);
+  $q$ insert into public.potreros (establecimiento_id, nombre, uso_actual) values (pruebas.id('est_a'), 'Potrero 1', 'Ganadería') $q$, 1);
 select pruebas.espera_filas('O06 Operador edita las notas de un lote',
   $q$ update public.lotes set notas = 'nota de prueba' where id = pruebas.id('lote_a') $q$, 1);
 select pruebas.espera_valor('O07 Ajuste válido de -8 terneros',
@@ -280,7 +280,7 @@ select pruebas.espera_error('O29 Operador borra un lote',
 select pruebas.espera_error('O30 Operador inserta directo en membresías',
   $q$ insert into public.membresias (establecimiento_id, user_id, rol) values (pruebas.id('est_a'), pruebas.id('u_ajeno'), 'operador') $q$, '42501');
 select pruebas.espera_error('O31 Operador falsea created_by de un potrero',
-  $q$ insert into public.potreros (establecimiento_id, nombre, superficie, created_by) values (pruebas.id('est_a'), 'P2', 1, pruebas.id('u_ajeno')) $q$, '42501');
+  $q$ insert into public.potreros (establecimiento_id, nombre, created_by) values (pruebas.id('est_a'), 'P2', pruebas.id('u_ajeno')) $q$, '42501');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 3. Consulta Q de Santa Remigia: ve todo, no escribe nada
@@ -301,7 +301,7 @@ select pruebas.espera_valor('Q05 Consulta ve el stock por lote (terneros y terne
 select pruebas.espera_valor('Q06 Consulta ve el stock del establecimiento',
   $q$ select cabezas from public.v_stock_establecimiento where establecimiento_id = pruebas.id('est_a') and categoria_id = pruebas.id('cat_terneras') $q$, '80');
 select pruebas.espera_error('Q07 Consulta crea un potrero',
-  $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Intruso', 1) $q$, '42501');
+  $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Intruso') $q$, '42501');
 select pruebas.espera_filas('Q08 Consulta edita un lote: 0 filas, sin error (la app lo trata como "sin permiso")',
   $q$ update public.lotes set notas = 'hackeado' where id = pruebas.id('lote_a') $q$, 0);
 select pruebas.espera_filas('Q09 Consulta edita un potrero: 0 filas',
@@ -349,7 +349,7 @@ select pruebas.espera_error('X10 X crea un lote en Santa Remigia (RPC)',
 select pruebas.espera_filas('X11 X edita un lote de Santa Remigia: 0 filas',
   $q$ update public.lotes set notas = 'x' where id = pruebas.id('lote_a') $q$, 0);
 select pruebas.espera_error('X12 X crea un potrero en Santa Remigia',
-  $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Intruso', 1) $q$, '42501');
+  $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Intruso') $q$, '42501');
 select pruebas.espera_error('X13 X crea un lote en su campo con una especie de Santa Remigia',
   $q$ select public.crear_lote(pruebas.id('est_x'), pruebas.id('vacunos_a'), 'X', public.fecha_hoy(),
       jsonb_build_array(jsonb_build_object('categoria_id', pruebas.id('cat_terneros'), 'cabezas', 1))) $q$, '22023');

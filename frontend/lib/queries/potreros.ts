@@ -76,13 +76,12 @@ export async function getFormasPotreros(establecimiento_id: string) {
 }
 
 // Guarda la forma de un potrero (GeoJSON en grados) o la borra (null). Devuelve el área geodésica en
-// hectáreas. Con actualizarSuperficie, la superficie del potrero pasa a ser esa área.
-export async function guardarFormaPotrero(potrero_id: string, forma: GeoJSON.MultiPolygon | GeoJSON.Polygon | null, actualizarSuperficie = false) {
+// hectáreas, que pasa a ser la superficie del potrero (sin forma, el potrero queda sin superficie).
+export async function guardarFormaPotrero(potrero_id: string, forma: GeoJSON.MultiPolygon | GeoJSON.Polygon | null) {
   const supabase = createClient()
   const { data, error } = await supabase.rpc('guardar_forma_potrero', {
     p_potrero_id: potrero_id,
     p_forma: forma as unknown as Json,   // null = borrar la forma
-    p_actualizar_superficie: actualizarSuperficie,
   })
   if (error) throw error
   return data === null ? null : Number(data)

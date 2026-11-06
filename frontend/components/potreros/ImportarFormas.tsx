@@ -73,7 +73,8 @@ const enGrados = (f: GeoJSON.MultiPolygon) =>
 
 /**
  * Importa formas de potreros desde un archivo. Cada polígono se asigna a un potrero existente (se sugiere
- * el de igual nombre), se crea uno nuevo con ese nombre y el área como superficie, o se deja afuera.
+ * el de igual nombre), se crea uno nuevo con ese nombre, o se deja afuera. La superficie de cada potrero
+ * pasa a ser el área de su forma.
  * Montado solo mientras está abierto.
  */
 export function ImportarFormas({ establecimientoId, potreros, conForma, onCerrar, onHecho }: {
@@ -85,7 +86,6 @@ export function ImportarFormas({ establecimientoId, potreros, conForma, onCerrar
 }) {
   const [filas, setFilas] = useState<Fila[] | null>(null)
   const [archivo, setArchivo] = useState<string | null>(null)
-  const [actualizarSuperficie, setActualizarSuperficie] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [trabajando, setTrabajando] = useState(false)
 
@@ -137,12 +137,12 @@ export function ImportarFormas({ establecimientoId, potreros, conForma, onCerrar
         let id = f.destino
         if (f.destino === "nuevo") {
           const nuevo = await createPotrero({
-            establecimiento_id: establecimientoId, nombre: f.nombre, superficie: Math.max(f.ha, 0.01), estado: "activo",
+            establecimiento_id: establecimientoId, nombre: f.nombre, estado: "activo",
             uso_actual: null, tipo_pastura: null, aguada: null, sombra: null, observaciones: null,
           })
           id = nuevo.id
         }
-        await guardarFormaPotrero(id, f.forma, f.destino !== "nuevo" && actualizarSuperficie)
+        await guardarFormaPotrero(id, f.forma)
         tocados.push(id)
       } catch (err) {
         fallas.push(`${f.nombre}: ${mensajeDeError(err)}`)
@@ -199,10 +199,7 @@ export function ImportarFormas({ establecimientoId, potreros, conForma, onCerrar
                 </li>
               ))}
             </ul>
-            <label className="flex items-center gap-2 min-h-11 cursor-pointer select-none">
-              <input type="checkbox" className="h-5 w-5 accent-primary" checked={actualizarSuperficie} onChange={e => setActualizarSuperficie(e.target.checked)} />
-              <span className="text-sm">En los potreros que ya existen, usar el área dibujada como superficie</span>
-            </label>
+            <p className="text-sm text-muted-foreground">La superficie de cada potrero pasa a ser el área de su forma.</p>
           </>
         )}
 

@@ -1,7 +1,8 @@
 -- Campo Digital v2 — Pruebas de potreros: estadías de los lotes (historial de potrero) y forma para el mapa
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261024000100_potreros_estadias_y_forma).
+--   1. Con todas las migraciones aplicadas (hasta 20261106000100_superficie_del_dibujo: los potreros se dan de
+--      alta sin superficie y F01 a F03 la esperan del dibujo).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo (o node correr-pruebas.mjs potreros).
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS POTREROS (ESTADÍAS Y FORMA): N OK, ...", que deshace todo.
 --      El resultado esperado es "66 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
@@ -298,13 +299,13 @@ select pruebas.guardar('vacas_cria', $q$ select id from public.categorias_animal
 -- ════════════════════════════════════════════════════════════════════════════
 
 select pruebas.como('u_operador');
-select pruebas.guardar('P1', $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Potrero 1', 50) returning id $q$);
-select pruebas.guardar('P2', $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Potrero 2', 40) returning id $q$);
-select pruebas.guardar('P3', $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Potrero 3', 30) returning id $q$);
-select pruebas.guardar('P4', $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Potrero 4', 20) returning id $q$);
-select pruebas.guardar('P5', $q$ insert into public.potreros (establecimiento_id, nombre, superficie) values (pruebas.id('est_a'), 'Potrero 5', 10) returning id $q$);
-select pruebas.guardar('PX', $q$ insert into public.potreros (establecimiento_id, nombre, superficie, estado)
-      values (pruebas.id('est_a'), 'Potrero viejo', 5, 'inactivo') returning id $q$);
+select pruebas.guardar('P1', $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Potrero 1') returning id $q$);
+select pruebas.guardar('P2', $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Potrero 2') returning id $q$);
+select pruebas.guardar('P3', $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Potrero 3') returning id $q$);
+select pruebas.guardar('P4', $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Potrero 4') returning id $q$);
+select pruebas.guardar('P5', $q$ insert into public.potreros (establecimiento_id, nombre) values (pruebas.id('est_a'), 'Potrero 5') returning id $q$);
+select pruebas.guardar('PX', $q$ insert into public.potreros (establecimiento_id, nombre, estado)
+      values (pruebas.id('est_a'), 'Potrero viejo', 'inactivo') returning id $q$);
 
 select pruebas.guardar('L1', $q$ select public.crear_lote(p_establecimiento_id => pruebas.id('est_a'), p_especie_id => pruebas.id('vacunos'),
       p_nombre => 'L1', p_fecha_apertura => pruebas.d(60), p_composicion => pruebas.comp('novillos', 20), p_potrero_id => pruebas.id('P1')) $q$);
@@ -485,12 +486,11 @@ select pruebas.espera_error('K04 No se mueve un lote a un potrero inactivo',
 -- Potrero 1: 0,01° × 0,01° cerca de Durazno (≈ 103 ha). Potrero 2: corrido media celda (se pisan ≈ 52 ha).
 -- Potrero 3: debajo de los dos, comparte el alambrado (no se superpone).
 
-select pruebas.espera_valor('F01 Guardar la forma devuelve el área geodésica (≈ 103 ha) sin tocar la superficie cargada',
+select pruebas.espera_valor('F01 Sin dibujar, el potrero no tiene superficie (desde 20261106000100 sale del dibujo)',
+  $q$ select coalesce(superficie::text, 'null') from public.potreros where id = pruebas.id('P1') $q$, 'null');
+select pruebas.espera_valor('F02 Guardar la forma devuelve el área geodésica (≈ 103 ha)',
   $q$ select (public.guardar_forma_potrero(pruebas.id('P1'), pruebas.cuadro(-56.50, -56.49, -33.00, -32.99)) between 100 and 107)::text $q$, 'true');
-select pruebas.espera_valor('F02 La superficie sigue siendo 50',
-  $q$ select superficie::text from public.potreros where id = pruebas.id('P1') $q$, '50.00');
-select pruebas.preparar('forma_sup', $q$ select public.guardar_forma_potrero(pruebas.id('P1'), pruebas.cuadro(-56.50, -56.49, -33.00, -32.99), true) $q$);
-select pruebas.espera_valor('F03 Con "usar el área", la superficie pasa a ser el área; el mapa la devuelve como MultiPolygon con su etiqueta',
+select pruebas.espera_valor('F03 La superficie pasa a ser el área; el mapa la devuelve como MultiPolygon con su etiqueta',
   $q$ select (superficie = area_ha and area_ha between 100 and 107)::text || '|' || (forma ->> 'type') || '|' || (etiqueta ->> 'type')
       from public.v_potreros_mapa where id = pruebas.id('P1') $q$, 'true|MultiPolygon|Point');
 select pruebas.espera_error('F04 Un GeoJSON roto',

@@ -16,7 +16,7 @@ import { numero, type AccionesPotrero, type LoteEnPotrero } from "@/components/p
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { getSuperpuestos, guardarFormaPotrero, updatePotrero, type FormaPotrero } from "@/lib/queries/potreros"
+import { getSuperpuestos, guardarFormaPotrero, type FormaPotrero } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import type { Potrero } from "@/types/database"
 
@@ -119,13 +119,11 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
     if (window.innerWidth < 1024) setCompleta(true)
   }
 
-  const guardarDibujo = async (superficie: number) => {
+  const guardarDibujo = async () => {
     if (!edicion || !formaEditada) return
-    const p = potreros.find(x => x.id === edicion.id)
     setGuardando(true)
     try {
       await guardarFormaPotrero(edicion.id, formaEditada)
-      if (p && superficie !== Number(p.superficie)) await updatePotrero(edicion.id, { superficie })
       toast.success("Forma guardada")
       await avisarSuperposiciones([edicion.id])
       setEdicion(null)
@@ -138,7 +136,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
   }
 
   const borrarForma = async (p: Potrero) => {
-    if (!window.confirm(`¿Borrar la forma de ${p.nombre}? El potrero sigue existiendo, sin dibujar.`)) return
+    if (!window.confirm(`¿Borrar la forma de ${p.nombre}? El potrero sigue existiendo, sin dibujar y sin superficie.`)) return
     try {
       await guardarFormaPotrero(p.id, null)
       toast.success("Forma borrada")
@@ -267,8 +265,9 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
         )}
       </div>
 
-      {/* Mapa y panel */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-4">
+      {/* Mapa y panel. En la computadora el mapa va a todo el ancho; al elegir un potrero (o dibujar) se
+          achica y a la derecha aparece la columna con el detalle */}
+      <div className={cn(panel && "lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-4")}>
         {/* El mismo contenedor pasa a pantalla completa (sin volver a crear el mapa) */}
         <div className={cn("isolate overflow-hidden bg-muted",
           completa ? "fixed inset-0 z-50" : "relative h-[60vh] rounded-lg border lg:h-[70vh]")}>
@@ -316,13 +315,16 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
             </>
           )}
         </div>
-        <aside className="hidden lg:block rounded-lg border bg-card p-4 lg:h-[70vh] lg:overflow-y-auto">
-          {panel || resumen}
-        </aside>
+        {panel && (
+          <aside className="hidden lg:block rounded-lg border bg-card p-4 lg:h-[70vh] lg:overflow-y-auto">
+            {panel}
+          </aside>
+        )}
       </div>
 
-      {/* Celular y tableta: el resumen debajo del mapa mientras no se elige un potrero */}
-      {!panel && <section className="rounded-lg border bg-card p-4 lg:hidden">{resumen}</section>}
+      {/* El resumen debajo del mapa: en la computadora siempre; en el celular y la tableta, mientras no se
+          elige un potrero (el panel ocupa la hoja de abajo) */}
+      <section className={cn("rounded-lg border bg-card p-4", panel && "hidden lg:block")}>{resumen}</section>
 
       {/* Leyenda (siempre: el color nunca va solo) */}
       {leyenda}
