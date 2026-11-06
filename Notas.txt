@@ -1,1 +1,17 @@
-En historial de LOTES que tambien quede registrada las actividades que se realizan en cada uno.
+Registros de lluvias:
+Poder registrar los mm que llueva verlos en elcalendario. y acumulados por fecha etc.
+
+Potreros:
+En "Mas dias de Potrero" destacar mas el nombre del podtrero y menos el de lacategotia que tiene.
+Cuando creas un potrero no debe preguntar la superficie,sino que debe salir una vez que se dibuje en el mapa.
+La superficie total del establecimiento sale de la suma de los potreros.
+Agregar la "Area Efectiva" seria una area dentro de cada potrero. Se dibuja, no tiene por que ser un poligono solo. Pensarla.
+El Resumen del establesimiento debe estar en la PC abajo. 
+
+
+OTRAS IDAS a FUTURO:
+1. Indice NDVI
+2. Ver cantidad de pasto disponible, calculo carga, crecimiento, etc.
+3. IA con Divicion de potreros automaticos segun carga y pasot. agua ha etc.
+4. Notificaciones. Recordatorios etc
+5. Vinculacion con Whatsapp
