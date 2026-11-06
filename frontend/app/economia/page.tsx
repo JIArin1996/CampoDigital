@@ -35,7 +35,7 @@ interface Datos {
 }
 
 /**
- * Economía: resultado del ejercicio o año (devengado) por rubro, concepto, grupo o titular, movimientos (con filtros y período
+ * Economía: resultado del ejercicio o año (devengado) por titular o rubro, movimientos (con filtros y período
  * propios), saldos entre titulares (con liquidaciones), pendientes de cobro y pago, y compras o ventas sin precio. Consulta lo ve todo pero no carga, edita ni anula.
  */
 export default function EconomiaPage() {
@@ -177,26 +177,17 @@ function Economia() {
   )
 }
 
-type Dimension = "rubro" | "concepto" | "grupo" | "titular"
+// El resultado se ve por titular (primero) o por rubro
+type Dimension = "titular" | "rubro"
 const DIMENSIONES: { id: Dimension; etiqueta: string }[] = [
-  { id: "rubro", etiqueta: "Rubro" },
-  { id: "concepto", etiqueta: "Concepto" },
-  { id: "grupo", etiqueta: "Grupo" },
   { id: "titular", etiqueta: "Titular" },
+  { id: "rubro", etiqueta: "Rubro" },
 ]
 
-// Clave y nombre de cada fila según la dimensión. Sin grupo: los ingresos van juntos ("Ingresos").
+// Clave y nombre de cada fila según la dimensión
 function porDimension(f: ResultadoDetalle, d: Dimension): { clave: string; nombre: string; sinDato: boolean } {
   switch (d) {
     case "rubro": return { clave: f.rubro_id, nombre: f.rubro, sinDato: false }
-    case "concepto": return f.concepto_id
-      ? { clave: f.concepto_id, nombre: f.concepto ?? "—", sinDato: false }
-      : { clave: `sin:${f.sentido}`, nombre: f.sentido === "ingreso" ? "Ingresos sin concepto" : "Gastos sin concepto", sinDato: true }
-    case "grupo": return f.grupo_id
-      ? { clave: f.grupo_id, nombre: f.grupo ?? "—", sinDato: false }
-      : f.sentido === "ingreso"
-        ? { clave: "ingresos", nombre: "Ingresos", sinDato: false }
-        : { clave: "sin", nombre: "Gastos sin grupo", sinDato: true }
     case "titular": return f.titular_id
       ? { clave: f.titular_id, nombre: f.titular ?? "—", sinDato: false }
       : { clave: "sin", nombre: "Sin titular", sinDato: true }
@@ -206,7 +197,7 @@ function porDimension(f: ResultadoDetalle, d: Dimension): { clave: string; nombr
 type Totales = { ingresos: number; egresos: number; resultado: number }
 
 function Resultado({ filas, periodo }: { filas: ResultadoDetalle[]; periodo: Periodo }) {
-  const [dimension, setDimension] = useState<Dimension>("rubro")
+  const [dimension, setDimension] = useState<Dimension>("titular")
 
   const grupos = new Map<string, Totales & { nombre: string; sinDato: boolean }>()
   for (const f of filas) {
