@@ -1,11 +1,12 @@
 "use client"
 
-import { useId, useState } from "react"
+import { useId, useState, type CSSProperties } from "react"
 import Link from "next/link"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { ArrowRight, ChevronDown, ChevronRight, MapPin } from "lucide-react"
 
 import { ACTIVIDAD, coloresActividad } from "@/components/actividades/actividad-iconos"
 import { ETIQUETA_MODALIDAD, kg, porcentaje, usd } from "@/components/actividades/formato"
+import type { MovimientoPotrero } from "@/components/potreros/movimientos"
 import { textoResponsables } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { ActividadResumen } from "@/types/actividades"
@@ -13,7 +14,8 @@ import type { ActividadResumen } from "@/types/actividades"
 /**
  * Listado de actividades como línea de tiempo compacta: agrupado por mes (lo más nuevo arriba), una
  * fila de 52 px por actividad con la fecha, el ícono del tipo sobre la línea, tipo y lotes, y el dato
- * clave a la derecha. Al tocar la fila se abre el detalle, con el enlace a la ficha.
+ * clave a la derecha. Al tocar la fila se abre el detalle, con el enlace a la ficha. Los cambios de
+ * potrero de los lotes van intercalados (no son actividades; el mismo día, arriba de las actividades).
  */
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
@@ -80,20 +82,46 @@ function resumen(a: ActividadResumen): string[] {
 }
 
 interface Props {
-  actividades: ActividadResumen[]
+  actividades: ActividadResumen[]       // de la más nueva a la más vieja
+  movimientos?: MovimientoPotrero[]     // cambios de potrero, en cualquier orden
   nombresLote: Map<string, string>
   nombrePersona: (id: string) => string | undefined
 }
 
-export function LineaDeTiempo({ actividades, nombresLote, nombrePersona }: Props) {
-  // Por mes, en el orden en que vienen (de la más nueva a la más vieja)
-  const meses: { clave: string; titulo: string; items: ActividadResumen[] }[] = []
-  for (const a of actividades) {
-    const { anio, mes } = partesFecha(a.fecha)
+type Item =
+  | { clase: "actividad"; fecha: string; actividad: ActividadResumen }
+  | { clase: "potrero"; fecha: string; movimiento: MovimientoPotrero }
+
+const cantidad = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+
+export function LineaDeTiempo({ actividades, movimientos = [], nombresLote, nombrePersona }: Props) {
+  // De la más nueva a la más vieja; el mismo día, los cambios de potrero arriba (las actividades
+  // mantienen el orden en que vienen)
+  const items: Item[] = [
+    ...[...movimientos]
+      .sort((a, b) => b.fecha.localeCompare(a.fecha) || a.orden - b.orden)
+      .map(movimiento => ({ clase: "potrero" as const, fecha: movimiento.fecha, movimiento })),
+    ...actividades.map(actividad => ({ clase: "actividad" as const, fecha: actividad.fecha, actividad })),
+  ]
+  const posicion = new Map(items.map((it, i) => [it, i]))
+  items.sort((a, b) => b.fecha.localeCompare(a.fecha) || posicion.get(a)! - posicion.get(b)!)
+
+  // Por mes
+  const meses: { clave: string; titulo: string; items: Item[] }[] = []
+  for (const it of items) {
+    const { anio, mes } = partesFecha(it.fecha)
     const clave = `${anio}-${mes}`
     let grupo = meses.find(g => g.clave === clave)
     if (!grupo) meses.push(grupo = { clave, titulo: `${MESES[mes - 1][0].toUpperCase()}${MESES[mes - 1].slice(1)} ${anio}`, items: [] })
-    grupo.items.push(a)
+    grupo.items.push(it)
+  }
+  const resumenMes = (lista: Item[]) => {
+    const potreros = lista.filter(it => it.clase === "potrero").length
+    const acts = lista.length - potreros
+    return [
+      acts ? cantidad(acts, "actividad", "actividades") : null,
+      potreros ? cantidad(potreros, "cambio de potrero", "cambios de potrero") : null,
+    ].filter(Boolean).join(" · ")
   }
 
   return (
@@ -105,13 +133,16 @@ export function LineaDeTiempo({ actividades, nombresLote, nombrePersona }: Props
             className="sticky top-14 md:top-0 z-10 -mx-1 mb-1 flex items-baseline justify-between gap-2 border-b bg-background px-1 py-2 text-sm font-bold uppercase tracking-wide">
             {g.titulo}
             <span className="text-xs font-medium normal-case tracking-normal text-muted-foreground">
-              {g.items.length} {g.items.length === 1 ? "actividad" : "actividades"}
+              {resumenMes(g.items)}
             </span>
           </h2>
           <ol>
-            {g.items.map((a, i) => (
-              <Fila key={a.id} actividad={a} primera={i === 0} ultima={i === g.items.length - 1}
+            {g.items.map((it, i) => it.clase === "actividad" ? (
+              <Fila key={it.actividad.id} actividad={it.actividad} primera={i === 0} ultima={i === g.items.length - 1}
                 nombresLote={nombresLote} nombrePersona={nombrePersona} />
+            ) : (
+              <FilaPotrero key={it.movimiento.id} movimiento={it.movimiento} primera={i === 0} ultima={i === g.items.length - 1}
+                nombresLote={nombresLote} />
             ))}
           </ol>
         </section>
@@ -212,6 +243,79 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
           </dl>
           <Link href={`/actividades/${a.id}`} className="mt-1 inline-flex min-h-11 items-center gap-1 font-semibold text-primary hover:underline">
             Ver detalle <ChevronRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
+      )}
+    </li>
+  )
+}
+
+// Un cambio de potrero: fecha, ícono de potrero sobre la línea, lote y "A → B". Al tocarla se abre el
+// detalle, con el enlace a la ficha del lote.
+function FilaPotrero({ movimiento: m, primera, ultima, nombresLote }: {
+  movimiento: MovimientoPotrero
+  primera: boolean
+  ultima: boolean
+  nombresLote: Map<string, string>
+}) {
+  const [abierta, setAbierta] = useState(false)
+  const idDetalle = useId()
+  const { dia, mes, diaSemana } = partesFecha(m.fecha)
+  const lote = nombresLote.get(m.loteId) ?? "Lote"
+  const recorrido = (
+    <>
+      {m.desde
+        ? <>{m.desde}<ArrowRight className="mx-1 inline h-3.5 w-3.5 align-[-2px]" aria-label="a" /></>
+        : "Entró a "}
+      {m.hacia}
+    </>
+  )
+
+  return (
+    <li style={{ "--c": "var(--actividad-potrero)", "--f": "var(--actividad-potrero-fondo)" } as CSSProperties} className="relative">
+      <span aria-hidden
+        className={cn("absolute left-[64px] md:left-[76px] w-0.5 bg-border", primera ? "top-[26px]" : "top-0", ultima ? "h-[26px]" : "bottom-0",
+          primera && ultima && "hidden")} />
+
+      <button type="button" aria-expanded={abierta} aria-controls={idDetalle} onClick={() => setAbierta(v => !v)}
+        className="relative grid w-full min-h-[52px] grid-cols-[40px_30px_minmax(0,1fr)_20px] md:grid-cols-[52px_30px_minmax(0,1fr)_20px] items-center gap-x-2.5 py-1 text-left rounded-md active:bg-muted/60">
+        <span className="text-right leading-tight">
+          <span className="block text-[17px] font-bold tabular-nums">{dia}</span>
+          <span className="block text-xs text-muted-foreground">{MESES[mes - 1].slice(0, 3)}</span>
+        </span>
+        <span className="flex justify-center">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--f)] text-[var(--c)] ring-[3px] ring-background">
+            <MapPin className="h-4 w-4" aria-hidden />
+          </span>
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-semibold">
+            <span className="text-[var(--c)]">Cambio de potrero</span>
+            <span> · {lote}</span>
+          </span>
+          <span className="block truncate text-[13px] text-muted-foreground">{recorrido}</span>
+        </span>
+        <ChevronDown aria-hidden className={cn("h-5 w-5 text-muted-foreground transition-transform motion-reduce:transition-none", abierta && "rotate-180")} />
+      </button>
+
+      {abierta && (
+        <div id={idDetalle} className="relative mb-2 ml-[80px] md:ml-[92px] rounded-lg border bg-card px-3 py-2.5 text-sm">
+          <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1">
+            <dt className="text-muted-foreground">Fecha</dt>
+            <dd>{diaSemana} {dia} de {MESES[mes - 1]}</dd>
+            <dt className="text-muted-foreground">Tipo</dt>
+            <dd>Cambio de potrero</dd>
+            <dt className="text-muted-foreground">Lote</dt>
+            <dd>{lote}</dd>
+            <dt className="text-muted-foreground">Potrero</dt>
+            <dd>{recorrido}</dd>
+            {m.notas.length > 0 && <>
+              <dt className="text-muted-foreground">Motivo</dt>
+              <dd>{m.notas.join(" · ")}</dd>
+            </>}
+          </dl>
+          <Link href={`/lotes/${m.loteId}`} className="mt-1 inline-flex min-h-11 items-center gap-1 font-semibold text-primary hover:underline">
+            Ver lote <ChevronRight className="h-4 w-4" aria-hidden />
           </Link>
         </div>
       )}

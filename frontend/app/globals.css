@@ -107,6 +107,9 @@
   --actividad-bajas-fondo: oklch(0.94 0.024 17.6);         /* #fbe5e5 */
   --actividad-otra: oklch(0.441 0.02 150.7);               /* #4b564d */
   --actividad-otra-fondo: oklch(0.965 0.007 151.9);        /* #f0f5f1 */
+  /* Cambios de potrero en la línea de tiempo de Actividades (no son una actividad) */
+  --actividad-potrero: oklch(0.47 0.16 350);              /* #a3266a fucsia: tono que no usa ninguna otra familia */
+  --actividad-potrero-fondo: oklch(0.95 0.022 350);        /* #fbe9f1 */
 }
 
 @layer base {

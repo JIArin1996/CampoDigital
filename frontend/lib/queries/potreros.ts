@@ -142,6 +142,23 @@ export async function getEstadiasLote(lote_id: string) {
   return data as Estadia[]
 }
 
+// Todas las estadías del establecimiento (o de un lote), para los cambios de potrero de la línea de
+// tiempo de Actividades
+export async function getEstadiasEstablecimiento(establecimiento_id: string, lote_id?: string | null) {
+  const supabase = createClient()
+  let query = supabase
+    .from('lote_estadias')
+    .select('*')
+    .eq('establecimiento_id', establecimiento_id)
+    .is('anulada_en', null)
+    .order('fecha_ingreso')
+    .order('created_at')
+  if (lote_id) query = query.eq('lote_id', lote_id)
+  const { data, error } = await query
+  if (error) throw error
+  return data as Estadia[]
+}
+
 // Qué lotes pasaron por un potrero, de la más nueva a la más vieja, con el nombre del lote
 export async function getEstadiasPotrero(potrero_id: string) {
   const supabase = createClient()

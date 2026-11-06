@@ -9,12 +9,14 @@ import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
 import { getActividades } from "@/lib/queries/actividades"
 import { getPersonas } from "@/lib/queries/bitacora"
 import { getLotes } from "@/lib/queries/lotes"
+import { getEstadiasEstablecimiento, getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Cargando } from "@/components/shared/Cargando"
 import { buttonVariants } from "@/components/ui/button"
 import { LineaDeTiempo, LineaDeTiempoCargando } from "@/components/actividades/LineaDeTiempo"
 import { ETIQUETA_ACTIVIDAD, TIPOS_CARGABLES, esTipoCargable } from "@/components/actividades/formato"
+import { movimientosDePotrero, type MovimientoPotrero } from "@/components/potreros/movimientos"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { cn } from "@/lib/utils"
 import type { ActividadResumen, TipoCargable } from "@/types/actividades"
@@ -22,10 +24,16 @@ import type { ActividadResumen, TipoCargable } from "@/types/actividades"
 interface Datos {
   clave: string
   actividades: ActividadResumen[]
+  movimientos: MovimientoPotrero[]
   nombresLote: Map<string, string>
   lotesActivos: { id: string; nombre: string }[]
   nombresPersona: Map<string, string>
 }
+
+type Filtro = TipoCargable | "potrero" | null
+
+// Cuántas actividades trae como mucho (las más recientes)
+const LIMITE = 100
 
 export default function ActividadesPage() {
   return (
@@ -40,8 +48,9 @@ function Actividades() {
   const { establecimientoActivo, puedeOperar, cargando: cargandoCtx } = useEstablecimiento()
   const estId = establecimientoActivo?.id
 
-  // Filtros (se pueden pasar por la URL: ?tipo=venta&lote=<id>)
-  const [tipo, setTipo] = useState<TipoCargable | null>(esTipoCargable(params.get("tipo")) ? (params.get("tipo") as TipoCargable) : null)
+  // Filtros (se pueden pasar por la URL: ?tipo=venta&lote=<id>). "potrero": solo los cambios de potrero.
+  const tipoUrl = params.get("tipo")
+  const [tipo, setTipo] = useState<Filtro>(esTipoCargable(tipoUrl) || tipoUrl === "potrero" ? tipoUrl : null)
   const [loteId, setLoteId] = useState(params.get("lote") ?? "")
 
   const [datos, setDatos] = useState<Datos | null>(null)
@@ -52,17 +61,30 @@ function Actividades() {
   useEffect(() => {
     if (!estId) return
     let vigente = true
+    // Los cambios de potrero van con "Todas" o con el filtro "Potrero"; las actividades, salvo con "Potrero"
+    const conActividades = tipo !== "potrero"
+    const conPotreros = tipo === null || tipo === "potrero"
     Promise.all([
-      getActividades(estId, { tipo, loteId: loteId || null }),
+      conActividades ? getActividades(estId, { tipo, loteId: loteId || null }) : Promise.resolve([]),
+      conPotreros ? getEstadiasEstablecimiento(estId, loteId || null) : Promise.resolve([]),
+      conPotreros ? getPotreros(estId, { incluirInactivos: true }) : Promise.resolve([]),
       getLotes(estId, "activo"),
       getLotes(estId, "cerrado"),
       getPersonas(estId),
     ])
-      .then(([actividades, activos, cerrados, personas]) => {
+      .then(([actividades, estadias, potreros, activos, cerrados, personas]) => {
         if (!vigente) return
+        const nombrePotrero = new Map(potreros.map(p => [p.id, p.nombre]))
+        let movimientos = movimientosDePotrero(estadias, id => nombrePotrero.get(id) ?? "Potrero")
+        // Si las actividades llegaron al tope, los cambios de potrero no van más atrás que la más vieja
+        if (actividades.length >= LIMITE) {
+          const desde = actividades[actividades.length - 1].fecha
+          movimientos = movimientos.filter(m => m.fecha >= desde)
+        }
         setDatos({
           clave: JSON.stringify([estId, tipo, loteId]),
           actividades,
+          movimientos,
           nombresLote: new Map([...activos, ...cerrados].map(l => [l.id, l.nombre])),
           lotesActivos: activos.map(l => ({ id: l.id, nombre: l.nombre })),
           nombresPersona: new Map(personas.map(p => [p.id, p.nombre])),
@@ -102,6 +124,9 @@ function Actividades() {
               {ETIQUETA_ACTIVIDAD[t]}
             </button>
           ))}
+          <button type="button" aria-pressed={tipo === "potrero"} className={chip(tipo === "potrero")} onClick={() => setTipo("potrero")}>
+            Cambios de potrero
+          </button>
         </div>
 
         <select aria-label="Lote" className={SELECT_NATIVO} value={loteId} onChange={e => setLoteId(e.target.value)}>
@@ -117,10 +142,12 @@ function Actividades() {
 
       {!datos ? (
         <LineaDeTiempoCargando />
-      ) : datos.actividades.length === 0 ? (
+      ) : datos.actividades.length === 0 && datos.movimientos.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center">
           <ClipboardList className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">No hay actividades con estos filtros.</p>
+          <p className="text-sm text-muted-foreground">
+            {tipo === "potrero" ? "No hay cambios de potrero con estos filtros." : "No hay actividades con estos filtros."}
+          </p>
           {puedeOperar && (
             <Link href={loteId ? `/actividades/nueva?lote=${loteId}` : "/actividades/nueva"} className={buttonVariants({ className: "mt-4 h-11 md:h-9" })}>
               <Plus className="h-4 w-4 mr-1" /> Cargar actividad
@@ -129,11 +156,11 @@ function Actividades() {
         </div>
       ) : (
         <div className={cn("transition-opacity", actualizando && "opacity-60")}>
-          <LineaDeTiempo actividades={datos.actividades} nombresLote={datos.nombresLote}
+          <LineaDeTiempo actividades={datos.actividades} movimientos={datos.movimientos} nombresLote={datos.nombresLote}
             nombrePersona={id => datos.nombresPersona.get(id)} />
         </div>
       )}
-      {datos && datos.actividades.length >= 100 && (
+      {datos && datos.actividades.length >= LIMITE && (
         <p className="text-sm text-muted-foreground mt-4">Se muestran las 100 más recientes. Usá los filtros para encontrar las anteriores.</p>
       )}
     </PageContainer>

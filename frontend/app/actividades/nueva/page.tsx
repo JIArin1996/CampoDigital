@@ -9,7 +9,7 @@ import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Cargando } from "@/components/shared/Cargando"
 import { VolverAlLote } from "@/components/lotes/VolverAlLote"
-import { DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, TIPOS_6A, TIPOS_6B1, esTipo6a, esTipoCargable } from "@/components/actividades/formato"
+import { DESCRIPCION_ACTIVIDAD, ETIQUETA_ACTIVIDAD, TIPOS_6A, TIPOS_6B1, TIPOS_ECONOMICOS, esTipo6a, esTipoCargable } from "@/components/actividades/formato"
 import { cargarDatosCarga, type DatosCarga } from "@/components/actividades/datosCarga"
 import { FormularioConStock } from "@/components/actividades/FormularioConStock"
 import { FormularioSinStock } from "@/components/actividades/FormularioSinStock"
@@ -81,8 +81,12 @@ function NuevaActividad() {
         <h1 className="text-2xl font-bold mb-4">¿Qué actividad cargás?</h1>
         <div className="space-y-5 max-w-xl">
           <section>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Económicas</h2>
+            <ul className="space-y-2">{TIPOS_ECONOMICOS.map(opcion)}</ul>
+          </section>
+          <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Cambian el stock o lo miden</h2>
-            <ul className="space-y-2">{[...TIPOS_6A, "destete" as const].map(opcion)}</ul>
+            <ul className="space-y-2">{[...TIPOS_6A.filter(t => !TIPOS_ECONOMICOS.includes(t)), "destete" as const].map(opcion)}</ul>
           </section>
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">Manejo y sanidad</h2>
