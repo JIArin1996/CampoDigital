@@ -267,8 +267,9 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
         )}
       </div>
 
-      {/* Mapa y panel */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-4">
+      {/* Mapa y panel. En la computadora el mapa va a todo el ancho; al elegir un potrero (o dibujar) se
+          achica y a la derecha aparece la columna con el detalle */}
+      <div className={cn(panel && "lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-4")}>
         {/* El mismo contenedor pasa a pantalla completa (sin volver a crear el mapa) */}
         <div className={cn("isolate overflow-hidden bg-muted",
           completa ? "fixed inset-0 z-50" : "relative h-[60vh] rounded-lg border lg:h-[70vh]")}>
@@ -316,13 +317,16 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
             </>
           )}
         </div>
-        <aside className="hidden lg:block rounded-lg border bg-card p-4 lg:h-[70vh] lg:overflow-y-auto">
-          {panel || resumen}
-        </aside>
+        {panel && (
+          <aside className="hidden lg:block rounded-lg border bg-card p-4 lg:h-[70vh] lg:overflow-y-auto">
+            {panel}
+          </aside>
+        )}
       </div>
 
-      {/* Celular y tableta: el resumen debajo del mapa mientras no se elige un potrero */}
-      {!panel && <section className="rounded-lg border bg-card p-4 lg:hidden">{resumen}</section>}
+      {/* El resumen debajo del mapa: en la computadora siempre; en el celular y la tableta, mientras no se
+          elige un potrero (el panel ocupa la hoja de abajo) */}
+      <section className={cn("rounded-lg border bg-card p-4", panel && "hidden lg:block")}>{resumen}</section>
 
       {/* Leyenda (siempre: el color nunca va solo) */}
       {leyenda}
