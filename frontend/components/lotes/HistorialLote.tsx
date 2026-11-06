@@ -9,6 +9,7 @@ import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
 import { ACTIVIDAD, coloresActividad } from "@/components/actividades/actividad-iconos"
 import { destacado } from "@/components/actividades/LineaDeTiempo"
 import { ETIQUETA_TIPO, estadoDe, etiquetaEstado } from "@/components/bitacora/formato"
+import { movimientosDePotrero, type MovimientoPotrero } from "@/components/potreros/movimientos"
 import { textoResponsables } from "@/components/shared/Responsables"
 import { cn } from "@/lib/utils"
 import type { ActividadResumen } from "@/types/actividades"
@@ -35,7 +36,7 @@ const CIRCULO: Record<Tono, string> = {
   suma: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
   resta: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
   neutro: "bg-muted text-muted-foreground",
-  potrero: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400",
+  potrero: "bg-[var(--actividad-potrero-fondo)] text-[var(--actividad-potrero)]",
 }
 const CIFRA: Record<"suma" | "resta", string> = {
   suma: "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/60 dark:text-emerald-400",
@@ -44,7 +45,7 @@ const CIFRA: Record<"suma" | "resta", string> = {
 
 type Fila =
   | { clase: "evento"; fecha: string; orden: number; evento: LoteEvento }
-  | { clase: "potrero"; fecha: string; orden: number; id: string; desde: string | null; hacia: string | null; notas: string[] }
+  | ({ clase: "potrero" } & MovimientoPotrero)
   // Una actividad del lote, con los eventos de stock que generó en este lote (uno por categoría; vacío si no mueve stock)
   | { clase: "actividad"; fecha: string; orden: number; actividad: ActividadResumen; eventos: LoteEvento[] }
   // Una entrada de bitácora del lote que se cerró (tarea o decisión realizada, idea decidida o descartada), el día que se cerró
@@ -52,33 +53,6 @@ type Fila =
 
 // Día (en Uruguay) de un momento guardado con hora
 const diaUruguay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Montevideo" })
-
-// Junta la salida de un potrero con la entrada al siguiente cuando son el mismo día: "A → B"
-function movimientosDePotrero(estadias: Estadia[], nombre: (id: string) => string): Fila[] {
-  const filas: Fila[] = []
-  const salidaUsada = new Set<string>()
-  estadias.forEach((e, i) => {
-    const previa = i > 0 ? estadias[i - 1] : null
-    const enlazada = previa && previa.cerrada_por === "cambio" && previa.fecha_salida === e.fecha_ingreso ? previa : null
-    if (enlazada) salidaUsada.add(enlazada.id)
-    filas.push({
-      clase: "potrero", fecha: e.fecha_ingreso, orden: 0, id: `${e.id}:i`,
-      desde: enlazada ? nombre(enlazada.potrero_id) : null,
-      hacia: nombre(e.potrero_id),
-      notas: [...new Set([enlazada?.motivo_salida, e.motivo].filter((n): n is string => !!n))],
-    })
-  })
-  for (const e of estadias) {
-    if (!e.fecha_salida || salidaUsada.has(e.id)) continue
-    filas.push({
-      clase: "potrero", fecha: e.fecha_salida, orden: 1, id: `${e.id}:s`,
-      desde: nombre(e.potrero_id),
-      hacia: e.cerrada_por === "cierre" ? "cierre del lote" : "sin potrero",
-      notas: e.motivo_salida ? [e.motivo_salida] : [],
-    })
-  }
-  return filas
-}
 
 interface Props {
   eventos: LoteEvento[]
@@ -113,7 +87,7 @@ export function HistorialLote({
     ...entradas.filter(e => e.cerrada_en).map((entrada, i) => ({
       clase: "bitacora" as const, fecha: diaUruguay(entrada.cerrada_en!), orden: 1.5 + i / 1e6, entrada,
     })),
-    ...movimientosDePotrero(estadias, nombrePotrero),
+    ...movimientosDePotrero(estadias, nombrePotrero).map(m => ({ clase: "potrero" as const, ...m })),
   ].sort((a, b) => b.fecha.localeCompare(a.fecha) || a.orden - b.orden)
 
   if (filas.length === 0) return <p className="text-sm text-muted-foreground">Sin movimientos.</p>
@@ -138,7 +112,7 @@ export function HistorialLote({
             <>
               <p className="text-sm font-medium flex flex-wrap items-center gap-x-1.5">
                 {fila.desde
-                  ? <><span className="text-muted-foreground">{fila.desde}</span><ArrowRight className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" /></>
+                  ? <><span className="text-muted-foreground">{fila.desde}</span><ArrowRight className="h-3.5 w-3.5 text-[var(--actividad-potrero)]" /></>
                   : <span className="text-muted-foreground">Entró a</span>}
                 <span>{fila.hacia}</span>
               </p>
