@@ -16,7 +16,7 @@ import { numero, type AccionesPotrero, type LoteEnPotrero } from "@/components/p
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { getSuperpuestos, guardarFormaPotrero, updatePotrero, type FormaPotrero } from "@/lib/queries/potreros"
+import { getSuperpuestos, guardarFormaPotrero, type FormaPotrero } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import type { Potrero } from "@/types/database"
 
@@ -119,13 +119,11 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
     if (window.innerWidth < 1024) setCompleta(true)
   }
 
-  const guardarDibujo = async (superficie: number) => {
+  const guardarDibujo = async () => {
     if (!edicion || !formaEditada) return
-    const p = potreros.find(x => x.id === edicion.id)
     setGuardando(true)
     try {
       await guardarFormaPotrero(edicion.id, formaEditada)
-      if (p && superficie !== Number(p.superficie)) await updatePotrero(edicion.id, { superficie })
       toast.success("Forma guardada")
       await avisarSuperposiciones([edicion.id])
       setEdicion(null)
@@ -138,7 +136,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
   }
 
   const borrarForma = async (p: Potrero) => {
-    if (!window.confirm(`¿Borrar la forma de ${p.nombre}? El potrero sigue existiendo, sin dibujar.`)) return
+    if (!window.confirm(`¿Borrar la forma de ${p.nombre}? El potrero sigue existiendo, sin dibujar y sin superficie.`)) return
     try {
       await guardarFormaPotrero(p.id, null)
       toast.success("Forma borrada")

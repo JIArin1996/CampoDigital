@@ -2,17 +2,21 @@ import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
 import type { Establecimiento, EstablecimientoDatos, EstablecimientoUpdate, RolMembresia } from '@/types/database'
 
+// La superficie total es una columna calculada por la base (la suma de los potreros activos dibujados):
+// hay que pedirla aparte del *
+const CON_SUPERFICIE = '*, superficie_total'
+
 // Establecimientos activos del usuario (el RLS deja ver solo aquellos donde es miembro)
 export async function getEstablecimientos() {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('establecimientos')
-    .select('*')
+    .select(CON_SUPERFICIE)
     .eq('estado', 'activo')
     .order('nombre')
 
   if (error) throw error
-  return data as Establecimiento[]
+  return data as unknown as Establecimiento[]
 }
 
 // Establecimientos inactivos del usuario
@@ -20,12 +24,12 @@ export async function getEstablecimientosInactivos() {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('establecimientos')
-    .select('*')
+    .select(CON_SUPERFICIE)
     .eq('estado', 'inactivo')
     .order('nombre')
 
   if (error) throw error
-  return data as Establecimiento[]
+  return data as unknown as Establecimiento[]
 }
 
 // Obtiene un establecimiento por id (null si no existe o no es miembro)
@@ -33,12 +37,12 @@ export async function getEstablecimiento(id: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('establecimientos')
-    .select('*')
+    .select(CON_SUPERFICIE)
     .eq('id', id)
     .maybeSingle()
 
   if (error) throw error
-  return data as Establecimiento | null
+  return data as unknown as Establecimiento | null
 }
 
 // Rol asignado al usuario actual en cada establecimiento (el administrador ve todos sin asignación)
@@ -66,7 +70,6 @@ export async function crearEstablecimiento(values: EstablecimientoDatos): Promis
     p_departamento: values.departamento,
     p_localidad: values.localidad ?? undefined,
     p_paraje: values.paraje ?? undefined,
-    p_superficie_total: values.superficie_total ?? undefined,
     p_sistema_productivo: values.sistema_productivo ?? undefined,
     p_propietario: values.propietario ?? undefined,
     p_rut: values.rut ?? undefined,
@@ -87,10 +90,10 @@ export async function updateEstablecimiento(id: string, values: EstablecimientoU
     .from('establecimientos')
     .update(values)
     .eq('id', id)
-    .select()
+    .select(CON_SUPERFICIE)
 
   if (error) throw error
-  return exigirFilas(data) as Establecimiento
+  return exigirFilas(data) as unknown as Establecimiento
 }
 
 // Baja lógica (no hay borrado)

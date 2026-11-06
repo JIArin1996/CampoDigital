@@ -1248,7 +1248,6 @@ export type Database = {
           propietario: string | null
           rut: string | null
           sistema_productivo: string | null
-          superficie_total: number | null
           updated_at: string
         }
         Insert: {
@@ -1266,7 +1265,6 @@ export type Database = {
           propietario?: string | null
           rut?: string | null
           sistema_productivo?: string | null
-          superficie_total?: number | null
           updated_at?: string
         }
         Update: {
@@ -1284,7 +1282,6 @@ export type Database = {
           propietario?: string | null
           rut?: string | null
           sistema_productivo?: string | null
-          superficie_total?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -2416,7 +2413,7 @@ export type Database = {
           nombre: string
           observaciones: string | null
           sombra: boolean | null
-          superficie: number
+          superficie: number | null
           tipo_pastura: string | null
           updated_at: string
           uso_actual: string | null
@@ -2432,7 +2429,6 @@ export type Database = {
           nombre: string
           observaciones?: string | null
           sombra?: boolean | null
-          superficie: number
           tipo_pastura?: string | null
           updated_at?: string
           uso_actual?: string | null
@@ -2448,7 +2444,6 @@ export type Database = {
           nombre?: string
           observaciones?: string | null
           sombra?: boolean | null
-          superficie?: number
           tipo_pastura?: string | null
           updated_at?: string
           uso_actual?: string | null
@@ -3506,7 +3501,6 @@ export type Database = {
           p_propietario?: string
           p_rut?: string
           p_sistema_productivo?: string
-          p_superficie_total?: number
         }
         Returns: string
       }
@@ -3720,7 +3714,6 @@ export type Database = {
       }
       guardar_forma_potrero: {
         Args: {
-          p_actualizar_superficie?: boolean
           p_forma: Json
           p_potrero_id: string
         }
@@ -3971,6 +3964,10 @@ export type Database = {
       restaurar_archivo_lote: {
         Args: { p_archivo_id: string; p_lote_id: string }
         Returns: undefined
+      }
+      superficie_total: {
+        Args: { e: Database["public"]["Tables"]["establecimientos"]["Row"] }
+        Returns: number
       }
       stock_al: {
         Args: { p_establecimiento_id: string; p_fecha: string }

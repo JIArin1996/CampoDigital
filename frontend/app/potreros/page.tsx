@@ -139,7 +139,9 @@ export default function PotrerosPage() {
   if (!listos) return <PageContainer>{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : skeleton}</PageContainer>
 
   const activos = listos.potreros.filter(p => p.estado === "activo")
-  const superficie = activos.reduce((s, p) => s + Number(p.superficie), 0)
+  // Superficie total: la suma de los potreros activos dibujados (los sin dibujar no tienen)
+  const superficie = activos.reduce((s, p) => s + Number(p.superficie ?? 0), 0)
+  const sinDibujar = activos.filter(p => p.superficie === null).length
   // Vista: la elegida (o la guardada); si no, el mapa cuando hay algo dibujado
   const vistaActual: Vista = vista ?? vistaGuardada() ?? (listos.formas.size > 0 ? "mapa" : "lista")
   const elegirVista = (v: Vista) => {
@@ -161,8 +163,8 @@ export default function PotrerosPage() {
           <h1 className="text-2xl font-bold">Potreros</h1>
           {activos.length > 0 && (
             <p className="text-sm text-muted-foreground mt-0.5">
-              {numero(superficie)} ha
-              {establecimientoActivo.superficie_total ? ` de ${numero(establecimientoActivo.superficie_total)} ha totales` : " en total"}
+              {numero(superficie)} ha en total
+              {sinDibujar > 0 && ` · ${sinDibujar} ${sinDibujar === 1 ? "potrero sin dibujar" : "potreros sin dibujar"}`}
             </p>
           )}
         </div>

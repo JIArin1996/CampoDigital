@@ -10,8 +10,9 @@ import type { Potrero } from "@/types/database"
 const MAXIMO = 3   // cuántos potreros se listan en "Más días de descanso" ("Más días en el potrero" los lista todos)
 
 /**
- * Resumen de todo el establecimiento cuando no hay un potrero elegido: superficie (la de los dibujos; sin
- * dibujar, la cargada), potreros con animales y en descanso, cabezas por especie, UG y carga global, los
+ * Resumen de todo el establecimiento cuando no hay un potrero elegido: superficie (la suma de los potreros
+ * dibujados; los sin dibujar no suman), potreros con animales y en descanso, cabezas por especie, UG y carga
+ * global (solo de los potreros dibujados), los
  * potreros que más descansan y todos los potreros con animales, de más días a menos (el potrero
  * destacado, sus lotes abajo, más chicos). Tocar uno lo elige en el mapa.
  */
@@ -22,9 +23,13 @@ export function ResumenEstablecimiento({ potreros, formas, ocupacion, salidas, o
   salidas: Map<string, string>
   onSeleccionar: (potreroId: string) => void
 }) {
-  const superficie = potreros.reduce((s, p) => s + (formas.get(p.id)?.area_ha ?? Number(p.superficie)), 0)
+  const dibujados = potreros.filter(p => formas.has(p.id))
+  const sinDibujar = potreros.length - dibujados.length
+  const superficie = dibujados.reduce((s, p) => s + formas.get(p.id)!.area_ha, 0)
   const adentro = potreros.flatMap(p => (ocupacion.get(p.id) ?? []).map(l => ({ ...l, potrero: p })))
-  const { cabezas, ug, sinUg } = totales(adentro)
+  const { cabezas, sinUg } = totales(adentro)
+  // La carga: los animales de los potreros dibujados sobre su superficie
+  const { ug } = totales(adentro.filter(l => formas.has(l.potrero.id)))
   const conAnimales = potreros.filter(p => (ocupacion.get(p.id) ?? []).length > 0)
   const vacios = potreros.filter(p => (ocupacion.get(p.id) ?? []).length === 0)
 
@@ -74,7 +79,8 @@ export function ResumenEstablecimiento({ potreros, formas, ocupacion, salidas, o
       </div>
 
       <dl className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
-        {dato("Superficie", `${numero(superficie, 1)} ha`, `${potreros.length} ${potreros.length === 1 ? "potrero" : "potreros"}`)}
+        {dato("Superficie", dibujados.length > 0 ? `${numero(superficie, 1)} ha` : "—",
+          `${potreros.length} ${potreros.length === 1 ? "potrero" : "potreros"}${sinDibujar > 0 ? ` · ${sinDibujar} sin dibujar (no suman)` : ""}`)}
         {dato("Potreros", `${conAnimales.length} con animales`, `${vacios.length} en descanso`)}
         {dato("Animales en potreros", `${cabezas.toLocaleString("es-UY")} ${cabezas === 1 ? "cabeza" : "cabezas"}`,
           [...porEspecie].map(([e, n]) => `${e} ${n.toLocaleString("es-UY")}`).join(" · ") || null)}

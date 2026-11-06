@@ -48,7 +48,8 @@ export function ListaPotreros({ potreros, ocupacion, puedeOperar, acciones }: Li
             const inactivo = potrero.estado === "inactivo"
             const enPotrero = ocupacion.get(potrero.id) ?? []
             const cabezas = enPotrero.reduce((s, x) => s + x.cabezas, 0)
-            const superficie = Number(potrero.superficie)
+            // Superficie: la del dibujo (null sin dibujar)
+            const superficie = potrero.superficie === null ? null : Number(potrero.superficie)
             return (
               <div key={potrero.id} className={cn("rounded-lg border bg-card px-4 py-3", inactivo && "border-dashed bg-muted/40")}>
                 <div className="flex items-start justify-between gap-3">
@@ -57,7 +58,7 @@ export function ListaPotreros({ potreros, ocupacion, puedeOperar, acciones }: Li
                     <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Ruler className="h-3.5 w-3.5" />
-                        {numero(superficie, 2)} ha
+                        {superficie === null ? "Sin dibujar" : `${numero(superficie, 2)} ha`}
                       </span>
                       {potrero.tipo_pastura && (
                         <span className="flex items-center gap-1">
@@ -93,7 +94,7 @@ export function ListaPotreros({ potreros, ocupacion, puedeOperar, acciones }: Li
                     <div className="mt-2 space-y-1.5">
                       <p className="text-sm">
                         <span className="font-semibold tabular-nums">{cabezas}</span> {cabezas === 1 ? "cabeza" : "cabezas"}
-                        {superficie > 0 && <span className="text-muted-foreground"> · {numero(cabezas / superficie, 2)} cab/ha</span>}
+                        {superficie !== null && superficie > 0 && <span className="text-muted-foreground"> · {numero(cabezas / superficie, 2)} cab/ha</span>}
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {enPotrero.map(({ lote, cabezas: c }) => (

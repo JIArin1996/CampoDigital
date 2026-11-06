@@ -1,13 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import area from "@turf/area"
-import { AlertTriangle, RotateCcw } from "lucide-react"
+import { RotateCcw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { CAMPO } from "@/components/shared/estilos"
 import { numero } from "@/components/potreros/ocupacion"
 import type { Potrero } from "@/types/database"
 
@@ -15,25 +11,19 @@ import type { Potrero } from "@/types/database"
 export const hectareas = (forma: GeoJSON.MultiPolygon) => Math.round(area(forma) / 100) / 100
 
 /**
- * Barra del dibujo de un potrero, sobre el mapa: instrucciones, área en vivo, la superficie propuesta
- * (editable, con aviso si difiere más de 10 % de la cargada) y Guardar, Empezar de nuevo y Cancelar.
+ * Barra del dibujo de un potrero, sobre el mapa: instrucciones, área en vivo (que al guardar pasa a ser
+ * la superficie del potrero) y Guardar, Empezar de nuevo y Cancelar.
  */
 export function BarraDibujo({ potrero, forma, guardando, onGuardar, onReiniciar, onCancelar }: {
   potrero: Potrero
   forma: GeoJSON.MultiPolygon | null
   guardando: boolean
-  onGuardar: (superficie: number) => void
+  onGuardar: () => void
   onReiniciar: () => void
   onCancelar: () => void
 }) {
-  const cargada = Number(potrero.superficie)
+  const anterior = potrero.superficie === null ? null : Number(potrero.superficie)
   const ha = forma ? hectareas(forma) : null
-  // La superficie propuesta es el área dibujada, hasta que el usuario la escriba a mano
-  const [escrita, setEscrita] = useState<string | null>(null)
-  const superficie = escrita ?? (ha !== null ? String(ha) : "")
-  const diferencia = ha !== null && cargada > 0 ? (ha - cargada) / cargada : 0
-  const valor = Number(superficie.replace(",", "."))
-  const valida = Number.isFinite(valor) && valor > 0
 
   return (
     <div className="space-y-3">
@@ -47,37 +37,18 @@ export function BarraDibujo({ potrero, forma, guardando, onGuardar, onReiniciar,
       </div>
 
       {ha !== null && (
-        <>
-          <p className="text-sm">
-            Área dibujada: <span className="font-semibold tabular-nums">{numero(ha, 2)} ha</span>
-            <span className="text-muted-foreground"> · cargada: {numero(cargada, 2)} ha</span>
-          </p>
-          {Math.abs(diferencia) > 0.1 && (
-            <p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              Difiere {numero(Math.abs(diferencia) * 100, 0)} % de la superficie cargada. Revisá el dibujo o corregí la superficie.
-            </p>
-          )}
-          <div className="flex items-end gap-2">
-            <div className="space-y-1.5 flex-1 max-w-48">
-              <Label htmlFor="dib-superficie">Superficie del potrero (ha)</Label>
-              <Input id="dib-superficie" inputMode="decimal" className={CAMPO} value={superficie} onChange={e => setEscrita(e.target.value)} />
-            </div>
-            {escrita !== null && (
-              <Button type="button" variant="ghost" size="sm" className="h-11 md:h-9" onClick={() => setEscrita(null)}>
-                Usar el área
-              </Button>
-            )}
-          </div>
-        </>
+        <p className="text-sm">
+          Superficie: <span className="font-semibold tabular-nums">{numero(ha, 2)} ha</span>
+          {anterior !== null && anterior !== ha && <span className="text-muted-foreground"> · antes: {numero(anterior, 2)} ha</span>}
+        </p>
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button className="h-11 md:h-9" disabled={!forma || !valida || guardando} onClick={() => onGuardar(Math.round(valor * 100) / 100)}>
+        <Button className="h-11 md:h-9" disabled={!forma || guardando} onClick={onGuardar}>
           {guardando ? "Guardando..." : "Guardar forma"}
         </Button>
         {forma && (
-          <Button variant="outline" className="h-11 md:h-9" disabled={guardando} onClick={() => { setEscrita(null); onReiniciar() }}>
+          <Button variant="outline" className="h-11 md:h-9" disabled={guardando} onClick={onReiniciar}>
             <RotateCcw className="h-4 w-4 mr-1" /> Empezar de nuevo
           </Button>
         )}
