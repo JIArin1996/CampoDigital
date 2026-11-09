@@ -68,7 +68,7 @@ order by 1, 2;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Lista todo permiso de anon, authenticated o public que no sea "authenticated: select".
 --
--- ESPERADO (después de 20261027000200): exactamente estas 25 filas, todas de authenticated: 21 a nivel columna y 4 de
+-- ESPERADO (después de 20261110000100): exactamente estas 27 filas, todas de authenticated: 23 a nivel columna y 4 de
 -- tabla (el DELETE de los catálogos de economía, que las políticas limitan al administrador).
 -- (La bitácora y las actividades no agregan permisos de escritura: se escribe solo por funciones. Especies suma las
 -- columnas grupo (6b-1) y color, que siguen limitadas al administrador por las políticas. En lotes, campana
@@ -95,6 +95,8 @@ order by 1, 2;
 --   columna | authenticated | pagadores           | UPDATE  | activo, nombre, titular_id
 --   columna | authenticated | titulares           | INSERT  | activo, establecimiento_id, nombre
 --   columna | authenticated | titulares           | UPDATE  | activo, nombre
+--   columna | authenticated | zona_tipos          | INSERT  | activo, color, establecimiento_id, nombre, orden
+--   columna | authenticated | zona_tipos          | UPDATE  | activo, color, nombre, orden
 --   (y las 13 de antes:)
 --
 --   nivel   | grantee       | tabla               | permiso | columnas
@@ -141,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261109000500, tablero de indicadores con economía y potreros): 156 filas, todas con ok = true.
+-- ESPERADO (después de 20261110000100, área efectiva, con el tablero de indicadores): 161 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -161,7 +163,9 @@ order by 1 desc, 2, 3, 4;
 -- +3 de 20261109000100 y 20261109000200: guardar_tablero, tablero_stock y tablero_reproductivos (las internas
 -- _tablero_periodos y _tablero_uuids de la 0100 se borran en la 0200);
 -- +1 de 20261109000300: tablero_pesadas;
--- +4 de 20261109000500: tablero_economia, tablero_potreros, la interna _ug_por_nombre y el trigger completar_ug_categoria.)
+-- +4 de 20261109000500: tablero_economia, tablero_potreros, la interna _ug_por_nombre y el trigger completar_ug_categoria;
+-- +5 de 20261110000100: guardar_zona_potrero, borrar_zona_potrero, superficie_efectiva_total y las internas
+-- _cargar_zona_tipos y _geometria_de_geojson.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -189,6 +193,7 @@ order by 1 desc, 2, 3, 4;
 --   _cargar_pesada              | false            | false         | false | false
 --   _cargar_productos_sanidad   | false            | false         | false | false
 --   _cargar_servicio            | false            | false         | false | false
+--   _cargar_zona_tipos          | false            | false         | false | false
 --   _cerrar_si_vacio            | false            | false         | false | false
 --   _concepto_por_defecto       | false            | false         | false | false
 --   _eliminar_actividad         | false            | false         | false | false
@@ -197,6 +202,7 @@ order by 1 desc, 2, 3, 4;
 --   _exigir_categoria           | false            | false         | false | false
 --   _fichas_de_admins           | false            | false         | false | false
 --   _fuente_tipo_cambio         | false            | false         | false | false
+--   _geometria_de_geojson       | false            | false         | false | false
 --   _guardar_lotes_bitacora     | false            | false         | false | false
 --   _guardar_pago_y_factura     | false            | false         | false | false
 --   _guardar_responsables_actividad | false            | false         | false | false
@@ -233,6 +239,7 @@ order by 1 desc, 2, 3, 4;
 --   asignar_rol                 | true             | true          | false | false
 --   bloquear_borrado            | false            | false         | false | false
 --   bloquear_modificacion       | false            | false         | false | false
+--   borrar_zona_potrero         | true             | true          | false | false
 --   calcular_superficie_potrero | false            | false         | false | false
 --   cambiar_estado_decision     | true             | true          | false | false
 --   cambiar_estado_idea         | true             | true          | false | false
@@ -270,6 +277,7 @@ order by 1 desc, 2, 3, 4;
 --   fecha_hoy                   | false            | true          | false | false
 --   guardar_forma_potrero       | true             | true          | false | false
 --   guardar_tablero             | true             | true          | false | false
+--   guardar_zona_potrero        | true             | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
 --   marcar_cierre_entrada       | false            | false         | false | false
 --   marcar_dosis_dada           | true             | true          | false | false
@@ -311,6 +319,7 @@ order by 1 desc, 2, 3, 4;
 --   sincronizar_nombre_persona  | true             | false         | false | false
 --   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
+--   superficie_efectiva_total   | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
 --   tablero_economia            | false            | true          | false | false
 --   tablero_pesadas             | false            | true          | false | false
@@ -380,7 +389,8 @@ select
                                             'adjuntar_archivo_actividad', 'quitar_archivo_actividad', 'eliminar_actividad',
                                             'editar_compra', 'editar_venta', 'editar_pesada', 'editar_mortandad', 'editar_paricion',
                                             'editar_sanidad', 'editar_servicio', 'editar_diagnostico', 'editar_esquila',
-                                            'editar_personalizada', 'editar_destete', 'guardar_tablero'))
+                                            'editar_personalizada', 'editar_destete', 'guardar_tablero',
+                                            'guardar_zona_potrero', 'borrar_zona_potrero'))
   ) as ok
 from f
 order by f.funcion;

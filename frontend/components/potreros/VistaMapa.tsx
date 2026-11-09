@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { PanelPotrero } from "@/components/potreros/PanelPotrero"
 import { ResumenEstablecimiento } from "@/components/potreros/ResumenEstablecimiento"
 import { BarraDibujo } from "@/components/potreros/BarraDibujo"
+import { BarraZona } from "@/components/potreros/BarraZona"
 import { ImportarFormas } from "@/components/potreros/ImportarFormas"
 import { CAPAS, CAPA_POR_DEFECTO, type IdCapa } from "@/components/potreros/mapa/capas"
 import { LEYENDAS, MODOS, categoriaDe, coloresPorPotrero, type ModoColor } from "@/components/potreros/mapa/colores"
@@ -17,6 +18,8 @@ import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { getSuperpuestos, guardarFormaPotrero, type FormaPotrero } from "@/lib/queries/potreros"
+import { borrarZona, getTiposZona, guardarZona, type TipoZona, type ZonaPotrero } from "@/lib/queries/zonas"
+import { nuevoId } from "@/components/actividades/formato"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import type { Potrero } from "@/types/database"
 
@@ -85,11 +88,26 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
   const [completa, setCompleta] = useState(false)   // pantalla completa
   // Dibujo: qué potrero y con qué forma arranca (un objeto nuevo reinicia el dibujo); la forma actual; guardando
   const [edicion, setEdicion] = useState<{ id: string; inicial: GeoJSON.MultiPolygon | null } | null>(null)
+  // Dibujo de una zona no aprovechable: su potrero, la zona (nueva o existente), tipo y nota, y lo que va al mapa
+  // (un objeto nuevo reinicia el dibujo, como con el potrero)
+  const [edicionZona, setEdicionZona] = useState<{
+    potreroId: string; zonaId: string; nueva: boolean; tipoId: string; nota: string
+    mapa: { id: string; inicial: GeoJSON.MultiPolygon | null }
+  } | null>(null)
+  const [tiposZona, setTiposZona] = useState<TipoZona[]>([])
   const [formaEditada, setFormaEditada] = useState<GeoJSON.MultiPolygon | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [importando, setImportando] = useState(false)
   // Los que a este zoom quedaron como círculo numerado en el mapa (no entró ni el nombre)
   const [numerados, setNumerados] = useState<{ id: string; numero: number }[]>([])
+
+  useEffect(() => {
+    let vigente = true
+    getTiposZona(establecimientoId, { incluirInactivos: true })
+      .then(t => { if (vigente) setTiposZona(t) })
+      .catch(() => { /* sin tipos no se agregan zonas; el resto anda */ })
+    return () => { vigente = false }
+  }, [establecimientoId])
 
   // Escape sale de la pantalla completa
   useEffect(() => {
@@ -147,15 +165,55 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
     }
   }
 
+  // Zonas: agregar, editar y borrar (administrador u operador)
+  const empezarZona = (p: Potrero, z: ZonaPotrero | null) => {
+    const tipoInicial = z?.tipo_id ?? tiposZona.find(t => t.activo)?.id ?? ""
+    if (!tipoInicial) return toast.error("No hay tipos de zona activos: el administrador los carga en Configuraciones → Potreros")
+    const id = z?.id ?? nuevoId()
+    setEdicionZona({ potreroId: p.id, zonaId: id, nueva: !z, tipoId: tipoInicial, nota: z?.nota ?? "", mapa: { id, inicial: z?.forma_dibujada ?? null } })
+    setFormaEditada(z?.forma_dibujada ?? null)
+    if (window.innerWidth < 1024) setCompleta(true)
+  }
+  const guardarZonaActual = async () => {
+    if (!edicionZona || !formaEditada) return
+    setGuardando(true)
+    try {
+      const ha = await guardarZona({ id: edicionZona.zonaId, potrero_id: edicionZona.potreroId, tipo_id: edicionZona.tipoId,
+        forma: formaEditada, nota: edicionZona.nota.trim() || null })
+      toast.success(`Zona guardada: ${numero(ha, 2)} ha dentro del potrero`)
+      setEdicionZona(null)
+      onCambio()
+    } catch (err) {
+      toast.error(mensajeDeError(err))
+    } finally {
+      setGuardando(false)
+    }
+  }
+  const borrarZonaDe = async (z: ZonaPotrero) => {
+    if (!window.confirm(`¿Borrar la zona ${z.tipo} (${numero(z.ha, 2)} ha)? El área efectiva del potrero vuelve a sumarla.`)) return
+    try {
+      await borrarZona(z.id)
+      toast.success("Zona borrada")
+      onCambio()
+    } catch (err) {
+      toast.error(mensajeDeError(err))
+    }
+  }
+  const editandoAlgo = !!edicion || !!edicionZona
+
   const dibujados = potreros.filter(p => formas.has(p.id) && p.id !== edicion?.id)
   const sinDibujar = potreros.filter(p => !formas.has(p.id))
   // Memorizado: mientras se dibuja, los potreros vecinos no se vuelven a crear (si no, se pierde el pegado a sus bordes)
   const idEditado = edicion?.id
+  const zonaEditada = edicionZona?.zonaId
+  const potreroDeZona = edicionZona?.potreroId
   const poligonos = useMemo(() => {
     const dibujadosMemo = potreros.filter(p => formas.has(p.id))
     const propios = coloresPorPotrero(dibujadosMemo.map(p => ({ id: p.id, nombre: p.nombre, forma: formas.get(p.id)!.forma })))
     return dibujadosMemo
       .filter(p => p.id !== idEditado)
+      // Mientras se dibuja una zona: solo su potrero
+      .filter(p => !potreroDeZona || p.id === potreroDeZona)
       .map(p => {
         const f = formas.get(p.id)!
         const lotes = ocupacion.get(p.id) ?? []
@@ -164,14 +222,42 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
         return {
           id: p.id, nombre: p.nombre, lineas: lineasEtiqueta(modo, p, f.area_ha, lotes), resumen: textoCabezas(cabezas), cabezas,
           forma: f.forma, etiqueta: f.etiqueta, color: cat.color, punteado: cat.punteado,
+          // Las zonas se ven siempre (la que se está dibujando la muestra el editor). Mientras se dibuja una, su
+          // potrero va solo como contorno
+          zonas: f.zonas.filter(z => z.id !== zonaEditada).map(z => ({ forma: z.forma, color: z.color })),
+          soloContorno: !!potreroDeZona,
         }
       })
-  }, [potreros, formas, ocupacion, modo, idEditado])
+  }, [potreros, formas, ocupacion, modo, idEditado, zonaEditada, potreroDeZona])
+
+  // Al empezar a dibujar una zona, el mapa se acerca a su potrero (queda solo él)
+  useEffect(() => {
+    if (potreroDeZona) setEncuadre(n => n + 1)
+  }, [potreroDeZona])
   const elegido = potreros.find(p => p.id === seleccionado) ?? null
   const dibujando = edicion ? potreros.find(p => p.id === edicion.id) ?? null : null
+  const potreroZona = edicionZona ? potreros.find(p => p.id === edicionZona.potreroId) ?? null : null
+  const barraZona = edicionZona && potreroZona && (
+    <BarraZona key={JSON.stringify(edicionZona.mapa.inicial === null)} potrero={potreroZona.nombre} nueva={edicionZona.nueva}
+      tipos={tiposZona.filter(t => t.activo || t.id === edicionZona.tipoId)} tipoId={edicionZona.tipoId} nota={edicionZona.nota}
+      forma={formaEditada} guardando={guardando}
+      onTipo={tipoId => setEdicionZona(e => e && { ...e, tipoId })}
+      onNota={nota => setEdicionZona(e => e && { ...e, nota })}
+      onGuardar={() => void guardarZonaActual()}
+      onReiniciar={() => { setEdicionZona(e => e && { ...e, mapa: { id: e.zonaId, inicial: null } }); setFormaEditada(null) }}
+      onCancelar={() => setEdicionZona(null)} />
+  )
+  // Lo que el panel del potrero necesita para las zonas
+  const zonasDe = (p: Potrero) => ({
+    superficieEfectiva: formas.get(p.id)?.superficie_efectiva ?? null,
+    zonas: formas.get(p.id)?.zonas ?? [],
+    onAgregarZona: () => empezarZona(p, null),
+    onEditarZona: (z: ZonaPotrero) => empezarZona(p, z),
+    onBorrarZona: (z: ZonaPotrero) => void borrarZonaDe(z),
+  })
 
   // Mientras se dibuja, en lugar del panel va la barra del dibujo
-  const panel = dibujando ? (
+  const panel = barraZona ? barraZona : dibujando ? (
     <BarraDibujo key={edicion?.inicial ? "editar" : "dibujar"} potrero={dibujando} forma={formaEditada} guardando={guardando}
       onGuardar={guardarDibujo}
       onReiniciar={() => { setEdicion({ id: dibujando.id, inicial: null }); setFormaEditada(null) }}
@@ -180,14 +266,14 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
     <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} ultimaSalida={salidas.get(elegido.id) ?? null}
       lotes={ocupacion.get(elegido.id) ?? []}
       puedeOperar={puedeOperar} acciones={acciones} onCerrar={() => setSeleccionado(null)}
-      onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)} />
+      onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)} {...zonasDe(elegido)} />
   )
   // En el celular: el mismo panel, resumido hasta que se toque "Ver detalle"
-  const panelMovil = dibujando ? panel : elegido && (
+  const panelMovil = dibujando || barraZona ? panel : elegido && (
     <PanelPotrero potrero={elegido} areaDibujada={formas.get(elegido.id)?.area_ha ?? null} ultimaSalida={salidas.get(elegido.id) ?? null}
       lotes={ocupacion.get(elegido.id) ?? []}
       puedeOperar={puedeOperar} acciones={acciones} onCerrar={() => setSeleccionado(null)}
-      onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)}
+      onDibujar={() => empezarDibujo(elegido)} onBorrarForma={() => borrarForma(elegido)} {...zonasDe(elegido)}
       resumido={!detalle} onVerDetalle={() => setDetalle(true)} />
   )
   // Hoja de abajo del celular: resumida ocupa lo justo; desplegada, hasta 75 % de la pantalla
@@ -195,7 +281,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
     "overflow-y-auto rounded-t-2xl bg-background px-4 pb-4 pt-2 shadow-2xl",
     fija ? "lg:hidden fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t md:bottom-0 md:left-56"
       : "absolute inset-x-0 bottom-0 z-[1000] pb-[calc(1rem+env(safe-area-inset-bottom))] lg:hidden",
-    detalle || dibujando ? "max-h-[75vh]" : "max-h-[45vh]",
+    detalle || dibujando || barraZona ? "max-h-[75vh]" : "max-h-[45vh]",
   )
   const asa = (
     <button type="button" aria-label={detalle ? "Achicar" : "Ver detalle"} onClick={() => setDetalle(d => !d)}
@@ -204,24 +290,46 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
     </button>
   )
 
-  const leyenda = modo === "potrero" ? (
-    <p className="text-sm text-muted-foreground">Cada potrero con su color; el nombre está escrito en el mapa.</p>
-  ) : (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Leyenda">
-      {LEYENDAS[modo].map(c => (
-        <li key={c.clave} className="flex items-center gap-1.5">
-          <span aria-hidden className={cn("h-3.5 w-3.5 rounded-sm border-2", c.punteado && "border-dashed")}
-            style={{ borderColor: c.color, backgroundColor: c.punteado ? "transparent" : `${c.color}66` }} />
-          {c.nombre}
+  // Leyenda de las zonas: los tipos que hay en el mapa (mientras se dibuja una, los de su potrero)
+  const tiposEnMapa = [...new Map(
+    (potreroDeZona ? formas.get(potreroDeZona)?.zonas ?? [] : [...formas.values()].flatMap(f => f.zonas))
+      .map(z => [z.tipo_id, { nombre: z.tipo, color: z.color }]),
+  ).values()]
+  const leyendaZonas = tiposEnMapa.length > 0 && (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Zonas no aprovechables">
+      <li className="text-muted-foreground">No aprovechable:</li>
+      {tiposEnMapa.map(t => (
+        <li key={t.nombre} className="flex items-center gap-1.5">
+          <span aria-hidden className="h-3.5 w-3.5 rounded-sm border"
+            style={{ background: `repeating-linear-gradient(45deg, ${t.color} 0 3px, ${t.color}40 3px 8px)`, borderColor: t.color }} />
+          {t.nombre}
         </li>
       ))}
     </ul>
+  )
+  const leyenda = (
+    <div className="space-y-1">
+      {modo === "potrero" ? (
+        <p className="text-sm text-muted-foreground">Cada potrero con su color; el nombre está escrito en el mapa.</p>
+      ) : (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm" aria-label="Leyenda">
+          {LEYENDAS[modo].map(c => (
+            <li key={c.clave} className="flex items-center gap-1.5">
+              <span aria-hidden className={cn("h-3.5 w-3.5 rounded-sm border-2", c.punteado && "border-dashed")}
+                style={{ borderColor: c.color, backgroundColor: c.punteado ? "transparent" : `${c.color}66` }} />
+              {c.nombre}
+            </li>
+          ))}
+        </ul>
+      )}
+      {leyendaZonas}
+    </div>
   )
 
   // Sin potrero elegido: el resumen de todo el establecimiento
   const resumen = (
     <ResumenEstablecimiento potreros={potreros} formas={formas} ocupacion={ocupacion} ugTotal={ugTotal} salidas={salidas}
-      onSeleccionar={id => { if (!edicion) setSeleccionado(id) }} />
+      onSeleccionar={id => { if (!editandoAlgo) setSeleccionado(id) }} />
   )
 
   const listaNumerados = numerados.length > 0 && (
@@ -230,7 +338,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
       <ol className="mt-1 flex flex-wrap gap-1.5">
         {numerados.map(n => (
           <li key={n.id}>
-            <button type="button" onClick={() => { if (!edicion) setSeleccionado(n.id) }}
+            <button type="button" onClick={() => { if (!editandoAlgo) setSeleccionado(n.id) }}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-muted pl-1.5 pr-3 font-medium hover:bg-accent md:min-h-9">
               <span aria-hidden className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">{n.numero}</span>
               {nombre(n.id)}
@@ -260,7 +368,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
           {CAPAS.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
         {puedeOperar && (
-          <Button variant="outline" className="h-11 md:h-9" disabled={!!edicion} onClick={() => setImportando(true)}>
+          <Button variant="outline" className="h-11 md:h-9" disabled={editandoAlgo} onClick={() => setImportando(true)}>
             <FileUp className="h-4 w-4 mr-1" /> Importar formas
           </Button>
         )}
@@ -273,8 +381,8 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
         <div className={cn("isolate overflow-hidden bg-muted",
           completa ? "fixed inset-0 z-50" : "relative h-[60vh] rounded-lg border lg:h-[70vh]")}>
           <MapaLeaflet capa={capa} poligonos={poligonos} seleccionado={seleccionado} encuadre={encuadre}
-            onSeleccionar={id => { if (!edicion) setSeleccionado(id) }}
-            edicion={edicion} onFormaEditada={setFormaEditada} onNumerados={setNumerados} />
+            onSeleccionar={id => { if (!editandoAlgo) setSeleccionado(id) }}
+            edicion={edicion ?? edicionZona?.mapa ?? null} onFormaEditada={setFormaEditada} onNumerados={setNumerados} />
           <div className="absolute right-2 top-[calc(0.5rem+env(safe-area-inset-top))] z-[1000] flex flex-col gap-2">
             <Button variant="secondary" size="icon" className="h-11 w-11 shadow"
               aria-label={completa ? "Salir de la pantalla completa" : "Ver en pantalla completa"}
@@ -288,7 +396,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
               </Button>
             )}
           </div>
-          {dibujados.length === 0 && !edicion && (
+          {dibujados.length === 0 && !editandoAlgo && (
             <p className="absolute left-14 right-16 top-3 z-[1000] rounded-lg bg-background/95 p-3 text-sm shadow">
               Todavía no hay potreros dibujados en el mapa.
             </p>
@@ -304,7 +412,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
               )}
               {panelMovil && (
                 <div className={hoja(false)}>
-                  {!dibujando && asa}
+                  {!dibujando && !barraZona && asa}
                   {panelMovil}
                 </div>
               )}
@@ -341,7 +449,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {sinDibujar.map(p => (
-              <button key={p.id} type="button" onClick={() => { if (!edicion) setSeleccionado(p.id) }}
+              <button key={p.id} type="button" onClick={() => { if (!editandoAlgo) setSeleccionado(p.id) }}
                 className="inline-flex min-h-11 items-center rounded-full bg-muted px-3 text-sm font-medium hover:bg-accent md:min-h-9">
                 {p.nombre}
               </button>
@@ -353,7 +461,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTo
       {/* Celular y tableta: el panel sube desde abajo, encima de la barra de navegación */}
       {panelMovil && !completa && (
         <div className={hoja(true)}>
-          {!dibujando && asa}
+          {!dibujando && !barraZona && asa}
           {panelMovil}
         </div>
       )}
