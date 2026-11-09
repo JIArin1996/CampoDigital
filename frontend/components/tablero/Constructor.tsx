@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
-import { DIMENSIONES, ETIQUETA_DIMENSION, MEDIDAS, MIN_DIAS_POR_DEFECTO, USAN_TRAMOS, medidaDe } from "@/components/tablero/catalogo"
+import { DIMENSIONES, ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, USAN_TRAMOS, medidaDe } from "@/components/tablero/catalogo"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
 import type { Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { DefinicionTarjeta, Dimension, Fuente, Grafico, TarjetaTablero, Tiempo } from "@/types/tablero"
 
-const NOMBRE_FUENTE: Partial<Record<Fuente, string>> = { stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos" }
+const NOMBRE_FUENTE: Partial<Record<Fuente, string>> = {
+  stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos", economia: "Economía", potreros: "Potreros",
+}
 const NOMBRE_TIEMPO: Record<Tiempo, string> = {
   total: "Total del período", mes: "Por mes", ejercicio: "Por ejercicio", temporada: "Por temporada",
 }
@@ -74,6 +76,8 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
 
   const info = medidaDe(fuente, medida)
   const dims = DIMENSIONES[fuente] ?? []
+  const filtran = info?.filtran ?? FILTRAN[fuente] ?? []
+  const abrirObligatorio = !!info?.abrirObligatorio
   const opcionesAbrir: Dimension[] = [...dims, ...(medida === "movimientos" ? ["motivo" as const] : [])]
   const tiempos = info?.tiempos ?? ["total"]
   // Otras medidas que se pueden sumar como series: misma fuente y unidad, y que admitan el mismo tiempo
@@ -92,7 +96,9 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const elegirMedida = (valor: string) => {
     const [f, m] = valor.split(":") as [Fuente, string]
     const nueva = medidaDe(f, m)!
-    const abrirOk = abrir !== null && ((DIMENSIONES[f] ?? []) as Dimension[]).concat(m === "movimientos" ? ["motivo"] : []).includes(abrir) ? abrir : null
+    const posibles = ((DIMENSIONES[f] ?? []) as Dimension[]).concat(m === "movimientos" ? ["motivo"] : [])
+    // Algunas medidas solo tienen sentido abiertas (ej. días de descanso, por potrero)
+    const abrirOk = abrir !== null && posibles.includes(abrir) ? abrir : nueva.abrirObligatorio ? posibles[0] : null
     const t = nueva.tiempos.includes(tiempo) ? tiempo : nueva.tiempos[0]
     setFuente(f); setMedida(m); setExtras([]); setAbrir(abrirOk); setTiempo(t)
     if (!graficoValido(grafico, abrirOk, t)) setGrafico("barras")
@@ -115,11 +121,11 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
     grafico,
     ...(periodo !== "tablero" ? { periodo: { ejercicios: Number(periodo) } } : {}),
     ...(usaTramos && minDiasValido && minDiasNum !== MIN_DIAS_POR_DEFECTO ? { opciones: { min_dias: minDiasNum } } : {}),
-    ...((especie || categoria || lote) ? {
+    ...(((especie && filtran.includes("especie")) || (categoria && filtran.includes("categoria")) || (lote && filtran.includes("lote"))) ? {
       filtros: {
-        ...(especie ? { especie_ids: [especie] } : {}),
-        ...(categoria && dims.includes("categoria") ? { categoria_ids: [categoria] } : {}),
-        ...(lote ? { lote_ids: [lote] } : {}),
+        ...(especie && filtran.includes("especie") ? { especie_ids: [especie] } : {}),
+        ...(categoria && filtran.includes("categoria") ? { categoria_ids: [categoria] } : {}),
+        ...(lote && filtran.includes("lote") ? { lote_ids: [lote] } : {}),
       },
     } : {}),
   }
@@ -195,7 +201,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       <div className="grid grid-cols-2 gap-3">
         <label className={etiqueta}>2 · Abrir por
           <select className={SELECT_NATIVO} value={abrir ?? ""} onChange={e => elegirAbrir((e.target.value || null) as Dimension | null)}>
-            <option value="">Nada</option>
+            {!abrirObligatorio && <option value="">Nada</option>}
             {opcionesAbrir.map(d => <option key={d} value={d}>{ETIQUETA_DIMENSION[d][0].toUpperCase() + ETIQUETA_DIMENSION[d].slice(1)}</option>)}
           </select>
         </label>
@@ -208,6 +214,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       <p className="-mt-2 text-xs text-muted-foreground">
         {NOMBRE_FUENTE[fuente]} se abre por {dims.map(d => ETIQUETA_DIMENSION[d]).join(", ")}
         {medida === "movimientos" ? " o motivo" : ""}.
+        {filtran.length < 3 && ` Le aplican los filtros de ${filtran.length ? filtran.map(d => ETIQUETA_DIMENSION[d]).join(" y ") : "nada (no se filtra)"}.`}
       </p>
 
       <fieldset>
@@ -230,11 +237,11 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       <fieldset className="space-y-2">
         <legend className="mb-1.5 text-sm text-muted-foreground">Filtro propio (opcional)</legend>
         <div className="grid grid-cols-2 gap-2">
-          <select aria-label="Especie fija" className={SELECT_NATIVO} value={especie} onChange={e => { setEspecie(e.target.value); setCategoria("") }}>
+          {filtran.includes("especie") && <select aria-label="Especie fija" className={SELECT_NATIVO} value={especie} onChange={e => { setEspecie(e.target.value); setCategoria("") }}>
             <option value="">Especie: la del tablero</option>
             {especies.filter(e => e.activo).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-          </select>
-          {dims.includes("categoria") && (
+          </select>}
+          {filtran.includes("categoria") && (
             <select aria-label="Categoría fija" className={SELECT_NATIVO} value={categoria} onChange={e => setCategoria(e.target.value)}>
               <option value="">Categoría: la del tablero</option>
               {categoriasVisibles.map(c => (
@@ -242,10 +249,10 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
               ))}
             </select>
           )}
-          <select aria-label="Lote fijo" className={SELECT_NATIVO} value={lote} onChange={e => setLote(e.target.value)}>
+          {filtran.includes("lote") && <select aria-label="Lote fijo" className={SELECT_NATIVO} value={lote} onChange={e => setLote(e.target.value)}>
             <option value="">Lote: el del tablero</option>
             {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
-          </select>
+          </select>}
           <select aria-label="Período" className={SELECT_NATIVO} value={periodo} onChange={e => setPeriodo(e.target.value)}>
             <option value="tablero">Período: el del tablero</option>
             <option value="3">Últimos 3 ejercicios</option>

@@ -99,8 +99,8 @@ order by 1, 2;
 --
 --   nivel   | grantee       | tabla               | permiso | columnas
 --   --------+---------------+---------------------+---------+------------------------------------------------
---   columna | authenticated | categorias_animales | INSERT  | activo, cria_al_pie, especie_id, establecimiento_id, nombre, orden, sexo
---   columna | authenticated | categorias_animales | UPDATE  | activo, cria_al_pie, nombre, orden, sexo
+--   columna | authenticated | categorias_animales | INSERT  | activo, cria_al_pie, especie_id, establecimiento_id, nombre, orden, sexo, ug
+--   columna | authenticated | categorias_animales | UPDATE  | activo, cria_al_pie, nombre, orden, sexo, ug
 --   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre, rubro_id
 --   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre, rubro_id
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
@@ -141,7 +141,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261109000300, tablero de indicadores con pesadas): 152 filas, todas con ok = true.
+-- ESPERADO (después de 20261109000500, tablero de indicadores con economía y potreros): 156 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -160,7 +160,8 @@ order by 1 desc, 2, 3, 4;
 -- (guardar_forma_potrero y crear_establecimiento se recrean con menos parámetros: siguen siendo una cada una);
 -- +3 de 20261109000100 y 20261109000200: guardar_tablero, tablero_stock y tablero_reproductivos (las internas
 -- _tablero_periodos y _tablero_uuids de la 0100 se borran en la 0200);
--- +1 de 20261109000300: tablero_pesadas.)
+-- +1 de 20261109000300: tablero_pesadas;
+-- +4 de 20261109000500: tablero_economia, tablero_potreros, la interna _ug_por_nombre y el trigger completar_ug_categoria.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -214,6 +215,7 @@ order by 1 desc, 2, 3, 4;
 --   _sincronizar_potrero_lote   | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
 --   _terminar_edicion           | false            | false         | false | false
+--   _ug_por_nombre              | false            | false         | false | false
 --   _validar_datos_tarea        | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
@@ -238,6 +240,7 @@ order by 1 desc, 2, 3, 4;
 --   cambiar_potrero_lote        | true             | true          | false | false
 --   cargar_precio_actividad     | true             | true          | false | false
 --   cerrar_lote                 | true             | true          | false | false
+--   completar_ug_categoria      | false            | false         | false | false
 --   crear_entrada_bitacora      | true             | true          | false | false
 --   crear_establecimiento       | true             | true          | false | false
 --   crear_lote                  | true             | true          | false | false
@@ -309,7 +312,9 @@ order by 1 desc, 2, 3, 4;
 --   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
+--   tablero_economia            | false            | true          | false | false
 --   tablero_pesadas             | false            | true          | false | false
+--   tablero_potreros            | false            | true          | false | false
 --   tablero_reproductivos       | false            | true          | false | false
 --   tablero_stock               | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
@@ -349,7 +354,8 @@ select
                                                                            'proteger_movimiento_archivo', 'proteger_nombre_persona',
                                                                            'sincronizar_nombre_persona', 'proteger_actividad_archivo',
                                                                            'proteger_dato_de_actividad', 'marcar_cierre_entrada',
-                                                                           'proteger_vinculo_de_actividad', 'calcular_superficie_potrero'))
+                                                                           'proteger_vinculo_de_actividad', 'calcular_superficie_potrero',
+                                                                           'completar_ug_categoria'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',

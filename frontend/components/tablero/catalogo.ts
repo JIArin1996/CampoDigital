@@ -6,12 +6,14 @@ import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTabler
  * marcar los filtros que no aplican.
  */
 
-export type Unidad = "cab" | "%" | "kg" | "kg/día"
+export type Unidad = "cab" | "%" | "kg" | "kg/día" | "USD" | "UG" | "UG/ha" | "ha" | "días"
 
 export interface Medida {
   etiqueta: string
   unidad: Unidad
   tiempos: Tiempo[]
+  filtran?: Dimension[]     // qué filtros le aplican, si no son todos los de su fuente (ver FILTRAN)
+  abrirObligatorio?: boolean // solo tiene sentido abierta (ej. días de descanso, por potrero)
 }
 
 export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
@@ -38,29 +40,65 @@ export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
   },
 }
 
+// Economía y potreros (etapa 3)
+MEDIDAS.economia = {
+  resultado:       { etiqueta: "Resultado",           unidad: "USD", tiempos: ["total", "mes", "ejercicio"] },
+  ingresos:        { etiqueta: "Ingresos",            unidad: "USD", tiempos: ["total", "mes", "ejercicio"] },
+  gastos:          { etiqueta: "Gastos",              unidad: "USD", tiempos: ["total", "mes", "ejercicio"] },
+  pendiente_cobro: { etiqueta: "Pendiente de cobro",  unidad: "USD", tiempos: ["total"] },
+  pendiente_pago:  { etiqueta: "Pendiente de pago",   unidad: "USD", tiempos: ["total"] },
+}
+MEDIDAS.potreros = {
+  carga:          { etiqueta: "Carga",               unidad: "UG/ha", tiempos: ["total", "mes"] },
+  ug:             { etiqueta: "Unidades ganaderas",  unidad: "UG",    tiempos: ["total", "mes"] },
+  superficie:     { etiqueta: "Superficie",          unidad: "ha",    tiempos: ["total", "mes"], filtran: [] },
+  dias_ocupacion: { etiqueta: "Días de ocupación",   unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
+  dias_descanso:  { etiqueta: "Días de descanso",    unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
+}
+
 // Medidas de pesadas que usan tramos entre pesadas (y el mínimo de días)
 export const USAN_TRAMOS = ["ganancia_diaria", "kg_producidos"]
 export const MIN_DIAS_POR_DEFECTO = 21
 
-// Dimensiones de cada fuente: se puede abrir por ellas y sus filtros aplican. Las demás "no aplican".
+// Por qué se puede abrir cada fuente (motivo, además, en altas y bajas)
 export const DIMENSIONES: Partial<Record<Fuente, Dimension[]>> = {
   stock: ["especie", "categoria", "lote"],
   reproductivos: ["especie", "lote"],
   pesadas: ["especie", "categoria", "lote"],
+  economia: ["especie", "lote", "rubro", "concepto", "grupo", "titular"],
+  potreros: ["potrero"],
 }
+
+// Qué filtros (especie, categoría, lote) le aplican a cada fuente; los demás se marcan "no aplica"
+export const FILTRAN: Partial<Record<Fuente, Dimension[]>> = {
+  stock: ["especie", "categoria", "lote"],
+  reproductivos: ["especie", "lote"],
+  pesadas: ["especie", "categoria", "lote"],
+  economia: ["especie", "lote"],
+  potreros: ["especie", "categoria", "lote"],
+}
+
+// Los filtros que aplican a una tarjeta: los de su primera medida si los define, si no los de su fuente
+export const filtranEn = (def: DefinicionTarjeta): Dimension[] =>
+  medidaDe(def.fuente, def.medidas[0])?.filtran ?? FILTRAN[def.fuente] ?? []
 
 export const ETIQUETA_DIMENSION: Record<Dimension, string> = {
   especie: "especie",
   categoria: "categoría",
   lote: "lote",
   motivo: "motivo",
+  rubro: "rubro",
+  concepto: "concepto",
+  grupo: "grupo",
+  titular: "titular",
+  potrero: "potrero",
 }
 
 export const medidaDe = (fuente: Fuente, medida: string): Medida | undefined => MEDIDAS[fuente]?.[medida]
 
-// Filtros generales activos que la fuente de la tarjeta no tiene ("Filtro de categoría no aplica")
+// Filtros generales activos que la tarjeta no usa ("Filtro de categoría no aplica")
 export function filtrosQueNoAplican(def: DefinicionTarjeta, activos: Dimension[]): Dimension[] {
-  const tiene = DIMENSIONES[def.fuente] ?? []
+  const tiene = filtranEn(def)
   return activos.filter(d => !tiene.includes(d))
 }
 
@@ -94,6 +132,19 @@ export const TARJETAS_LISTAS: Omit<TarjetaTablero, "id" | "x" | "y">[] = [
     definicion: def({ fuente: "pesadas", medidas: ["kg_producidos"], abrir_por: null, tiempo: "mes", grafico: "barras" }) },
   { titulo: "Peso promedio por lote", w: 6, h: 7,
     definicion: def({ fuente: "pesadas", medidas: ["peso_promedio"], abrir_por: "lote", tiempo: "total", grafico: "barras_horizontales" }) },
+  // Economía y potreros
+  { titulo: "Resultado", w: 3, h: 3,
+    definicion: def({ fuente: "economia", medidas: ["resultado"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
+  { titulo: "Ingresos y gastos por mes", w: 8, h: 7,
+    definicion: def({ fuente: "economia", medidas: ["ingresos", "gastos"], abrir_por: null, tiempo: "mes", grafico: "barras" }) },
+  { titulo: "Resultado por titular", w: 4, h: 7,
+    definicion: def({ fuente: "economia", medidas: ["resultado"], abrir_por: "titular", tiempo: "total", grafico: "barras_horizontales" }) },
+  { titulo: "Carga global", w: 3, h: 3,
+    definicion: def({ fuente: "potreros", medidas: ["carga"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
+  { titulo: "Carga por potrero", w: 6, h: 7,
+    definicion: def({ fuente: "potreros", medidas: ["carga"], abrir_por: "potrero", tiempo: "total", grafico: "barras_horizontales" }) },
+  { titulo: "Días de descanso por potrero", w: 6, h: 7,
+    definicion: def({ fuente: "potreros", medidas: ["dias_descanso"], abrir_por: "potrero", tiempo: "total", grafico: "barras_horizontales" }) },
 ]
 
 // Posiciones de la plantilla, en el orden de TARJETAS_LISTAS

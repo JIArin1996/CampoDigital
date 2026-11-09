@@ -12,14 +12,15 @@ const MAXIMO = 3   // cuántos potreros se listan en "Más días de descanso" ("
 /**
  * Resumen de todo el establecimiento cuando no hay un potrero elegido: superficie (la suma de los potreros
  * dibujados; los sin dibujar no suman), potreros con animales y en descanso, cabezas por especie, UG y carga
- * global (solo de los potreros dibujados), los
+ * global (UG de todos los animales sobre la superficie dibujada), los
  * potreros que más descansan y todos los potreros con animales, de más días a menos (el potrero
  * destacado, sus lotes abajo, más chicos). Tocar uno lo elige en el mapa.
  */
-export function ResumenEstablecimiento({ potreros, formas, ocupacion, salidas, onSeleccionar }: {
+export function ResumenEstablecimiento({ potreros, formas, ocupacion, ugTotal, salidas, onSeleccionar }: {
   potreros: Potrero[]                       // los activos
   formas: Map<string, FormaPotrero>
   ocupacion: Map<string, LoteEnPotrero[]>
+  ugTotal: { ug: number; sinUg: string[] }  // todos los animales, estén o no en un potrero
   salidas: Map<string, string>
   onSeleccionar: (potreroId: string) => void
 }) {
@@ -27,9 +28,10 @@ export function ResumenEstablecimiento({ potreros, formas, ocupacion, salidas, o
   const sinDibujar = potreros.length - dibujados.length
   const superficie = dibujados.reduce((s, p) => s + formas.get(p.id)!.area_ha, 0)
   const adentro = potreros.flatMap(p => (ocupacion.get(p.id) ?? []).map(l => ({ ...l, potrero: p })))
-  const { cabezas, sinUg } = totales(adentro)
-  // La carga: los animales de los potreros dibujados sobre su superficie
-  const { ug } = totales(adentro.filter(l => formas.has(l.potrero.id)))
+  const { cabezas } = totales(adentro)
+  // Carga global (como el tablero de Indicadores): las UG de todos los animales del establecimiento, estén o no en
+  // un potrero, sobre la superficie de pastoreo (la de los potreros dibujados; los sin dibujar se avisan)
+  const { ug, sinUg } = ugTotal
   const conAnimales = potreros.filter(p => (ocupacion.get(p.id) ?? []).length > 0)
   const vacios = potreros.filter(p => (ocupacion.get(p.id) ?? []).length === 0)
 

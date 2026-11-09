@@ -5,7 +5,7 @@ import { Check, Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { actualizarEspecie, cambiarEstadoCategoria, crearCategoria, crearEspecie, definirCria, getCatalogoEspecies, getStockCategoria } from "@/lib/queries/especies"
+import { actualizarEspecie, cambiarEstadoCategoria, crearCategoria, crearEspecie, definirCria, definirUg, getCatalogoEspecies, getStockCategoria } from "@/lib/queries/especies"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Cargando } from "@/components/shared/Cargando"
@@ -297,6 +297,7 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
           <p className="text-sm font-medium">Categorías</p>
           <p className="text-xs text-muted-foreground mb-2">
             Las crías al pie son las que se cargan en la parición y se mueven en el destete; sin sexar se separan en machos y hembras al destetar.
+            UG: unidades ganaderas por cabeza, para la carga de los potreros (vacía: no suma).
           </p>
           {activas.length === 0 ? (
             <p className="text-sm text-muted-foreground mb-2">Sin categorías: hacen falta para armar lotes de esta especie.</p>
@@ -305,6 +306,8 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
               {activas.map(c => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 pl-3 pr-1 py-1 min-h-11">
                   <span className="text-sm flex-1 min-w-0">{c.nombre}</span>
+                  <CampoUg key={`${c.id}:${c.ug ?? ""}`} nombre={c.nombre} ug={c.ug === null ? null : Number(c.ug)} deshabilitado={enviando}
+                    onGuardar={ug => void ejecutar(() => definirUg(c.id, ug), "UG actualizada")} />
                   <select aria-label={`Cría al pie: ${c.nombre}`} className={cn(SELECT_NATIVO, "w-40 md:w-36")}
                     value={valorCria(c)} disabled={enviando}
                     onChange={e => {
@@ -350,5 +353,26 @@ function TarjetaEspecie({ especie, categorias, onCambio }: {
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </CardContent>
     </Card>
+  )
+}
+
+// UG por cabeza de una categoría: se guarda al salir del campo si cambió (vacío = sin UG; de más de 0 a 5)
+function CampoUg({ nombre, ug, deshabilitado, onGuardar }: {
+  nombre: string
+  ug: number | null
+  deshabilitado: boolean
+  onGuardar: (ug: number | null) => void
+}) {
+  const [texto, setTexto] = useState(ug === null ? "" : String(ug).replace(".", ","))
+  const valor = texto.trim() === "" ? null : Number(texto.replace(",", "."))
+  const valido = valor === null || (Number.isFinite(valor) && valor > 0 && valor <= 5)
+  return (
+    <label className="flex items-center gap-1 text-xs text-muted-foreground">
+      UG
+      <Input aria-label={`UG por cabeza de ${nombre}`} inputMode="decimal" className="h-10 w-16 px-2 text-sm md:h-8" value={texto}
+        disabled={deshabilitado} aria-invalid={!valido} placeholder="—"
+        onChange={e => setTexto(e.target.value)}
+        onBlur={() => { if (valido && valor !== ug) onGuardar(valor === null ? null : Math.round(valor * 100) / 100) }} />
+    </label>
   )
 }

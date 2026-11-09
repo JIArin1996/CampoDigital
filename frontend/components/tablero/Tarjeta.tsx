@@ -8,7 +8,7 @@ import {
 
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
-import { DIMENSIONES, ETIQUETA_DIMENSION, MIN_DIAS_POR_DEFECTO, medidaDe, type Unidad } from "@/components/tablero/catalogo"
+import { ETIQUETA_DIMENSION, MIN_DIAS_POR_DEFECTO, filtranEn, medidaDe, type Unidad } from "@/components/tablero/catalogo"
 import { rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { Dimension, FilaTablero, FiltroCruzado, FiltrosIds, TarjetaTablero } from "@/types/tablero"
@@ -28,6 +28,11 @@ function formato(n: number | null, unidad: Unidad) {
     case "%": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} %`
     case "kg": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg`
     case "kg/día": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg/día`
+    case "USD": return `${n < 0 ? "−" : ""}USD ${Math.abs(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
+    case "UG/ha": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UG/ha`
+    case "UG": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG`
+    case "ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} ha`
+    case "días": return `${n.toLocaleString("es-UY")} ${n === 1 ? "día" : "días"}`
     default: return n.toLocaleString("es-UY", { maximumFractionDigits: 1 })
   }
 }
@@ -38,7 +43,7 @@ const mismos = (a: string[], b: string[]) => a.length === b.length && a.every(x 
 // esa dimensión) y cuáles choca con su filtro propio ("Especie fija: Vacunos").
 export function filtrosDeTarjeta(tarjeta: TarjetaTablero, generales: FiltrosIds, cruzado: FiltroCruzado | null) {
   const def = tarjeta.definicion
-  const tiene = DIMENSIONES[def.fuente] ?? []
+  const tiene = filtranEn(def)
   const efectivos: FiltrosIds = {}
   const noAplican: Dimension[] = []
   const fijos: { dim: DimFiltro; ids: string[] }[] = []
@@ -108,8 +113,9 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   const avisos = listos?.flatMap(x => x.filas).find(f => f.avisos)?.avisos ?? null
   const unidad = medidaDe(def.fuente, def.medidas[0])?.unidad ?? "cab"
   const dimCruzable = def.abrir_por === "especie" || def.abrir_por === "categoria" || def.abrir_por === "lote" ? def.abrir_por : null
+  // "Sin asignar" no es un filtro posible
   const elegir = dimCruzable && onElegir && !edicion
-    ? (clave: string, etiqueta: string) => onElegir({ dimension: dimCruzable, clave, etiqueta })
+    ? (clave: string, etiqueta: string) => { if (clave !== "sin") onElegir({ dimension: dimCruzable, clave, etiqueta }) }
     : undefined
   const elegido = cruzado && cruzado.origen === tarjeta.id ? cruzado.clave : null
 
@@ -188,6 +194,13 @@ function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias:
   const sin = Number(avisos.sin_servicio ?? 0)
   if (sin > 0) textos.push(`${sin} ${sin === 1 ? "actividad" : "actividades"} sin servicio registrado (no suman a ninguna temporada)`)
   if (avisos.destete_mixto) textos.push("Un destete sacó crías de dos temporadas: se contó entero en la más antigua")
+  const usd = (n: unknown) => `USD ${Number(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
+  if (avisos.usd_sin_especie) textos.push(`${usd(avisos.usd_sin_especie)} de movimientos sin especie asignada quedaron afuera del filtro`)
+  if (avisos.usd_sin_lote) textos.push(`${usd(avisos.usd_sin_lote)} de movimientos sin lote quedaron afuera del filtro`)
+  const sinDibujar = Number(avisos.potreros_sin_dibujar ?? 0)
+  if (sinDibujar > 0) textos.push(`${sinDibujar} ${sinDibujar === 1 ? "potrero activo sin dibujar" : "potreros activos sin dibujar"}: no suma${sinDibujar === 1 ? "" : "n"} superficie y la carga queda más alta`)
+  const sinUg = (avisos.categorias_sin_ug ?? null) as string[] | null
+  if (sinUg && sinUg.length > 0) textos.push(`Sin UG cargada (no suman): ${sinUg.join(", ")}. Se cargan en Especies.`)
   if (textos.length === 0) return null
   return (
     <ul className="space-y-0.5 text-xs text-amber-800 dark:text-amber-300">
@@ -232,6 +245,11 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
         )}
         {unidad === "kg" && f.denominador !== null && (
           <p className="text-xs text-muted-foreground tabular-nums">{f.denominador.toLocaleString("es-UY")} cabezas pesadas</p>
+        )}
+        {unidad === "UG/ha" && f.numerador !== null && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {f.numerador.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG en {f.denominador !== null ? `${f.denominador.toLocaleString("es-UY", { maximumFractionDigits: 1 })} ha` : "potreros sin dibujar"}
+          </p>
         )}
       </div>
     )

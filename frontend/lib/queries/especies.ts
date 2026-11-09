@@ -64,6 +64,14 @@ export async function definirCria(id: string, cria_al_pie: boolean, sexo: 'macho
   return exigirFilas(data) as CategoriaAnimal
 }
 
+// Unidades ganaderas por cabeza de una categoría (solo el administrador, por las políticas). null = sin UG: sus
+// animales no suman a la carga. La base acepta de más de 0 a 5.
+export async function definirUg(id: string, ug: number | null) {
+  const { data, error } = await createClient().from('categorias_animales').update({ ug }).eq('id', id).select()
+  if (error) throw error
+  return exigirFilas(data) as CategoriaAnimal
+}
+
 // Dónde hay animales de una categoría: lote y cabezas (para explicar por qué no se puede dar de baja)
 export async function getStockCategoria(categoria_id: string) {
   const supabase = createClient()

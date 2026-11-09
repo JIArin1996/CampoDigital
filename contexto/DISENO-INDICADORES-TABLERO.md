@@ -146,6 +146,8 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
   movimiento (`monto_usd` es una columna calculada de la base). **Repartos entre titulares** (por % o por monto) se
   respetan al abrir por titular: a cada titular le toca `monto_usd × monto del titular / monto original`, igual que en
   Resultado.
+  - **Especie de un movimiento** (decisión 9/11/2026): la de su **lote**; sin lote, la especie cuyo **rubro** es el
+    del movimiento (rubro Vacunos → Vacunos), si hay una sola; si no (rubros General, Forestación…), "Sin asignar".
   - **Con especie o lote**: los movimientos sin esa dimensión **no desaparecen en silencio**. Al **abrir** por especie
     o lote van a un grupo **"Sin asignar"**; al **filtrar** por especie o lote, la tarjeta muestra el monto que quedó
     afuera ("USD 8.000 sin especie asignada", aviso `usd_sin_especie` / `usd_sin_lote`).
@@ -154,9 +156,10 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
   - **Global**: UG de **todos** los animales del establecimiento / superficie de pastoreo total (la suma de los
     potreros activos; la superficie de cada uno sale de su dibujo). Si hay potreros activos **sin dibujar** (sin
     superficie), la tarjeta avisa cuántos (`potreros_sin_dibujar`), porque la carga queda sobreestimada.
-  - Hoy las equivalencias UG por categoría están en la app (`components/potreros/ug.ts`). Para calcular la carga en la
-    base hay que llevarlas a la base (tabla o columna en `categorias_animales`) en la etapa de potreros. En esa
-    etapa también se alinea el resumen de la pantalla Potreros con esta definición de carga global.
+  - **UG por categoría** (decisión 9/11/2026): columna `categorias_animales.ug`, editable por el Administrador en
+    Especies. Se cargó con la tabla que usaba la app y las categorías nuevas la toman por nombre al crearse; sin UG,
+    la categoría no suma y la tarjeta lo avisa (`categorias_sin_ug`). La pantalla Potreros usa la misma columna y la
+    misma carga global (todos los animales sobre la superficie dibujada).
 
 ## 5. Dimensiones por fuente (catálogo)
 
@@ -324,8 +327,8 @@ terneros no cambia quién está).
 |---|---|---|---|---|
 | 1/10/2025 | Venta de los 30 novillos (ingreso) | 27.000 | Vacunos / L-Nov1 | A 60 % (16.200), B 40 % (10.800) |
 | 15/10/2025 | Compra de los 20 novillos (gasto), en pesos: UYU 720.000 a 40 | 18.000 | Vacunos / L-Nov2 | A |
-| 1/11/2025 | Sanidad (gasto) | 2.000 | sin especie ni lote | A |
-| 1/12/2025 | Personal (gasto) | 6.000 | sin especie ni lote | A 4.000, B 2.000 (por monto) |
+| 1/11/2025 | Sanidad (gasto, rubro General) | 2.000 | sin especie ni lote | A |
+| 1/12/2025 | Sueldos y cargas sociales (gasto, rubro General), **pendiente** | 6.000 | sin especie ni lote | A 4.000, B 2.000 (por monto) |
 
 Resultados esperados (ejercicio 2025/26):
 
@@ -335,6 +338,8 @@ Resultados esperados (ejercicio 2025/26):
 - **Filtrado por Vacunos**: **9.000**, con el aviso "USD 8.000 sin especie asignada".
 - **Abierto por lote**: L-Nov1 **27.000**; L-Nov2 **−18.000**; Sin asignar **−8.000**.
 - **Por mes**: oct 2025 **9.000**; nov **−2.000**; dic **−6.000**.
+- **Por rubro**: Vacunos **9.000** (venta y compra); General **−8.000**.
+- **Pendiente de pago**: **6.000** (los sueldos); de cobro **0**.
 
 ### Carga (al 30/6/2026)
 
@@ -343,3 +348,5 @@ Resultados esperados (ejercicio 2025/26):
 - **Carga por potrero**: P1 = 110,4 / superficie de P1; P2 = 100 / superficie de P2 (las superficies salen del
   dibujo de la prueba; la prueba compara contra la superficie guardada).
 - **Carga global**: 210,4 / (superficie de P1 + P2), con el aviso **1 potrero sin dibujar**.
+- **Días de ocupación** en el ejercicio 2025/26 (estadías [ingreso, salida)): P2 **365** (L-Cría desde el alta), P1
+  **150** (L-Nov3 desde el 1/2/2026), P3 **0**. **Días de descanso**: P3 **365**, P1 **215**, P2 **0**.
