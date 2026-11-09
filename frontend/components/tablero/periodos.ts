@@ -62,6 +62,23 @@ export function rangoEjercicios(general: Rango, n: number): Rango {
   return { desde: `${e - n + 1}-07-01`, hasta: general.hasta }
 }
 
+// Comparar con el año anterior: las mismas fechas, un año antes (el 29 de febrero pasa al 28)
+function unAnioAntes(fecha: string) {
+  const [a, m, d] = fecha.split("-").map(Number)
+  const ultimo = new Date(a - 1, m, 0).getDate()
+  return `${a - 1}-${String(m).padStart(2, "0")}-${String(Math.min(d, ultimo)).padStart(2, "0")}`
+}
+export const rangoAnioAnterior = (r: Rango): Rango => ({ desde: unAnioAntes(r.desde), hasta: unAnioAntes(r.hasta) })
+
+// Cómo se llama el período con el que se compara ("Ejercicio 2024/25", "Año 2025", "los 12 meses anteriores")
+export function etiquetaComparada(clave: string): string {
+  const ej = /^ej-(\d{4})$/.exec(clave)
+  if (ej) return etiquetaEjercicio(Number(ej[1]) - 1)
+  const an = /^an-(\d{4})$/.exec(clave)
+  if (an) return `Año ${Number(an[1]) - 1}`
+  return "los 12 meses anteriores"
+}
+
 // Rótulo corto de un período devuelto por la base: "2025-10" → "oct 25", "2025/26" queda igual
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "set", "oct", "nov", "dic"]
 export function rotuloPeriodo(p: string | null): string {

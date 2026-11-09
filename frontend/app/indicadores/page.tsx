@@ -1,8 +1,9 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { useSearchParams } from "next/navigation"
-import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal, Trash2, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Printer, SlidersHorizontal, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
@@ -15,9 +16,10 @@ import { Button } from "@/components/ui/button"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
 import { TARJETAS_LISTAS, plantilla } from "@/components/tablero/catalogo"
-import { opcionesPeriodo, periodoPorDefecto, rangoDe } from "@/components/tablero/periodos"
+import { etiquetaComparada, opcionesPeriodo, periodoPorDefecto, rangoDe } from "@/components/tablero/periodos"
 import { Grilla } from "@/components/tablero/Grilla"
-import { Tarjeta } from "@/components/tablero/Tarjeta"
+import { Tarjeta, type DatosTarjeta } from "@/components/tablero/Tarjeta"
+import { exportarExcel } from "@/components/tablero/exportar"
 import { Constructor } from "@/components/tablero/Constructor"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
@@ -60,6 +62,9 @@ function usePantallaGrande() {
  * el constructor, y crear, renombrar, ordenar y borrar páginas. Mientras el establecimiento no guardó su tablero,
  * se ve la plantilla "Resumen".
  */
+// Ancho útil de una hoja A4 apaisada con 10 mm de margen (277 mm a 96 px por pulgada)
+const ANCHO_HOJA = 1040
+
 function Indicadores() {
   const params = useSearchParams()
   const { establecimientoActivo, esAdmin, cargando } = useEstablecimiento()
@@ -75,7 +80,25 @@ function Indicadores() {
     especie: params.get("especie") ?? "",
     categoria: params.get("categoria") ?? "",
     lote: params.get("lote") ?? "",
+    comparar: params.get("comparar") === "1",
   })
+  // Lo que muestra cada tarjeta (para el Excel)
+  const datosTarjetas = useRef(new Map<string, DatosTarjeta>())
+  const [exportando, setExportando] = useState(false)
+  // PDF: se arma la vista de impresión (hoja apaisada), se espera a que los gráficos se dibujen y se abre la impresión
+  const [imprimiendo, setImprimiendo] = useState(false)
+  const tituloAnterior = useRef<string | null>(null)
+  useEffect(() => {
+    if (!imprimiendo) return
+    const fin = () => setImprimiendo(false)
+    window.addEventListener("afterprint", fin)
+    const espera = window.setTimeout(() => window.print(), 1000)
+    return () => {
+      window.clearTimeout(espera)
+      window.removeEventListener("afterprint", fin)
+      if (tituloAnterior.current !== null) { document.title = tituloAnterior.current; tituloAnterior.current = null }
+    }
+  }, [imprimiendo])
   const [borrador, setBorrador] = useState<PaginaTablero[] | null>(null)   // en edición
   const [guardando, setGuardando] = useState(false)
   const [panelFiltros, setPanelFiltros] = useState(false)
@@ -102,6 +125,7 @@ function Indicadores() {
     if (filtros.especie) q.set("especie", filtros.especie)
     if (filtros.categoria) q.set("categoria", filtros.categoria)
     if (filtros.lote) q.set("lote", filtros.lote)
+    if (filtros.comparar) q.set("comparar", "1")
     window.history.replaceState(null, "", `?${q.toString()}`)
   }, [pagina, filtros])
 
@@ -205,7 +229,60 @@ function Indicadores() {
 
   const categoriasVisibles = listos.categorias.filter(c => c.activo && (!filtros.especie || c.especie_id === filtros.especie))
   const nombreEspecie = nombres.especie
-  const cantidadFiltros = [filtros.especie, filtros.categoria, filtros.lote].filter(Boolean).length + (cruzado ? 1 : 0)
+  const cantidadFiltros = [filtros.especie, filtros.categoria, filtros.lote].filter(Boolean).length + (cruzado ? 1 : 0) + (filtros.comparar ? 1 : 0)
+  const comparadoCon = filtros.comparar ? etiquetaComparada(filtros.periodo) : null
+  const etiquetaPeriodo = opcionesPeriodo().find(o => o.clave === filtros.periodo)?.etiqueta ?? ""
+  // Los filtros en palabras (impresión y Excel)
+  const filtrosEnTexto: [string, string][] = [
+    ["Establecimiento", establecimientoActivo.nombre],
+    ["Página", actual.nombre],
+    ["Período", `${etiquetaPeriodo} (${rango.desde} a ${rango.hasta})`],
+    ["Especie", filtros.especie ? nombres.especie.get(filtros.especie) ?? "" : "Todas"],
+    ["Categoría", filtros.categoria ? nombres.categoria.get(filtros.categoria) ?? "" : "Todas"],
+    ["Lote", filtros.lote ? nombres.lote.get(filtros.lote) ?? "" : "Todos"],
+    ...(cruzado ? [[`Filtrado por ${cruzado.dimension === "categoria" ? "categoría" : cruzado.dimension}`, cruzado.etiqueta] as [string, string]] : []),
+    ...(comparadoCon ? [["Comparado con", `${comparadoCon} (mismas fechas)`] as [string, string]] : []),
+    ["Exportado", new Date().toLocaleString("es-UY")],
+  ]
+  const nombreArchivo = `Indicadores ${establecimientoActivo.nombre} - ${actual.nombre} - ${etiquetaPeriodo}`.replace(/[\\/:*?"<>|]/g, "-")
+  const imprimir = () => {
+    // El nombre que propone el navegador al guardar el PDF es el título de la pestaña
+    tituloAnterior.current = document.title
+    document.title = nombreArchivo
+    setImprimiendo(true)
+  }
+  const emitido = new Date().toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" })
+  const texto = (s: string) => JSON.stringify(s)
+  const pie = "font-family: Arial, sans-serif; font-size: 8pt; color: #64748b"
+  // La hoja: A4 apaisada; arriba (desde la 2.ª hoja) el informe y el establecimiento, abajo la app, la fecha y el
+  // número de hoja, cada uno con su línea
+  const estiloHoja = `
+@page {
+  size: A4 landscape;
+  margin: 14mm 10mm 13mm;
+  @top-left { content: ${texto(`Indicadores · ${actual.nombre}`)}; ${pie}; vertical-align: bottom; padding-bottom: 2mm; border-bottom: 0.5pt solid #94a3b8 }
+  @top-center { content: ""; vertical-align: bottom; border-bottom: 0.5pt solid #94a3b8 }
+  @top-right { content: ${texto(establecimientoActivo.nombre)}; ${pie}; vertical-align: bottom; padding-bottom: 2mm; border-bottom: 0.5pt solid #94a3b8 }
+  @bottom-left { content: ${texto(`Campo Digital · emitido el ${emitido}`)}; ${pie}; vertical-align: top; padding-top: 2mm; border-top: 0.5pt solid #94a3b8 }
+  @bottom-center { content: ${texto(`${etiquetaPeriodo}${comparadoCon ? ` · vs ${comparadoCon}` : ""}`)}; ${pie}; vertical-align: top; padding-top: 2mm; border-top: 0.5pt solid #94a3b8 }
+  @bottom-right { content: "Hoja " counter(page) " de " counter(pages); ${pie}; vertical-align: top; padding-top: 2mm; border-top: 0.5pt solid #94a3b8 }
+}
+@page :first {
+  @top-left { content: none; border: none }
+  @top-center { content: none; border: none }
+  @top-right { content: none; border: none }
+}
+@media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact } }`
+  const aExcel = async () => {
+    setExportando(true)
+    try {
+      await exportarExcel(`${nombreArchivo}.xlsx`, filtrosEnTexto, actual.tarjetas, datosTarjetas.current)
+    } catch (err) {
+      toast.error(mensajeDeError(err, "No se pudo armar el Excel"))
+    } finally {
+      setExportando(false)
+    }
+  }
   const selects = (
     <>
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">Período
@@ -236,12 +313,47 @@ function Indicadores() {
           {listos.lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
         </select>
       </label>
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">Comparar con
+        <select className={SELECT_NATIVO} value={filtros.comparar ? "1" : ""}
+          onChange={e => setFiltros(f => ({ ...f, comparar: e.target.value === "1" }))}>
+          <option value="">Nada</option>
+          <option value="1">{etiquetaComparada(filtros.periodo)} (mismas fechas)</option>
+        </select>
+      </label>
     </>
   )
 
   return (
     <PageContainer ancho>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <style>{estiloHoja}</style>
+      {/* Al imprimir, la primera hoja empieza con el encabezado del informe */}
+      <header className="mb-4 hidden break-inside-avoid print:block">
+        <div className="flex items-center justify-between gap-4 border-b-2 border-primary pb-3">
+          <div className="flex items-center gap-3">
+            <Image src="/logo-campo-digital.png" alt="Campo Digital" width={1024} height={1024} className="h-16 w-16" />
+            <div>
+              <p className="text-2xl font-bold leading-tight">Informe de indicadores</p>
+              <p className="text-base text-muted-foreground">{establecimientoActivo.nombre} · {actual.nombre}</p>
+            </div>
+          </div>
+          <div className="text-right text-sm">
+            <p className="font-semibold">{etiquetaPeriodo}</p>
+            <p className="text-muted-foreground">{rango.desde.split("-").reverse().join("/")} al {rango.hasta.split("-").reverse().join("/")}</p>
+            <p className="text-muted-foreground">Emitido el {emitido}</p>
+          </div>
+        </div>
+        <dl className="mt-3 grid grid-cols-4 gap-x-6 gap-y-1 rounded-md border bg-muted/40 px-4 py-2 text-xs">
+          {filtrosEnTexto.filter(([k]) => !["Establecimiento", "Página", "Período", "Exportado"].includes(k)).map(([k, v]) => (
+            <div key={k} className="flex gap-1.5"><dt className="text-muted-foreground">{k}:</dt><dd className="font-medium">{v}</dd></div>
+          ))}
+        </dl>
+      </header>
+      {imprimiendo && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-background/90 print:hidden">
+          <p className="text-sm font-medium">Preparando el PDF…</p>
+        </div>
+      )}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div>
           <h1 className="text-2xl font-bold">{editando ? `Editando · ${actual.nombre}` : "Indicadores"}</h1>
           <p className="text-sm text-muted-foreground">
@@ -250,9 +362,9 @@ function Indicadores() {
               : listos.guardado ? establecimientoActivo.nombre : `${establecimientoActivo.nombre} · tablero de ejemplo (todavía no se guardó uno propio)`}
           </p>
         </div>
-        {esAdmin && grande && (
-          editando ? (
-            <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+        {esAdmin && grande && editando && (
+            <>
               <Button onClick={() => setConstructor({ tarjeta: null })}><Plus className="mr-1 h-4 w-4" /> Nueva tarjeta</Button>
               <select aria-label="Agregar una tarjeta lista" className={cn(SELECT_NATIVO, "w-auto")} value=""
                 onChange={e => { if (e.target.value !== "") agregarTarjeta(Number(e.target.value)) }}>
@@ -264,21 +376,32 @@ function Indicadores() {
               </Button>
               <Button variant="outline" disabled={guardando} onClick={() => { setBorrador(null); setConstructor(null) }}>Descartar</Button>
               <Button disabled={guardando} onClick={() => void guardar()}>{guardando ? "Guardando..." : "Guardar tablero"}</Button>
-            </div>
-          ) : (
-            <Button onClick={() => setBorrador(structuredClone(paginas))}>Editar tablero</Button>
-          )
+            </>
+        )}
+        {!editando && (
+          <>
+            <Button variant="outline" className="h-11 lg:h-9" disabled={imprimiendo} onClick={imprimir} title="Imprimir o guardar como PDF">
+              <Printer className="mr-1 h-4 w-4" /> PDF
+            </Button>
+            <Button variant="outline" className="h-11 lg:h-9" disabled={exportando} onClick={() => void aExcel()} title="Bajar los datos de esta página">
+              <FileSpreadsheet className="mr-1 h-4 w-4" /> {exportando ? "Armando..." : "Excel"}
+            </Button>
+          </>
+        )}
+        {esAdmin && grande && !editando && (
+          <Button onClick={() => setBorrador(structuredClone(paginas))}>Editar tablero</Button>
         )}
         {!grande && (
           <Button variant="outline" className="h-11" onClick={() => setPanelFiltros(true)}>
             <SlidersHorizontal className="mr-1 h-4 w-4" /> Filtros{cantidadFiltros > 0 ? ` · ${cantidadFiltros}` : ""}
           </Button>
         )}
+        </div>
       </div>
 
       {/* Páginas */}
       <div role="tablist" aria-label="Páginas del tablero"
-        className={cn("mb-4 flex gap-1 overflow-x-auto", grande ? "border-b" : "-mx-4 px-4 pb-1")}>
+        className={cn("mb-4 flex gap-1 overflow-x-auto print:hidden", grande ? "border-b" : "-mx-4 px-4 pb-1")}>
         {paginas.map((p, i) => (
           editando && i === idx ? (
             <div key={p.id} className="flex shrink-0 items-center gap-1 border-b-2 border-primary px-1 pb-1">
@@ -311,13 +434,13 @@ function Indicadores() {
 
       {/* Filtros generales: barra en la computadora; en el celular, un resumen y el panel de abajo */}
       {grande ? (
-        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card px-3 py-2.5">
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card px-3 py-2.5 print:hidden">
           {selects}
           {chipCruzado && <div className="ml-auto self-center">{chipCruzado}</div>}
         </div>
       ) : (
-        <p className="mb-3 text-sm text-muted-foreground">
-          {opcionesPeriodo().find(o => o.clave === filtros.periodo)?.etiqueta}
+        <p className="mb-3 text-sm text-muted-foreground print:hidden">
+          {etiquetaPeriodo}{comparadoCon && ` · vs ${comparadoCon}`}
           {filtros.especie && ` · ${nombreEspecie.get(filtros.especie) ?? ""}`}
           {filtros.categoria && ` · ${listos.categorias.find(c => c.id === filtros.categoria)?.nombre ?? ""}`}
           {filtros.lote && ` · ${listos.lotes.find(l => l.id === filtros.lote)?.nombre ?? ""}`}
@@ -332,9 +455,10 @@ function Indicadores() {
               {editando ? "Página vacía: armá una con “Nueva tarjeta” o agregá una lista." : "Esta página no tiene tarjetas."}
             </div>
           ) : (
-            <Grilla tarjetas={actual.tarjetas} grande={grande} edicion={editando} onMover={mover}
+            <Grilla tarjetas={actual.tarjetas} grande={grande} edicion={editando} onMover={mover} impresion={imprimiendo ? ANCHO_HOJA : undefined}
               render={t => (
                 <Tarjeta tarjeta={t} estId={listos.estId} rango={rango} generales={generales} cruzado={cruzado} nombre={nombre}
+                  comparar={comparadoCon} onDatos={(id, d) => { datosTarjetas.current.set(id, d) }} impresion={imprimiendo}
                   edicion={editando} onElegir={elegir(t.id)} onEditar={() => setConstructor({ tarjeta: t })}
                   onQuitar={() => cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.filter(x => x.id !== t.id) }))} />
               )} />

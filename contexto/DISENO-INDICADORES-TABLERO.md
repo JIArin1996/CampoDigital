@@ -14,8 +14,8 @@ El módulo Indicadores pasa de una pantalla fija (reproductivos por temporada) a
   gráfico (número, barras, líneas, torta, tabla), con **filtro propio** opcional.
 - **Filtros generales** arriba: período, especie, lote y "comparar con".
 - **Filtrado cruzado**: tocar una barra o porción (ej. "Novillos") filtra las demás tarjetas por esa categoría.
-- **Comparar períodos** (flecha ↑↓ contra el período anterior o el mismo del año pasado) y **exportar** (imagen/PDF
-  y datos a Excel).
+- **Comparar períodos** (flecha ▲▼ contra las mismas fechas del año anterior) y **exportar** (PDF de la página y
+  datos a Excel .xlsx).
 - **Detalle**: tocar un dato abre de dónde sale y de ahí se va al lote o a la actividad.
 
 ### Quién
@@ -82,7 +82,16 @@ tablero_<fuente>(
 - **Filtros que no aplican**: el catálogo (sección 5) dice qué dimensiones tiene cada fuente. La función ignora los
   filtros de dimensiones que no tiene, y la app marca la tarjeta. El catálogo vive en la app y la base lo hace
   cumplir: si la app pide abrir por una dimensión que la fuente no tiene, error.
-- **Comparar**: la app llama a la misma función con el período desplazado (anterior o mismo del año pasado).
+- **Comparar**: la app llama a la misma función con las **mismas fechas un año antes** (29/2 pasa a 28/2). Para
+  los períodos del selector (ejercicio, año, últimos 12 meses) eso es también el período anterior, así que hay una
+  sola opción: "Comparar con: Ejercicio 2024/25 (mismas fechas)". La tarjeta de número muestra ▲▼ con la diferencia
+  (en puntos si es %, si no en %) en verde si mejora y rojo si empeora; en las medidas donde bajar es bueno
+  (mortandad, nacidos muertos, gastos, pendiente de pago, días de ocupación) el color se invierte. Los gráficos
+  agregan una serie "(año anterior)" punteada o más clara, alineada por grupo o por posición en el tiempo; no se
+  compara en la torta ni en los gráficos abiertos por una dimensión en el tiempo. La tabla agrega las columnas.
+- **Exportar**: "PDF" usa la impresión del navegador (hoja A4 apaisada, sin menú ni controles, con los filtros en
+  palabras arriba). "Excel" arma un .xlsx en el navegador (SheetJS, cargado solo al exportar): una hoja "Filtros" y
+  una hoja por tarjeta con período, grupo, medida, valor, unidad, numerador y denominador (y las filas comparadas).
 
 Fuentes: `tablero_stock` y `tablero_reproductivos` (etapa 1a); `tablero_pesadas` (producción y pesos);
 `tablero_economia` y `tablero_potreros` (economía y potreros).
@@ -223,7 +232,7 @@ Dos tablas nuevas (migración), por establecimiento:
 - **2 — Producción y pesos**: `tablero_pesadas` (peso promedio, ganancia diaria, kg producidos) y mortandad, con su
   detalle.
 - **3 — Economía y potreros**: `tablero_economia` y `tablero_potreros` (UG en la base), con su detalle.
-- **4 — Comparar períodos y exportar**.
+- **4 — Comparar períodos y exportar**: "Comparar con" en los filtros generales (en la URL), PDF e Excel.
 - **Más adelante**: actividad "Señalada" y su indicador para ovinos.
 
 El detalle (ir al lote o a la actividad) entra junto con cada fuente.

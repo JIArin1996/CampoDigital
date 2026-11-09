@@ -8,8 +8,8 @@ import {
 
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
-import { ETIQUETA_DIMENSION, MIN_DIAS_POR_DEFECTO, filtranEn, medidaDe, type Unidad } from "@/components/tablero/catalogo"
-import { rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
+import { ETIQUETA_DIMENSION, MEJOR_SI_BAJA, MIN_DIAS_POR_DEFECTO, filtranEn, medidaDe, type Unidad } from "@/components/tablero/catalogo"
+import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { Dimension, FilaTablero, FiltroCruzado, FiltrosIds, TarjetaTablero } from "@/types/tablero"
 
@@ -67,7 +67,16 @@ export function filtrosDeTarjeta(tarjeta: TarjetaTablero, generales: FiltrosIds,
   return { efectivos, noAplican, fijos }
 }
 
-interface Resultado { medida: string; filas: FilaTablero[] }
+export interface Resultado { medida: string; filas: FilaTablero[] }
+
+// Lo que muestra una tarjeta, para exportarlo (Excel)
+export interface DatosTarjeta {
+  titulo: string
+  unidad: Unidad
+  resultados: Resultado[]
+  comparados: Resultado[] | null     // el mismo cálculo, un año antes (si se compara)
+  etiquetaComparada: string | null
+}
 
 /**
  * Una tarjeta del tablero: pide a la base sus datos ya agregados (una consulta por medida) con los filtros que le
@@ -75,7 +84,15 @@ interface Resultado { medida: string; filas: FilaTablero[] }
  * ("Filtro de categoría no aplica") y no se mandan. Si está abierta por especie, categoría o lote, tocar una barra,
  * porción o fila filtra las demás tarjetas por eso (filtrado cruzado).
  */
-export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edicion, onQuitar, onEditar, onElegir }: {
+// Lo último que calculó cada tarjeta: al pasar a la vista de impresión las tarjetas se vuelven a armar y no hace
+// falta pedir los datos de nuevo (solo se usa al imprimir, y por un minuto)
+const CALCULADOS = new Map<string, { hora: number; resultados: Resultado[]; comparados: Resultado[] | null }>()
+const calculado = (clave: string) => {
+  const c = CALCULADOS.get(clave)
+  return c && Date.now() - c.hora < 60_000 ? c : null
+}
+
+export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edicion, onQuitar, onEditar, onElegir, comparar = null, onDatos, impresion = false }: {
   tarjeta: TarjetaTablero
   estId: string
   rango: Rango                                   // el período de arriba
@@ -86,22 +103,34 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   onQuitar?: () => void
   onEditar?: () => void
   onElegir?: (c: Omit<FiltroCruzado, "origen">) => void
+  comparar?: string | null                       // con qué se compara ("Ejercicio 2024/25"): las mismas fechas, un año antes
+  onDatos?: (id: string, datos: DatosTarjeta) => void
+  impresion?: boolean
 }) {
   const def = tarjeta.definicion
   const { efectivos, noAplican, fijos } = filtrosDeTarjeta(tarjeta, generales, cruzado)
   const r = def.periodo && def.periodo !== "tablero" ? rangoEjercicios(rango, def.periodo.ejercicios) : rango
-  const clave = JSON.stringify([estId, def, r, efectivos])
+  const rc = comparar ? rangoAnioAnterior(r) : null
+  const clave = JSON.stringify([estId, def, r, efectivos, rc])
 
-  const [datos, setDatos] = useState<{ clave: string; resultados: Resultado[] } | null>(null)
+  const [datos, setDatos] = useState<{ clave: string; resultados: Resultado[]; comparados: Resultado[] | null } | null>(() => {
+    const c = impresion ? calculado(clave) : null
+    return c ? { clave, resultados: c.resultados, comparados: c.comparados } : null
+  })
   const [error, setError] = useState<{ clave: string; texto: string } | null>(null)
 
   useEffect(() => {
+    if (datos?.clave === clave) return
     let vigente = true
-    Promise.all(def.medidas.map(async medida => ({
+    const pedir = (rr: Rango) => Promise.all(def.medidas.map(async medida => ({
       medida,
-      filas: await getDatosTablero({ establecimiento_id: estId, definicion: def, medida, desde: r.desde, hasta: r.hasta, filtros: efectivos }),
+      filas: await getDatosTablero({ establecimiento_id: estId, definicion: def, medida, desde: rr.desde, hasta: rr.hasta, filtros: efectivos }),
     })))
-      .then(resultados => { if (vigente) setDatos({ clave, resultados }) })
+    Promise.all([pedir(r), rc ? pedir(rc) : Promise.resolve(null)])
+      .then(([resultados, comparados]) => {
+        CALCULADOS.set(clave, { hora: Date.now(), resultados, comparados })
+        if (vigente) setDatos({ clave, resultados, comparados })
+      })
       .catch(err => { if (vigente) setError({ clave, texto: mensajeDeError(err, "No se pudieron calcular los datos") }) })
     return () => { vigente = false }
     // clave resume def, rango y filtros
@@ -109,9 +138,18 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   }, [clave])
 
   const listos = datos?.clave === clave ? datos.resultados : null
+  const comparados = datos?.clave === clave ? datos.comparados : null
   const fallo = error?.clave === clave ? error.texto : null
   const avisos = listos?.flatMap(x => x.filas).find(f => f.avisos)?.avisos ?? null
   const unidad = medidaDe(def.fuente, def.medidas[0])?.unidad ?? "cab"
+
+  // Avisa a la página lo que muestra (para exportar a Excel)
+  useEffect(() => {
+    if (datos && datos.clave === clave && onDatos) {
+      onDatos(tarjeta.id, { titulo: tarjeta.titulo, unidad, resultados: datos.resultados, comparados: datos.comparados, etiquetaComparada: comparar })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos, tarjeta.titulo])
   const dimCruzable = def.abrir_por === "especie" || def.abrir_por === "categoria" || def.abrir_por === "lote" ? def.abrir_por : null
   // "Sin asignar" no es un filtro posible
   const elegir = dimCruzable && onElegir && !edicion
@@ -121,7 +159,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
 
   return (
     <section aria-label={tarjeta.titulo}
-      className={cn("flex h-full flex-col gap-2 rounded-lg border bg-card p-3 md:p-4",
+      className={cn("flex h-full flex-col gap-2 rounded-lg border bg-card p-3 md:p-4 print:break-inside-avoid",
         noAplican.length > 0 && "border-dashed border-amber-600/70")}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
@@ -165,7 +203,8 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
         ) : !listos ? (
           <div className="h-full min-h-12 rounded-md bg-muted/40 animate-pulse" aria-label="Calculando" />
         ) : (
-          <Contenido tarjeta={tarjeta} resultados={listos} unidad={unidad} elegir={elegir} elegido={elegido} />
+          <Contenido tarjeta={tarjeta} resultados={listos} comparados={comparados} etiquetaComp={comparar} unidad={unidad} animar={!impresion}
+            elegir={elegir} elegido={elegido} />
         )}
       </div>
 
@@ -213,9 +252,12 @@ function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias:
 
 type FilaGrafico = Record<string, string | number | null>
 
-function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
+function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, animar, elegir, elegido }: {
   tarjeta: TarjetaTablero
+  animar: boolean
   resultados: Resultado[]
+  comparados: Resultado[] | null
+  etiquetaComp: string | null
   unidad: Unidad
   elegir?: (clave: string, etiqueta: string) => void
   elegido: string | null
@@ -229,9 +271,13 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
     const filas = resultados[0]?.filas ?? []
     const f = filas[filas.length - 1]
     if (!f) return <p className="text-sm text-muted-foreground">Sin datos en el período.</p>
+    const filasC = comparados?.[0]?.filas ?? []
+    const c = filasC[filasC.length - 1]
     return (
       <div>
         <p className="text-3xl font-bold tabular-nums">{formato(f.valor, unidad)}</p>
+        {comparados && <Variacion actual={f.valor} anterior={c?.valor ?? null} unidad={unidad} etiqueta={etiquetaComp ?? ""}
+          mejorSiBaja={MEJOR_SI_BAJA.includes(def.medidas[0])} />}
         {unidad === "%" && f.denominador !== null && (
           <p className="text-xs text-muted-foreground tabular-nums">
             {f.numerador?.toLocaleString("es-UY")} de {f.denominador.toLocaleString("es-UY")}
@@ -286,6 +332,22 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
 
   if (filasGrafico.length === 0) return <p className="text-sm text-muted-foreground">Sin datos en el período.</p>
 
+  // Comparación con el año anterior: una serie más por medida (no en las abiertas en el tiempo ni en la torta)
+  const conComparacion = !!comparados && def.grafico !== "torta" && !(def.abrir_por !== null && !porGrupo)
+  const seriesComp = conComparacion
+    ? series.map((s, i) => ({ clave: `${s.clave}__comp`, nombre: `${s.nombre} (${etiquetaComp})`, base: i }))
+    : []
+  if (conComparacion) {
+    for (const x of comparados!) {
+      if (porGrupo) {
+        for (const fila of filasGrafico) fila[`${x.medida}__comp`] = x.filas.find(f => (f.clave ?? "") === fila._clave)?.valor ?? null
+      } else {
+        // En el tiempo, por posición: el mes o ejercicio que corresponde, un año antes
+        filasGrafico.forEach((fila, i) => { fila[`${x.medida}__comp`] = x.filas[i]?.valor ?? null })
+      }
+    }
+  }
+
   const clickeable = porGrupo && !!elegir
   const tocar = (i: number) => {
     const f = filasGrafico[i]
@@ -296,7 +358,7 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
 
   const fmt = (v: unknown) => formato(typeof v === "number" ? v : Number(v), unidad)
   const tooltip = <Tooltip formatter={(v, nombre) => [fmt(v), nombre]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-  const leyenda = series.length > 1 ? <Legend wrapperStyle={{ fontSize: 12 }} /> : null
+  const leyenda = series.length + seriesComp.length > 1 ? <Legend wrapperStyle={{ fontSize: 12 }} /> : null
 
   if (def.grafico === "tabla") {
     return (
@@ -305,7 +367,7 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
           <thead>
             <tr className="border-b text-left text-muted-foreground">
               <th className="py-1.5 pr-2 font-medium"></th>
-              {series.map(s => <th key={s.clave} className="py-1.5 pl-2 text-right font-medium">{s.nombre}</th>)}
+              {[...series, ...seriesComp].map(s => <th key={s.clave} className="py-1.5 pl-2 text-right font-medium">{s.nombre}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -316,7 +378,7 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
                     ? <button type="button" onClick={() => tocar(i)} className="text-left font-medium text-primary hover:underline">{f.x}</button>
                     : f.x}
                 </td>
-                {series.map(s => <td key={s.clave} className="py-1.5 pl-2 text-right tabular-nums">{fmt(f[s.clave])}</td>)}
+                {[...series, ...seriesComp].map(s => <td key={s.clave} className="py-1.5 pl-2 text-right tabular-nums">{fmt(f[s.clave])}</td>)}
               </tr>
             ))}
           </tbody>
@@ -333,7 +395,7 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
     return (
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={datos} dataKey="valor" nameKey="nombre" innerRadius="45%" outerRadius="80%" paddingAngle={1}
+          <Pie isAnimationActive={animar} data={datos} dataKey="valor" nameKey="nombre" innerRadius="45%" outerRadius="80%" paddingAngle={1}
             onClick={(_, j) => tocar(datos[j].i)} style={{ cursor: clickeable ? "pointer" : undefined }}>
             {datos.map((d, j) => <Cell key={d.nombre} fill={COLORES[j % COLORES.length]} fillOpacity={opacidad(d.f)} />)}
           </Pie>
@@ -354,7 +416,11 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
           {tooltip}
           {leyenda}
           {series.map((s, i) => (
-            <Line key={s.clave} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[i % COLORES.length]} strokeWidth={2} dot={false} connectNulls />
+            <Line key={s.clave} isAnimationActive={animar} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[i % COLORES.length]} strokeWidth={2} dot={false} connectNulls />
+          ))}
+          {seriesComp.map(s => (
+            <Line key={s.clave} isAnimationActive={animar} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[s.base % COLORES.length]} strokeWidth={2}
+              strokeDasharray="5 4" strokeOpacity={0.6} dot={false} connectNulls />
           ))}
         </LineChart>
       </ResponsiveContainer>
@@ -382,7 +448,7 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
         {tooltip}
         {leyenda}
         {series.map((s, i) => (
-          <Bar key={s.clave} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2}
+          <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2}
             onClick={(_, j) => tocar(j)} style={{ cursor: clickeable ? "pointer" : undefined }}>
             {filasGrafico.map((f, j) => (
               <Cell key={j} fillOpacity={opacidad(f)}
@@ -391,7 +457,37 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
             ))}
           </Bar>
         ))}
+        {seriesComp.map(s => (
+          <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[s.base % COLORES.length]} fillOpacity={0.35} radius={2} />
+        ))}
       </BarChart>
     </ResponsiveContainer>
+  )
+}
+
+// La flecha de la comparación: ▲ / ▼ con la diferencia (en puntos si es un %, si no en %) y el valor anterior. Verde si
+// mejora (sube, o baja en las medidas donde bajar es bueno), rojo si empeora.
+function Variacion({ actual, anterior, unidad, etiqueta, mejorSiBaja }: {
+  actual: number | null
+  anterior: number | null
+  unidad: Unidad
+  etiqueta: string
+  mejorSiBaja: boolean
+}) {
+  if (actual === null || anterior === null) {
+    return <p className="text-xs text-muted-foreground">Sin datos de {etiqueta} para comparar</p>
+  }
+  const dif = actual - anterior
+  const texto = unidad === "%"
+    ? `${Math.abs(dif).toLocaleString("es-UY", { maximumFractionDigits: 1 })} pts`
+    : anterior !== 0 ? `${Math.abs((dif / Math.abs(anterior)) * 100).toLocaleString("es-UY", { maximumFractionDigits: 1 })} %` : formato(Math.abs(dif), unidad)
+  const mejora = dif === 0 ? null : (dif > 0) !== mejorSiBaja
+  return (
+    <p className="text-xs">
+      <span className={cn("font-semibold", mejora === null ? "text-muted-foreground" : mejora ? "text-emerald-700 dark:text-emerald-400" : "text-destructive")}>
+        {dif === 0 ? "= igual" : `${dif > 0 ? "▲" : "▼"} ${texto}`}
+      </span>
+      <span className="text-muted-foreground"> vs {etiqueta} ({formato(anterior, unidad)})</span>
+    </p>
   )
 }

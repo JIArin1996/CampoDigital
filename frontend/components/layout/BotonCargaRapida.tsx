@@ -44,7 +44,7 @@ export function BotonCargaRapida() {
         type="button"
         aria-label="Cargar"
         onClick={() => setAbierto(true)}
-        className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/50"
+        className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/50 print:hidden"
       >
         <Plus className="h-7 w-7" />
       </button>

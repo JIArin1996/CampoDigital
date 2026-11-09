@@ -67,4 +67,5 @@ export interface FiltrosTablero {
   especie: string
   categoria: string
   lote: string
+  comparar: boolean      // comparar con las mismas fechas del año anterior
 }

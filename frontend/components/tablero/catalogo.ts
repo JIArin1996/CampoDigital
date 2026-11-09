@@ -16,6 +16,9 @@ export interface Medida {
   abrirObligatorio?: boolean // solo tiene sentido abierta (ej. días de descanso, por potrero)
 }
 
+// Medidas donde bajar es bueno (la flecha de la comparación va en verde si baja)
+export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "dias_ocupacion"]
+
 export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
   stock: {
     stock:         { etiqueta: "Stock al cierre",  unidad: "cab", tiempos: ["total", "mes", "ejercicio"] },
