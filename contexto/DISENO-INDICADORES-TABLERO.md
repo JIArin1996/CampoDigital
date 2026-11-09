@@ -86,7 +86,8 @@ tablero_<fuente>(
   los períodos del selector (ejercicio, año, últimos 12 meses) eso es también el período anterior, así que hay una
   sola opción: "Comparar con: Ejercicio 2024/25 (mismas fechas)". La tarjeta de número muestra ▲▼ con la diferencia
   (en puntos si es %, si no en %) en verde si mejora y rojo si empeora; en las medidas donde bajar es bueno
-  (mortandad, nacidos muertos, gastos, pendiente de pago, días de ocupación) el color se invierte. Los gráficos
+  (mortandad, nacidos muertos, gastos, pendiente de pago) el color se invierte. Los días de ocupación y de descanso
+  van **sin color** (subir o bajar no es bueno ni malo en sí). Los gráficos
   agregan una serie "(año anterior)" punteada o más clara, alineada por grupo o por posición en el tiempo; no se
   compara en la torta ni en los gráficos abiertos por una dimensión en el tiempo. La tabla agrega las columnas.
 - **Exportar**: "PDF" usa la impresión del navegador (hoja A4 apaisada, sin menú ni controles, con los filtros en
@@ -94,7 +95,9 @@ tablero_<fuente>(
   una hoja por tarjeta con período, grupo, medida, valor, unidad, numerador y denominador (y las filas comparadas).
 
 Fuentes: `tablero_stock` y `tablero_reproductivos` (etapa 1a); `tablero_pesadas` (producción y pesos);
-`tablero_economia` y `tablero_potreros` (economía y potreros).
+`tablero_economia` y `tablero_potreros` (economía y potreros). Con el catálogo del productor
+(`INDICADORES-CATALOGO.md`, etapas 5 a 8): `tablero_produccion` (kilos por inventario, lana, ventas en kg),
+`tablero_gestion` (tareas, sanidad) y `tablero_combinada` (medidas propias, sección 11).
 
 ## 4. Medidas
 
@@ -105,7 +108,7 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
 |---|---|---|---|---|---|
 | Stock | Stock al cierre | Σ `lote_eventos.cabezas` con fecha ≤ fin de cada período. **Semi-aditivo**: por mes es el stock al último día del mes, nunca la suma de los meses; el "total" de un período es el stock a su fin. | cabezas | `lote_eventos` (como `stock_al`) | total, mes, ejercicio |
 | Stock | Altas / bajas por motivo | Σ de eventos del período por tipo: parición, compra, recategorización (+/−), división/unión (+/−), venta, mortandad, ajuste. | cabezas | `lote_eventos` | total, mes, ejercicio |
-| Stock | Mortandad % | muertes del período / (stock al inicio + altas del período por parición y compra). | % | `lote_eventos` | total, ejercicio |
+| Stock | Mortandad % | muertes del período / (stock al inicio + altas del período por parición y compra). Está en `tablero_stock` desde la etapa 1a. | % | `lote_eventos` | total, ejercicio |
 | Reproductivos | % preñez | vacas preñadas / vacas entoradas | % | `v_indicadores_aportes` | temporada |
 | Reproductivos | % parición | terneros/as nacidos **vivos** / vacas entoradas | % | `v_indicadores_aportes` | temporada |
 | Reproductivos | % parición total | terneros/as nacidos (vivos + muertos) / vacas entoradas, para distinguir los muertos | % | `v_indicadores_aportes` | temporada |
@@ -137,8 +140,22 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
     tramo, en el lote o en sus ancestros, **salvo que haya una pesada en la fecha de ese evento** (los días de las dos
     pesadas no cuentan). Motivo: cambia la composición y el promedio se mueve sin que nadie haya ganado o perdido kilos
     (vender los más pesados daría una ganancia negativa falsa; destetar los terneros subiría el promedio de un lote
-    pesado con sus terneros). Si el evento es de una categoría que no se pesó (ej. la parición suma terneros y solo se
-    pesan las vacas), el tramo vale.
+    pesado con sus terneros). Si el evento es de una categoría que no se pesó (ej. una compra de terneros en un lote
+    donde solo se pesan las vacas), el tramo vale.
+  - **La parición corta el tramo de las madres** (decisión 9/11/2026), aunque las crías no se pesen: las hembras que
+    parieron pierden el peso del ternero, la placenta y los líquidos. Corta el tramo del lote de las madres (el de la
+    actividad de parición) en las categorías pesadas que no son crías al pie. Motivo `paricion_madres` (el de la cría
+    que entra a una categoría pesada sigue siendo `paricion`).
+  - **La esquila corta el tramo de los ovinos esquilados**: cualquier esquila del lote (o de sus ancestros) entre las
+    dos pesadas. La esquila no dice qué categorías se esquilaron, así que corta todas las del lote. Motivo `esquila`.
+  - **Pesada el mismo día que un evento**: el evento no se ignora. Se comparan las cabezas de la pesada (de las
+    categorías que se pesaron) con el stock del lote en esas categorías **antes** y **después** del evento:
+    - si coinciden con el stock **posterior**, la pesada se hizo después del evento: vale como **inicio** del tramo
+      siguiente, y el tramo que termina en ella lo incluye (se descarta por ese evento);
+    - si coinciden con el stock **anterior**, se hizo antes: vale como **final** del tramo previo, y el tramo que
+      empieza en ella lo incluye;
+    - si el evento no cambia las cabezas de las categorías pesadas, no corta; si no coincide con ninguno, se
+      considera que lo incluye para los dos tramos (no se arriesga un dato falso).
   - Con filtro o apertura **por categoría**, también descarta la **recategorización** que entra o sale de esa
     categoría (ahí sí cambia quién está). Mirando el lote entero no la descarta: son los mismos animales.
   - **La mortandad no corta el tramo** (los kg producidos se calculan con las cabezas de la pesada final).
@@ -147,7 +164,8 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
   - Los tramos se toman entre **pesadas consecutivas** de la línea: una pesada descartada como final de un tramo sigue
     siendo el inicio del siguiente.
   - La tarjeta muestra **cuántos tramos se descartaron y por qué** (aviso `tramos_descartados`, con los motivos
-    `corto`, `division`, `union`, `compra`, `venta`, `destete`, `paricion`, `ajuste` y `recategorizacion`).
+    `corto`, `division`, `union`, `compra`, `venta`, `destete`, `paricion`, `paricion_madres`, `esquila`, `ajuste`,
+    `consumo` y `recategorizacion`).
   - Detalles (etapa 2, `tablero_pesadas`): los orígenes son los de **nivel 1** del linaje (los lotes de los que salió
     directamente); con varios, el tramo empieza en la más vieja de sus últimas pesadas. Con filtro o apertura por
     **categoría** se comparan solo las líneas de esa categoría. El tramo cuenta en el período de su pesada final.
@@ -170,17 +188,90 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
     la categoría no suma y la tarjeta lo avisa (`categorias_sin_ug`). La pantalla Potreros usa la misma columna y la
     misma carga global (todos los animales sobre la superficie dibujada).
 
+### Medidas nuevas (catálogo del productor, etapas 5 a 8)
+
+Salen de `INDICADORES-CATALOGO.md`. "Dato" dice si hoy existe lo necesario (ver sección 12). Las de una fuente que ya
+existe se agregan a esa función; las nuevas fuentes son `tablero_produccion` y `tablero_gestion`.
+
+| Fuente | Medida | Fórmula | Unidad | Tiempo | Dato |
+|---|---|---|---|---|---|
+| Stock | UG al cierre | Σ cabezas × UG de la categoría, al cierre (semi-aditivo) | UG | total, mes, ejercicio | existe |
+| Stock | **UG promedio** | Σ (cabezas × UG × días) / días del período: promedio ponderado por días. `numerador` = UG-día, `denominador` = días | UG | total, mes, ejercicio | existe |
+| Stock | **Stock promedio** | igual, con cabezas | cab | total, mes, ejercicio | existe |
+| Stock | Tasa de extracción | cabezas vendidas (y faenadas para consumo) en el período / stock al inicio | % | total, ejercicio | existe (consumo: falta) |
+| Stock | % vacas de cría | stock de la categoría de cría / stock de su especie, al cierre | % | total, mes, ejercicio | falta marcar la categoría de cría |
+| Stock | Relación lanar/vacuno | stock ovino / stock vacuno al cierre; y en UG | — | total, mes, ejercicio | existe |
+| Reproductivos | Pérdidas preñez → destete | (preñadas − destetados) / preñadas | % | temporada | existe |
+| Reproductivos | Kg destetados por vaca entorada | Σ kg destetados / entoradas | kg/vaca | temporada | **falta** el peso en el destete |
+| Reproductivos | Peso promedio al destete | Σ kg destetados / destetados con peso | kg | temporada | **falta** el peso en el destete |
+| Reproductivos | % preñez por categoría de entore | preñez abierta por la categoría del lote servido (sección "Reglas") | % | temporada | existe si cada lote servido es de una categoría |
+| Reproductivos | Reposición | entoradas de la categoría de reposición (Vaquillonas) / entoradas | % | temporada | ídem |
+| Producción | **Kg en stock** | por lote abierto: cabezas × peso promedio de la pesada **más cercana, anterior o posterior, dentro de 60 días**; si no hay, cabezas × **peso de referencia** de la categoría (semi-aditivo, al cierre) | kg | total, mes, ejercicio | **falta** el peso de referencia |
+| Producción | **Producción de carne** (inventario) | kg vendidos − kg comprados + (kg en stock al cierre − kg en stock al inicio) + kg faenados para consumo | kg | total, ejercicio | **falta** peso de referencia; kg de compra y venta son opcionales |
+| Producción | Kg vendidos / comprados | Σ peso vivo de las líneas de venta / compra | kg | total, mes, ejercicio | existe (opcional al cargar) |
+| Producción | Peso promedio de venta | kg vendidos / cabezas vendidas **con peso** | kg | total, mes, ejercicio | existe |
+| Producción | Lana total / por animal | Σ kg de lana de las esquilas; kg / cabezas esquiladas | kg, kg/cab | total, ejercicio | existe (`act_esquila`) |
+| Producción | Carne equivalente | carne vacuna + carne ovina + kg de lana × factor (parámetro, 2,48) | kg | total, ejercicio | ídem producción de carne |
+| Economía | **Gastos operativos** | gastos sin las compras de hacienda (movimientos de una actividad de compra) | USD | total, mes, ejercicio | existe |
+| Economía | Precio promedio de venta | USD de ventas / kg vendidos (solo ventas con kg) | USD/kg | total, ejercicio | existe |
+| Economía | **Flujo de caja** | Σ cobrado − Σ pagado por `fecha_pago` (lo pendiente no entra) | USD | mes, ejercicio | existe |
+| Economía | % del gasto | gasto del grupo / gasto total (abierto por concepto) | % | total, ejercicio | existe |
+| Economía | Saldos entre pagadores | quién le debe a quién (como `v_saldos`), sin tiempo | USD | total | existe |
+| Potreros | **Carga promedio** | UG-día del período / días / ha efectiva (por potrero o global) | UG/ha | total, mes, ejercicio | existe |
+| Potreros | Presión acumulada | Σ UG-día del período / ha efectiva del potrero | UG-día/ha | total, mes, ejercicio | existe |
+| Potreros | **Ha SPG** | Σ superficie efectiva de los potreros activos de uso Ganadería (o sin uso cargado) | ha | total | existe (falta filtrar por uso) |
+| Potreros | Ha forestadas | Σ superficie de potreros de uso Forestación + zonas de tipo "Forestación" dentro de los demás | ha | total | existe |
+| Potreros | Días desde la última salida | fin del período − fecha de salida del último lote (si hoy no tiene animales) | días | total | existe |
+| Potreros | Potreros sin animales | cantidad y ha de los potreros de pastoreo sin lote al cierre | n, ha | total | existe |
+| Gestión | Tareas vencidas / próximas 15 días | tareas pendientes con vencimiento < fin del período / dentro de 15 días | n | total | existe |
+| Gestión | Lotes con carencia | lotes y cabezas con carencia activa al cierre (`v_carencias`) | n, cab | total | existe |
+| Gestión | Próximas dosis | dosis con `fecha_proxima_dosis` en los 15 días siguientes y no dadas | n | total | existe |
+
+Reglas de las medidas nuevas:
+
+- **Semi-aditivas, dos versiones**: stock, UG y kg en stock se ofrecen **al cierre** y **promedio** (ponderado por
+  días). El constructor las muestra separadas ("UG al cierre", "UG promedio"); las combinadas (sección 11) proponen
+  la promedio. El promedio devuelve `numerador` = Σ cantidad × días y `denominador` = días, así el total de un
+  período sale de Σ/Σ y nunca de promediar meses.
+- **Kg en stock** (decisión 9/11/2026): se usa la pesada **más cercana a la fecha, anterior o posterior, a 60 días
+  o menos**; si empatan, la anterior.
+  - La **anterior** puede ser del lote o de sus ancestros (`linaje_lote`).
+  - La **posterior** tiene que ser del mismo lote y vale solo si entre la fecha y la pesada no hubo división, unión,
+    compra, venta, destete, parición, ajuste ni consumo de esas categorías. Motivo: el promedio de después tiene
+    que ser de los mismos animales.
+  - Cabezas a la fecha × promedio de esa pesada, por categoría si la pesada la tiene.
+  - Sin pesada que sirva: peso de referencia de la categoría. La tarjeta avisa cuántas cabezas se valuaron con
+    referencia (`cab_con_peso_referencia`) y cuántas sin peso (categoría sin peso de referencia: `cab_sin_peso`,
+    no suman).
+- **Ventas y compras sin kg**: no se inventan. La producción de carne avisa `cab_vendidas_sin_kg` /
+  `cab_compradas_sin_kg` y las valúa con el peso de referencia, con aviso.
+- **Mortandad** no entra en la fórmula: los kg de los animales muertos ya faltan en el stock al cierre.
+- **Ha SPG y Ha forestadas** son las superficies **actuales** (no hay historial, sección 13 punto 1); la tarjeta lo
+  avisa cuando el período es anterior al año en curso (`superficie_actual`).
+- **Carga**: la de hoy (al cierre) se mantiene; se agrega la **promedio**. La global y la Ha SPG pasan a contar
+  solo potreros de pastoreo (hoy cuenta todos los activos, sección 13 punto 2).
+- **UG sin potrero**: la carga global usa todos los animales, la de cada potrero solo los que están en él. Por eso
+  no coinciden cuando hay lotes sin potrero asignado. La carga global avisa `ug_sin_potrero` ("X UG sin potrero
+  asignado"; en la promedio, las UG promedio del período).
+- **Fila Total al abrir**: en una tabla abierta por un grupo (categoría, lote…), la fila **Total** la calcula la
+  función (otra llamada sin abrir), no la suma de las filas. Con una nota debajo de la tabla: "El total lo calcula la
+  base: no siempre es la suma de las filas" (stock al cierre, porcentajes, promedios, UG sin categoría).
+- **% preñez por categoría de entore**: la categoría es la del lote servido al día del servicio. Si el lote tenía
+  más de una categoría hembra adulta, va al grupo **"Mixto"** (no se reparte: el diagnóstico es un solo número).
+
 ## 5. Dimensiones por fuente (catálogo)
 
-| Dimensión | Stock | Reproductivos | Pesadas | Economía | Potreros |
-|---|---|---|---|---|---|
-| Especie | ✓ | ✓ | ✓ | ✓ (si el movimiento la tiene) | ✓ |
-| Categoría | ✓ | — | ✓ | — | ✓ |
-| Lote | ✓ | ✓ | ✓ | ✓ (si el movimiento lo tiene) | ✓ |
-| Potrero | — | — | — | — | ✓ |
-| Rubro / concepto / grupo | — | — | — | ✓ | — |
-| Titular | — | — | — | ✓ | — |
-| Mes / ejercicio | ✓ | — (temporada) | ✓ | ✓ | ✓ |
+| Dimensión | Stock | Reproductivos | Pesadas | Economía | Potreros | Producción | Gestión |
+|---|---|---|---|---|---|---|---|
+| Especie | ✓ | ✓ | ✓ | ✓ (si el movimiento la tiene) | ✓ | ✓ | ✓ (lote) |
+| Categoría | ✓ | ✓ (categoría de entore, nueva) | ✓ | — | ✓ | ✓ | — |
+| Lote | ✓ | ✓ | ✓ | ✓ (si el movimiento lo tiene) | ✓ | ✓ | ✓ |
+| Potrero | — | — | — | — | ✓ | — | — |
+| Uso del potrero (nueva) | — | — | — | — | ✓ | — | — |
+| Rubro / concepto / grupo | — | — | — | ✓ | — | — | — |
+| Titular | — | — | — | ✓ | — | — | — |
+| Pagador (nueva, saldos y flujo) | — | — | — | ✓ | — | — | — |
+| Mes / ejercicio | ✓ | — (temporada) | ✓ | ✓ | ✓ | ✓ | — (a la fecha) |
 
 "—" = el filtro de esa dimensión **no aplica**: la tarjeta lo muestra con la marca ámbar.
 
@@ -229,11 +320,26 @@ Dos tablas nuevas (migración), por establecimiento:
     mover, cambiar el tamaño, sacar tarjetas, y crear/renombrar/ordenar páginas.
 - **1b — Constructor libre y filtrado cruzado**: panel lateral del constructor (medida, abrir por, tiempo, gráfico,
   filtro propio, vista previa) y filtrado cruzado entre tarjetas.
-- **2 — Producción y pesos**: `tablero_pesadas` (peso promedio, ganancia diaria, kg producidos) y mortandad, con su
-  detalle.
+- **2 — Producción y pesos**: `tablero_pesadas` (peso promedio, ganancia diaria, kg producidos), con su detalle. (La
+  mortandad % quedó en `tablero_stock`, etapa 1a.)
 - **3 — Economía y potreros**: `tablero_economia` y `tablero_potreros` (UG en la base), con su detalle.
 - **4 — Comparar períodos y exportar**: "Comparar con" en los filtros generales (en la URL), PDF e Excel.
-- **Más adelante**: actividad "Señalada" y su indicador para ovinos.
+- **5 — Datos base del catálogo y arreglos** (migración y pantallas):
+  - Datos: peso de referencia por categoría (columna como `ug`, en Especies), peso opcional en el destete,
+    categoría de cría y de reposición marcadas por especie, baja por consumo. Ver sección 12.
+  - Arreglos de lo hecho: carga global y superficie solo de potreros de pastoreo, con el aviso de UG sin potrero;
+    tramos de pesadas con la parición de las madres, la esquila, el consumo y la pesada del mismo día que un
+    evento; fila Total de la tabla calculada por la base; días de ocupación y descanso sin color al comparar.
+- **6 — Medidas nuevas de las fuentes**: las de la tabla "Medidas nuevas" (sección 4), `tablero_produccion` y
+  `tablero_gestion`, con sus pruebas (sección 10, "Medidas nuevas").
+- **7 — Medidas combinadas y metas** (sección 11): `tablero_medidas`, `guardar_medida`, `tablero_combinada`, el
+  paso "Nueva medida" del constructor y la meta de cada tarjeta.
+- **8 — Tableros por defecto**: las cuatro páginas (Resumen, Economía, Producción, Potreros) en la plantilla; la
+  tarjeta de mapa (gráfico nuevo, solo potreros abierto por potrero). Una tarjeta cuya medida todavía no exista se
+  muestra con "Disponible en la etapa X".
+- **Más adelante**: actividad "Señalada" y su indicador para ovinos; superficies con historial; precio de
+  referencia por categoría y producto bruto; **diagnóstico con preñadas por categoría** (opcional), para no perder
+  la preñez de las vaquillonas cuando se entoran junto con las vacas.
 
 El detalle (ir al lote o a la actividad) entra junto con cada fuente.
 
@@ -321,14 +427,22 @@ Resultados esperados (ejercicio 2025/26, mínimo 21 días):
 |---|---|---|
 | L-Nov3 1/5 → 1/8/2026 | 92 | **Válido**: +19,5 kg/cab, **2.691 kg** (19,5 × 138) |
 | L-Nov3 1/8 → 15/9/2026 | 45 | Descartado: ajuste el 15/8 |
-| L-Cría 15/8 → 25/9/2026 | 41 | **Válido** (la parición del 15/9 suma terneros, que no se pesan): **500 kg** (5 × 100) |
+| L-Cría 15/8 → 25/9/2026 | 41 | Descartado: parición el 15/9 (las vacas pesadas parieron) |
 | L-Cría (25/9) → L-Cría-B 5/10/2026 | 10 | Descartado: menos de 21 días |
 | L-Cría-B 5/10 → 5/11/2026 | 31 | Descartado: destete el 1/11 (salen terneros pesados) |
 
-Resultados esperados (ejercicio 2026/27): **kg producidos 3.191**; **ganancia diaria** 3.191 / (138 × 92 + 100 × 41)
-= 3.191 / 16.796 = **0,19 kg/día**; **3 tramos descartados** (corto, destete, ajuste). **Por categoría**: Novillos
-**2.691**; Vacas de cría **750** (500 de L-Cría + 250 de las vacas de L-Cría-B: mirando solo las vacas, el destete de
-terneros no cambia quién está).
+Resultados esperados (ejercicio 2026/27): **kg producidos 2.691**; **ganancia diaria** 2.691 / (138 × 92) =
+2.691 / 12.696 = **0,212 kg/día**; **4 tramos descartados** (corto 1, destete 1, ajuste 1, parición de las madres 1).
+**Por categoría**: Novillos **2.691**; Vacas de cría **250** (las vacas de L-Cría-B del 5/10 al 5/11: mirando solo
+las vacas, el destete de los terneros no cambia quién está; el tramo de L-Cría lo corta la parición).
+
+**Pesada el mismo día que un evento** (prueba aparte: se agrega una pesada de L-Nov3 el 15/8/2026, el día del ajuste
+de −1 novillo; filtrado por L-Nov3, `min_dias` 7, ejercicio 2026/27):
+
+| Variante | Pesada del 15/8 | Tramos | Resultado |
+|---|---|---|---|
+| Después del ajuste | 137 novillos, 59.732 kg (436,0): coincide con el stock **posterior** | 1/8 → 15/8 descartado (ajuste); 15/8 → 15/9 **válido**: +14,0 × 137 = **1.918 kg** | kg producidos 2.691 + 1.918 = **4.609**; descartados: ajuste 1 |
+| Antes del ajuste | 138 novillos, 60.168 kg (436,0): coincide con el stock **anterior** | 1/8 → 15/8 **válido**: +6,0 × 138 = **828 kg**; 15/8 → 15/9 descartado (ajuste) | kg producidos 2.691 + 828 = **3.519**; descartados: ajuste 1 |
 
 ### Economía (con titulares A y B)
 
@@ -359,3 +473,201 @@ Resultados esperados (ejercicio 2025/26):
 - **Carga global**: 210,4 / (superficie de P1 + P2), con el aviso **1 potrero sin dibujar**.
 - **Días de ocupación** en el ejercicio 2025/26 (estadías [ingreso, salida)): P2 **365** (L-Cría desde el alta), P1
   **150** (L-Nov3 desde el 1/2/2026), P3 **0**. **Días de descanso**: P3 **365**, P1 **215**, P2 **0**.
+- **UG sin potrero**: L-Nov1 y L-Nov2 no tienen potrero hasta la unión del 1/2/2026. Al cierre de octubre de 2025:
+  140 novillos × 0,8 = **112 UG sin potrero**; la carga global de ese mes las cuenta y avisa "112 UG sin potrero
+  asignado". Al 30/6/2026: **0** (sin aviso).
+
+### Medidas nuevas (etapas 5 a 7)
+
+Se agrega al set de arriba, sin cambiar ningún resultado anterior:
+
+- **Pesos de referencia**: Vacas de cría **450 kg**, Novillos **380 kg**, Terneros/as **180 kg**. UG: Vacas de cría
+  1,0; Novillos 0,8 (las del set de carga).
+- **Kg en la compra y la venta** (opcionales, no cambian el stock): venta del 1/10/2025, 30 novillos, **10.500 kg**;
+  compra del 15/10/2025, 20 novillos, **6.000 kg**.
+- **Kg en el destete** (dato nuevo): 38 terneros de L-Cría **6.840 kg**; 37 de L-Cría-B **6.475 kg**.
+- **Potreros**: superficies efectivas P1 **120 ha** y P2 **180 ha**, uso Ganadería (la prueba dibuja polígonos de
+  esa superficie; si el dibujo da otra, compara contra la guardada); P3 Ganadería sin dibujar; **P4 uso
+  Forestación, 200 ha**.
+- **Pagos**: la venta cobrada el 1/10/2025 por el pagador "Cuenta A" (de A); la compra pagada el 15/10/2025 y la
+  sanidad el 1/11/2025, por "Cuenta A"; los sueldos, pendientes.
+- **Ejercicio 2026/27**: renta forestal (ingreso, rubro Forestación tercerizada) **20.000** el 1/8/2026. Ovinos:
+  L-Ovejas, alta de **200 Ovejas de cría** el 1/7/2026; esquila el 1/10/2026, **900 kg** de lana.
+- **Gestión** (al 30/6/2026): tarea pendiente con vencimiento 1/6/2026 (vencida) y otra con vencimiento 10/7/2026
+  (próxima); sanidad en L-Nov3 el 20/6/2026 con carencia de 30 días y próxima dosis el 5/7/2026.
+
+Días del ejercicio 2025/26: 365. Novillos: 150 cabezas del 1/7 al 30/9/2025 (92 días), 120 del 1/10 al 14/10
+(14), 140 del 15/10/2025 al 14/4/2026 (182) y 138 del 15/4 al 30/6/2026 (77): **51.586 cabezas-día**.
+
+Resultados esperados (ejercicio 2025/26, salvo que diga otro):
+
+| Medida | Cálculo | Resultado |
+|---|---|---|
+| Stock promedio | 100 + 51.586 / 365 | **241,33 cab** |
+| UG promedio | 100 × 1,0 + 51.586 × 0,8 / 365 = 100 + 113,07 | **213,07 UG** |
+| UG al cierre | 100 + 138 × 0,8 | **210,40 UG** |
+| Tasa de extracción | 30 / 250 | **12,0 %** |
+| % vacas de cría (cierre) | 100 / 238 | **42,0 %** |
+| Kg en stock al inicio (30/6/2025) | L-Nov1 100 × 300,0 (pesada **posterior** del 1/7, 1 día, sin eventos en el medio) + L-Nov2 50 × 380 (su pesada del 1/9 está a **63 días**: referencia) + L-Cría 100 × 450 (sin pesadas cerca: referencia) | **94.000 kg** (aviso: 150 cab con referencia) |
+| Kg en stock al 31/1/2026 | L-Nov1 70 × 396,6 + L-Nov2 70 × 350,0 (pesadas del 1/1, 30 días antes; no hay posteriores del mismo lote) + 100 × 450 | **97.262 kg** (100 cab con referencia) |
+| Kg en stock al cierre (30/6/2026) | L-Nov3 138 × 430,0 (la del 1/8/2026, **32 días después**, es más cercana que la del 1/5, 60 días antes; sin eventos en el medio: el ajuste es del 15/8) + L-Cría 100 × 450,0 (pesada del 15/8/2026, 46 días después; la parición es del 15/9) | **104.340 kg** (sin referencia) |
+| Producción de carne | 10.500 − 6.000 + (104.340 − 94.000) + 0 | **14.840 kg** |
+| Peso promedio de venta (novillos) | 10.500 / 30 | **350,0 kg** |
+| Pérdidas preñez → destete (temporada 2025/26) | (90 − 75) / 90 | **16,7 %** |
+| Kg destetados por vaca entorada | (6.840 + 6.475) / 100 | **133,2 kg/vaca** |
+| Peso promedio al destete | 13.315 / 75 | **177,5 kg** |
+| % preñez por categoría de entore | L-Cría es solo Vacas de cría | Vacas de cría **90,0 %** |
+| Reposición | 0 vaquillonas / 100 entoradas | **0,0 %** |
+| Gastos operativos | 26.000 − 18.000 (compra de hacienda) | **8.000 USD** |
+| Precio promedio de venta | 27.000 / 10.500 | **2,57 USD/kg** |
+| Flujo de caja | oct 27.000 − 18.000; nov −2.000; dic 0 (pendiente) | oct **9.000**, nov **−2.000**, dic **0**; ejercicio **7.000** |
+| % del gasto por concepto | sobre 26.000 | compra **69,2 %**, sueldos **23,1 %**, sanidad **7,7 %** |
+| Saldos entre pagadores | "Cuenta A" cobró la parte de B de la venta | **A le debe 10.800 a B** |
+| Ha SPG | P1 + P2 (P3 sin dibujar, P4 forestación) | **300 ha** (aviso: 1 potrero sin dibujar) |
+| Ha forestadas | P4 | **200 ha** |
+| Carga promedio P1 | L-Nov3 desde el 1/2: (140 × 73 + 138 × 77) × 0,8 = 16.676,8 UG-día / 365 / 120 | **0,381 UG/ha** |
+| Carga promedio P2 | 100 UG todo el año / 180 | **0,556 UG/ha** |
+| Carga global promedio | 213,07 / 300 | **0,710 UG/ha** (aviso: 67,38 UG promedio sin potrero = (150 × 92 + 120 × 14 + 140 × 109) × 0,8 / 365, los novillos hasta el 31/1/2026) |
+| Presión acumulada | P1 16.676,8 / 120; P2 36.500 / 180 | P1 **138,97**, P2 **202,78 UG-día/ha** |
+| Potreros sin animales (cierre) | P3 (P4 no es de pastoreo) | **1**, sin superficie (aviso: sin dibujar) |
+| Tareas (al 30/6/2026) | | vencidas **1**, próximas 15 días **1** |
+| Carencias y dosis (al 30/6/2026) | L-Nov3 hasta el 20/7/2026; dosis del 5/7 | **1 lote, 138 cab**; próximas dosis **1** |
+| Lana (2026/27) | 900 / 200 | **900 kg**, **4,5 kg/cab** |
+| Carne equivalente, parte de la lana (2026/27) | 900 × 2,48 | **2.232 kg** |
+| Relación lanar/vacuno (31/7/2026) | 200 / 238 | **0,84** |
+| Renta forestal (2026/27) | ingreso del rubro Forestación tercerizada | **20.000 USD** |
+
+Medidas combinadas (sección 11), ejercicio 2025/26:
+
+| Medida combinada | A op B | Resultado |
+|---|---|---|
+| **Carga UG/ha por mes** | UG promedio ÷ Ha SPG | jul 2025 220 / 300 = **0,733**; oct 2025 (120 × 14 + 140 × 17) × 0,8 / 31 + 100 = 204,77 / 300 = **0,683**; abr 2026 (140 × 14 + 138 × 16) × 0,8 / 30 + 100 = 211,15 / 300 = **0,704**; ejercicio **0,710** (Σ UG-día / días / 300, **no** el promedio de los 12 meses) |
+| **Resultado por ha SPG** | Resultado ÷ Ha SPG | 1.000 / 300 = **3,33 USD/ha**; abierto por rubro: Vacunos 9.000 / 300 = **30,00**, General −8.000 / 300 = **−26,67** (aviso: "Ha SPG: total del establecimiento") |
+| **Costo por kg producido** | Gastos operativos ÷ Producción de carne | 8.000 / 14.840 = **0,54 USD/kg** |
+| Margen por kg (combinada de combinadas, 2 niveles) | Precio promedio de venta − Costo por kg producido | 2,571 − 0,539 = **2,03 USD/kg** |
+| Gasto por UG | Gastos operativos ÷ UG promedio | 8.000 / 213,07 = **37,55 USD/UG** |
+| Producción de carne por ha | Producción de carne ÷ Ha SPG | 14.840 / 300 = **49,47 kg/ha** |
+| Renta forestal por ha (2026/27) | Ingresos (rubro Forestación) ÷ Ha forestadas | 20.000 / 200 = **100,00 USD/ha** |
+| División por cero | Gastos operativos ÷ Lana (2025/26: sin esquilas) | **sin valor** y aviso "Lana: sin datos" (nunca 0 ni infinito) |
+| Constante | % preñez − 85 (distancia a la meta) | 90,0 − 85 = **5,0** |
+| Ciclo | M1 = M2 ÷ Ha SPG y M2 = M1 × 2 | `guardar_medida` da error (sin ciclos) |
+
+## 11. Medidas combinadas y metas (etapa 7)
+
+### Dónde se cruzan: en la base
+
+Propuesta: **en la base**, con una función `tablero_combinada`, por cuatro razones:
+
+1. La regla del tablero es que los cálculos estén en la base y se prueben con SQL; una combinada es un cálculo más.
+2. **Σ A / Σ B** necesita los totales de A y B para el mismo período y filtros, y en las semi-aditivas Σ UG-día /
+   Σ días: eso ya lo devuelve cada fuente en `numerador`/`denominador`. Cruzar en la base usa esas mismas filas.
+3. Pantalla, Excel y PDF leen lo mismo: el Excel exporta las filas que devolvió la función (como hoy), así que da
+   el mismo número sin cálculo propio en la app.
+4. Una combinada de combinadas (2 niveles) se resuelve llamando a la misma función, con un límite de nivel.
+
+Cómo:
+
+- Tabla `tablero_medidas (id, establecimiento_id, nombre, unidad, definicion jsonb, …)`. La escribe solo
+  `guardar_medida` (security definer, administrador), que valida la definición:
+  `{"a": {"fuente", "medida"} | {"propia": id}, "op": "div" | "mul" | "sum" | "res", "b": {…} | {"constante": n}}`,
+  con fuentes y medidas de la lista fija, constantes numéricas, sin ciclos y hasta 2 niveles. No hay texto libre ni
+  SQL armado con lo que escribe el usuario.
+- `tablero_combinada(p_establecimiento_id, p_medida /* id de la propia */, p_abrir_por, p_tiempo, p_desde, p_hasta,
+  p_filtros, p_opciones)`, security invoker, misma salida que las fuentes. Llama a A y a B con los mismos
+  parámetros mediante un `case` sobre la fuente (lista fija: `tablero_stock`, …), y las cruza por (periodo, clave).
+- **Valor de cada fila**: `A.valor op B.valor`. Para ÷: `numerador` = A.valor, `denominador` = B.valor, así el
+  total de una tarjeta y la comparación con el año anterior son Σ A / Σ B. El "total" no se arma sumando filas: es
+  otra llamada con tiempo `total`, donde cada fuente ya calcula su total como corresponde (Σ para las aditivas,
+  promedio por días para las semi-aditivas).
+- **B sin la dimensión de la apertura**: se usa el total de B en todos los grupos **solo si B es del
+  establecimiento entero** (superficies o una constante). Con otra B (ej. gastos por especie ÷ UG sin abrir) la
+  tarjeta marca "B no se abre por especie" y no calcula: dividir cada especie por las UG de todas da un número
+  engañoso (sección 13, punto 9).
+- **Sin valor**: B nula o 0 en ÷ → fila con `valor` nulo y aviso `sin_denominador`; A o B sin datos → nulo y aviso.
+- **Unidad**: se propone sola (USD ÷ ha → USD/ha, kg ÷ kg → sin unidad) y el administrador la puede cambiar.
+- **Filtros que no aplican**: los de A y B; si un filtro no aplica a una de las dos, la tarjeta lo marca igual que
+  hoy.
+
+### Metas
+
+- En la definición de la tarjeta: `"meta": {"valor": 85, "mejor": "sube" | "baja"}` (por defecto según la medida:
+  "baja" para las de `MEJOR_SI_BAJA`; en las sin color, como los días de ocupación, el administrador elige).
+- Tarjeta de número: verde si cumple, ámbar si no; texto "Meta 85 %". Gráficos de barras y líneas: línea punteada
+  horizontal con la meta. Torta y tabla: sin meta.
+- Sin cálculo en la base: es una comparación del valor que ya se muestra.
+
+## 12. Qué datos del catálogo existen y cuáles faltan
+
+| Dato | Estado | Propuesta |
+|---|---|---|
+| Superficie por potrero | **Existe**: sale del dibujo; la efectiva descuenta las zonas no aprovechables | — |
+| Ha SPG | **Existe a medias**: hoy la carga global divide por todos los potreros activos, también los de uso Forestación o Reserva | Ha SPG = Σ efectiva de los potreros activos de uso Ganadería (o sin uso cargado) |
+| Ha forestadas | **Existe**: uso del potrero (`uso_actual` = Forestación) y zonas no aprovechables | Σ potreros de uso Forestación + zonas de un tipo "Forestación" |
+| Superficies con historial | **Falta**: los potreros no guardan fecha de alta, baja ni cambio de uso o dibujo | Más adelante (sección 13, punto 1); mientras tanto, superficies actuales con aviso |
+| UG por categoría | **Existe** (`categorias_animales.ug`) | — |
+| Peso de referencia por categoría | **Falta** | Columna `categorias_animales.peso_referencia_kg`, editable en Especies, como la UG |
+| Kg en compras y ventas | **Existe, opcional** (`actividad_lineas.peso_vivo_total_kg`); kg de gancho en ventas a frigorífico | Avisar las ventas y compras sin kg |
+| Kg en el destete | **Falta**: el destete no lleva peso | Peso vivo opcional por línea en el destete, como en compra y venta |
+| Kg de lana | **Existe** (`act_esquila.kg_lana_total`, uno por esquila) | — |
+| Consumo (faena propia) | **Falta**: hoy se cargaría como mortandad o ajuste | Motivo de baja "Consumo" con peso opcional: cuenta en extracción y producción, no en mortandad (decidido) |
+| Categoría de cría y de reposición | **Falta**: las categorías no dicen cuál es la de cría (Vacas de cría, Ovejas de cría) ni la de reposición (Vaquillonas, Borregas) | Marca por categoría (`rol`: cría, reposición), cargada por nombre como la UG |
+| Preñez por categoría de entore | **Existe a medias**: el servicio y el diagnóstico son un número por lote | Por la categoría del lote servido; lote mixto → "Mixto" |
+| Fecha de pago y estado | **Existe** (`fecha_pago`, `estado`) | — |
+| Pagadores y saldos | **Existe** (`pagadores`, `v_saldos`) | — |
+| Tareas, próximas dosis, carencias | **Existe** (bitácora con vencimiento, `act_sanidad_productos`, `v_carencias`) | — |
+| Precio de referencia por categoría | **Falta (opcional)** | Más adelante, junto con el producto bruto |
+| Señalada (ovinos) | **Falta** | Actividad nueva, más adelante (ya decidido) |
+
+## 13. Observaciones al catálogo
+
+**Decisiones del 9/11/2026**: puntos 1 a 5 y 7 a 13, como se proponen; punto 3 con la pesada anterior o posterior
+(sección 4, "Kg en stock"); punto 6: gastos ganaderos = rubros de especies + General (los gastos propios de la
+forestación se cargan en el rubro Forestación tercerizada; va en la ayuda de la medida).
+
+1. **Superficies: no una tabla aparte.** El catálogo propone `superficies (tipo, ha, desde, hasta)` cargada a mano.
+   Ya tenemos las superficies del dibujo y la efectiva (zonas). Una tabla manual duplicaría el dato y se
+   desincronizaría. Propuesta: Ha SPG y forestadas se **calculan** de los potreros (uso y zonas). El historial
+   (arriendos que entran y salen) se resuelve más adelante con fechas de alta y baja de cada potrero. Mientras
+   tanto, se usan las superficies actuales con aviso. Con eso el aviso de "Ha SPG cargada vs suma de potreros
+   (5 %)" no hace falta.
+2. **La carga global de hoy cuenta potreros que no son de pastoreo.** `tablero_potreros` divide por todos los
+   potreros activos, también los de uso Forestación o Reserva. Hay que filtrar por uso: es un arreglo de lo ya
+   hecho, no algo nuevo.
+3. **"Menos de 60 días" en el peso.** Mirando solo hacia atrás, al cierre la pesada de L-Nov3 (1/5/2026) tenía
+   **60 días justos**: con "menos de 60" se valuaba a 380 kg (referencia) en vez de 410,5 y la producción de carne
+   daba **−60 kg**. Y al inicio L-Nov1 se valuaba a 380 kg aunque se pesó a 300 kg al día siguiente (8.000 kg de
+   más). Decidido: **60 días o menos**, con la pesada **más cercana, anterior o posterior** (sección 4). Con el set,
+   la producción de carne pasa a **14.840 kg**.
+4. **Kg de consumo.** No hay cómo cargarlo: hoy sería una mortandad (y entraría en el % de mortandad) o un ajuste.
+   Propuesta: motivo de baja **"Consumo"**, con peso opcional, que no cuenta como mortandad y sí en extracción y
+   producción.
+5. **Costo por kg producido con las compras adentro está mal.** Si "gastos ganaderos" incluye las compras de
+   hacienda, se cuentan dos veces: el método de inventario ya resta los kg comprados. Con el set: 26.000 / 14.840 =
+   1,75 USD/kg en vez de **0,54**. Propuesta: usar **gastos operativos** (gastos sin compras de hacienda). Lo mismo
+   para gasto por ha y por UG.
+6. **"Gastos ganaderos" y "general ganadero"** no están definidos. Hoy los rubros son Vacunos, Ovinos, Forestación
+   tercerizada y General. Propuesta: ganadero = rubros de especies + General. Si General también paga cosas de la
+   forestación, haría falta marcar rubros o conceptos como "no ganadero" (dato nuevo). Decidido: rubros de especies +
+   General; lo de la forestación va en su rubro.
+7. **Resultado ganadero por ha** usa el resultado devengado, que incluye ventas y compras de hacienda pero no la
+   variación de inventario. Un año que retiene animales da un resultado bajo aunque haya producido. Es correcto como
+   "plata", pero no mide la producción: para eso está el producto bruto (más adelante, con precios de referencia).
+   Va así, con esa aclaración en la ayuda de la medida.
+8. **Semi-aditivas "cuando están en el denominador".** La regla del catálogo hace que "UG" valga distinto según de
+   qué lado de la operación esté. Propuesta: dos medidas explícitas, **al cierre** y **promedio**. El administrador
+   elige, y la combinada propone la promedio.
+9. **"B sin la apertura → total para todos los grupos"** sirve para superficies y constantes. Con cualquier otra B
+   da números engañosos: gastos de Vacunos ÷ UG de **todas** las especies baja el gasto por UG de cada especie.
+   Propuesta: solo para B del establecimiento entero; si no, la tarjeta lo marca y no calcula.
+10. **Margen por kg** resta un precio de **venta** (kg vivos vendidos, de una categoría) y un costo por kg
+    **producido** (todo el campo). Es una aproximación válida mirando el campo entero; abierto por categoría no tiene
+    sentido (el costo no se reparte por categoría). Propuesta: solo sin abrir.
+11. **% preñez por categoría de entore** (vaquillonas de 1er entore, 2º entore, adultas): esas categorías no existen.
+    Hoy hay Vaquillonas y Vacas de cría, y el diagnóstico es un número por lote. Sale bien si cada categoría se
+    sirve en su propio lote, que es lo habitual. Las de 2º entore necesitan una categoría propia que el
+    administrador puede crear.
+12. **Tarjeta de mapa** (página Potreros): es un tipo de gráfico nuevo, más pesado que los otros (reusa el mapa de
+    Potreros). Va en la etapa 8.
+13. **Carne equivalente**: la parte ovina sale del mismo método de inventario por especie, así que necesita pesos de
+    referencia de las categorías ovinas y pesadas o kg en compraventas de ovinos. Sin eso, la carne ovina da 0 con
+    aviso.
