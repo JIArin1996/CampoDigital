@@ -1,10 +1,10 @@
 -- Campo Digital v2 — Pruebas del tablero de Indicadores, etapa 3: economía y potreros
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261110000200_tablero_carga_efectiva).
+--   1. Con todas las migraciones aplicadas (hasta 20261111000100_tablero_arreglos_5a).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS TABLERO ECONOMÍA Y POTREROS: N OK, ...", que deshace todo.
---      El resultado esperado es "31 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      El resultado esperado es "34 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
 --
 -- Los datos son los de la sección 10 de contexto/DISENO-INDICADORES-TABLERO.md (lotes, movimientos económicos con
@@ -425,6 +425,24 @@ select pruebas.espera_valor('U07d Carga global sobre la suma de las efectivas, y
               and (select trim_scale(x.valor) from public.tablero_potreros(pruebas.id('est_a'), 'superficie_efectiva', null, 'total', '2025-07-01', '2026-06-30') x)
                   = trim_scale(pruebas.efe('P1') + pruebas.efe('P2')))::text
       from public.tablero_potreros(pruebas.id('est_a'), 'carga', null, 'total', '2025-07-01', '2026-06-30') r $q$, 'true');
+-- P4: potrero de uso Forestación, dibujado. No es de pastoreo: no entra en la carga global ni en la Ha SPG
+select pruebas.guardar('P4', $q$ insert into public.potreros (establecimiento_id, nombre, uso_actual)
+      values (pruebas.id('est_a'), 'Potrero 4', 'Forestación') returning id $q$);
+select pruebas.preparar('forma_P4', $q$ select public.guardar_forma_potrero(pruebas.id('P4'), pruebas.cuadro(-56.48, -56.47, -33.00, -32.99)) $q$);
+select pruebas.espera_valor('U07e Con P4 de forestación: la carga global y la superficie efectiva sin abrir siguen siendo de P1 + P2; P4 aparece por potrero',
+  $q$ select (pruebas.efe('P4') > 0 and r.valor = round(210.4 / (pruebas.efe('P1') + pruebas.efe('P2')), 3)
+              and (select trim_scale(x.valor) from public.tablero_potreros(pruebas.id('est_a'), 'superficie_efectiva', null, 'total', '2025-07-01', '2026-06-30') x)
+                  = trim_scale(pruebas.efe('P1') + pruebas.efe('P2'))
+              and (select count(*) from public.tablero_potreros(pruebas.id('est_a'), 'carga', 'potrero', 'total', '2025-07-01', '2026-06-30') x
+                   where x.clave = pruebas.id('P4')::text) = 1)::text
+      from public.tablero_potreros(pruebas.id('est_a'), 'carga', null, 'total', '2025-07-01', '2026-06-30') r $q$, 'true');
+select pruebas.espera_valor('U07f UG sin potrero al cierre de octubre de 2025: L-Nov1 y L-Nov2, 140 × 0,8 = 112',
+  $q$ select trim_scale((r.avisos ->> 'ug_sin_potrero')::numeric)::text
+      from public.tablero_potreros(pruebas.id('est_a'), 'carga', null, 'total', '2025-10-01', '2025-10-31') r $q$, '112');
+select pruebas.espera_valor('U07g Al 30/6/2026 no hay UG sin potrero (sin aviso); por mes, el aviso dice el mayor: 150 × 0,8 = 120 (jul a set)',
+  $q$ select ((select r.avisos ? 'ug_sin_potrero' from public.tablero_potreros(pruebas.id('est_a'), 'carga', null, 'total', '2025-07-01', '2026-06-30') r)::text
+             || ' ' || (select distinct trim_scale((r.avisos ->> 'ug_sin_potrero')::numeric)::text
+                        from public.tablero_potreros(pruebas.id('est_a'), 'carga', null, 'mes', '2025-07-01', '2026-06-30') r)) $q$, 'false 120');
 select pruebas.espera_error('U08 Días sin abrir por potrero (no se puede)',
   $q$ select * from public.tablero_potreros(pruebas.id('est_a'), 'dias_ocupacion', null, 'total', '2025-07-01', '2026-06-30') $q$, '22023');
 

@@ -1,10 +1,10 @@
 -- Campo Digital v2 — Pruebas del tablero de Indicadores, etapa 2: producción y pesos (tablero_pesadas)
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261109000400_tablero_pesadas_composicion).
+--   1. Con todas las migraciones aplicadas (hasta 20261111000100_tablero_arreglos_5a).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS TABLERO PESADAS: N OK, ...", que deshace todo.
---      El resultado esperado es "21 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      El resultado esperado es "24 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
 --
 -- Los datos son los de la sección 10 de contexto/DISENO-INDICADORES-TABLERO.md (lotes, eventos y pesadas), con
@@ -331,8 +331,8 @@ select pruebas.guardar('dest', $q$ select public.registrar_destete(gen_random_uu
         jsonb_build_array(pruebas.lin('terneros', 40), pruebas.lin('terneras', 35))))) $q$);
 
 -- Ejercicio 2026/27 (sección 10 del diseño: destete, parición y ajuste)
---   L-Cría: pesadas de las 100 vacas el 15/8 (45.000 kg) y el 25/9/2026 (45.500); la parición del 15/9 suma
---           terneros, que no se pesan: el tramo vale (+500 kg).
+--   L-Cría: pesadas de las 100 vacas el 15/8 (45.000 kg) y el 25/9/2026 (45.500); la parición del 15/9 corta el
+--           tramo de las vacas (paricion_madres), aunque los terneros no se pesen.
 --   L-Cría-B: pesadas el 5/10 (50 vacas 22.500 kg y 40 terneros 4.000) y el 5/11/2026 (50 vacas 22.750 y 3 terneros
 --           330): el destete del 1/11 saca terneros pesados, el tramo se descarta. Su primer tramo (desde la última
 --           de L-Cría, 25/9) dura 10 días: corto.
@@ -386,17 +386,57 @@ select pruebas.espera_error('P13 min_dias que no es un número',
 select pruebas.espera_error('P14 min_dias fuera de rango',
   $q$ select * from public.tablero_pesadas(pruebas.id('est_a'), 'kg_producidos', null, 'total', '2025-07-01', '2026-06-30', '{}', '{"min_dias": 0}') $q$, '22023');
 
--- Ejercicio 2026/27: válidos L-Nov3 1/5→1/8 (2.691 kg en 12.696 cabeza-días) y L-Cría 15/8→25/9 (500 kg en 4.100);
--- descartados: L-Cría-B desde L-Cría (corto), L-Cría-B 5/10→5/11 (destete), L-Nov3 1/8→15/9 (ajuste).
-select pruebas.espera_valor('P15 2026/27: kg producidos 2.691 + 500 = 3.191 (la parición de terneros no corta el tramo de las vacas)',
-  $q$ select pruebas.tpes27('kg_producidos', null) $q$, '3191');
-select pruebas.espera_valor('P16 2026/27: ganancia diaria 3.191 / 16.796 = 0,19 kg/día',
-  $q$ select pruebas.tpes27('ganancia_diaria', null) $q$, '0.19:3191:16796');
-select pruebas.espera_valor('P17 2026/27: descartados por corto, destete y ajuste',
-  $q$ select (r.avisos -> 'tramos_descartados' = '{"corto": 1, "destete": 1, "ajuste": 1}'::jsonb)::text
+-- Ejercicio 2026/27: válido L-Nov3 1/5→1/8 (2.691 kg en 12.696 cabeza-días); descartados: L-Cría 15/8→25/9
+-- (parición de las madres), L-Cría-B desde L-Cría (corto), L-Cría-B 5/10→5/11 (destete), L-Nov3 1/8→15/9 (ajuste).
+select pruebas.espera_valor('P15 2026/27: kg producidos 2.691 (la parición corta el tramo de las vacas de L-Cría)',
+  $q$ select pruebas.tpes27('kg_producidos', null) $q$, '2691');
+select pruebas.espera_valor('P16 2026/27: ganancia diaria 2.691 / 12.696 = 0,212 kg/día',
+  $q$ select pruebas.tpes27('ganancia_diaria', null) $q$, '0.212:2691:12696');
+select pruebas.espera_valor('P17 2026/27: descartados por corto, destete, ajuste y parición de las madres',
+  $q$ select (r.avisos -> 'tramos_descartados' = '{"corto": 1, "destete": 1, "ajuste": 1, "paricion_madres": 1}'::jsonb)::text
       from public.tablero_pesadas(pruebas.id('est_a'), 'kg_producidos', null, 'total', '2026-07-01', '2027-06-30') r $q$, 'true');
-select pruebas.espera_valor('P18 2026/27 por categoría: en las vacas de L-Cría-B el destete (de terneros) no corta: 500 + 250',
-  $q$ select pruebas.tpes27('kg_producidos', 'categoria') $q$, 'Novillos:2691|Vacas de cría:750');
+select pruebas.espera_valor('P18 2026/27 por categoría: en las vacas de L-Cría-B el destete (de terneros) no corta: 250',
+  $q$ select pruebas.tpes27('kg_producidos', 'categoria') $q$, 'Novillos:2691|Vacas de cría:250');
+
+-- Casos aparte (lotes nuevos, después de las pruebas de 2026/27; cada prueba filtra por su lote)
+--   L-Ovejas: 200 ovejas de cría desde el 1/7/2026, pesadas el 15/9 y el 15/10/2026, esquila el 1/10: se descarta.
+--   L-VarA y L-VarB: 100 novillos desde el 1/7/2026, pesados ese día (300 kg); compra de 20 el 1/8 y pesada ese mismo
+--   día a 320 kg; pesada el 1/9 de los 120 a 340 kg. En L-VarA la pesada del 1/8 tiene 100 cabezas (el stock de antes
+--   de la compra: se pesó antes); en L-VarB, 120 (el de después).
+select pruebas.como('u_admin');
+select pruebas.guardar('ovinos', $q$ select id from public.especies where establecimiento_id = pruebas.id('est_a') and nombre = 'Ovinos' $q$);
+select pruebas.guardar('ovejas', $q$ select id from public.categorias_animales where especie_id = pruebas.id('ovinos') and nombre = 'Ovejas de cría' $q$);
+select pruebas.como('u_operador');
+select pruebas.guardar('LOV', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('ovinos'), 'L-Ovejas', pruebas.f('2026-07-01'), pruebas.comp('ovejas', 200)) $q$);
+select pruebas.preparar('pes_o1', $q$ select pruebas.pesarl('LOV', '2026-09-15', jsonb_build_array(pruebas.pl('ovejas', 200, 9000))) $q$);
+select pruebas.preparar('esquila', $q$ select public.registrar_esquila(gen_random_uuid(), pruebas.id('est_a'), array[pruebas.id('LOV')], pruebas.f('2026-10-01'), 900) $q$);
+select pruebas.preparar('pes_o2', $q$ select pruebas.pesarl('LOV', '2026-10-15', jsonb_build_array(pruebas.pl('ovejas', 200, 8800))) $q$);
+select pruebas.guardar('LVA', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'L-VarA', pruebas.f('2026-07-01'), pruebas.comp('novillos', 100)) $q$);
+select pruebas.guardar('LVB', $q$ select public.crear_lote(pruebas.id('est_a'), pruebas.id('vacunos'), 'L-VarB', pruebas.f('2026-07-01'), pruebas.comp('novillos', 100)) $q$);
+select pruebas.preparar('pes_va1', $q$ select pruebas.pesar('LVA', '2026-07-01', 100, 30000) $q$);
+select pruebas.preparar('pes_vb1', $q$ select pruebas.pesar('LVB', '2026-07-01', 100, 30000) $q$);
+select pruebas.preparar('compra_va', $q$ select public.registrar_compra(p_id => gen_random_uuid(), p_establecimiento_id => pruebas.id('est_a'),
+      p_fecha => pruebas.f('2026-08-01'), p_lineas => pruebas.comp('novillos', 20), p_modalidad => 'productor', p_lote_id => pruebas.id('LVA')) $q$);
+select pruebas.preparar('compra_vb', $q$ select public.registrar_compra(p_id => gen_random_uuid(), p_establecimiento_id => pruebas.id('est_a'),
+      p_fecha => pruebas.f('2026-08-01'), p_lineas => pruebas.comp('novillos', 20), p_modalidad => 'productor', p_lote_id => pruebas.id('LVB')) $q$);
+select pruebas.preparar('pes_va2', $q$ select pruebas.pesar('LVA', '2026-08-01', 100, 32000) $q$);
+select pruebas.preparar('pes_vb2', $q$ select pruebas.pesar('LVB', '2026-08-01', 120, 38400) $q$);
+select pruebas.preparar('pes_va3', $q$ select pruebas.pesar('LVA', '2026-09-01', 120, 40800) $q$);
+select pruebas.preparar('pes_vb3', $q$ select pruebas.pesar('LVB', '2026-09-01', 120, 40800) $q$);
+
+select pruebas.como('u_consulta');
+select pruebas.espera_valor('P19 La esquila corta el tramo de las ovejas esquiladas: 0 kg, 1 descartado por esquila',
+  $q$ select trim_scale(r.valor)::text || ' ' || (r.avisos -> 'tramos_descartados')::text
+      from public.tablero_pesadas(pruebas.id('est_a'), 'kg_producidos', null, 'total', '2026-07-01', '2027-06-30',
+                                  jsonb_build_object('lote_ids', jsonb_build_array(pruebas.id('LOV')))) r $q$, '0 {"esquila": 1}');
+select pruebas.espera_valor('P20 Pesada antes de la compra del mismo día: vale como final (1/7→1/8: +20 × 100 = 2.000); el tramo siguiente se descarta',
+  $q$ select trim_scale(r.valor)::text || ' ' || (r.avisos -> 'tramos_descartados')::text
+      from public.tablero_pesadas(pruebas.id('est_a'), 'kg_producidos', null, 'total', '2026-07-01', '2027-06-30',
+                                  jsonb_build_object('lote_ids', jsonb_build_array(pruebas.id('LVA')))) r $q$, '2000 {"compra": 1}');
+select pruebas.espera_valor('P21 Pesada después de la compra del mismo día: vale como inicio (1/8→1/9: +20 × 120 = 2.400); el tramo anterior se descarta',
+  $q$ select trim_scale(r.valor)::text || ' ' || (r.avisos -> 'tramos_descartados')::text
+      from public.tablero_pesadas(pruebas.id('est_a'), 'kg_producidos', null, 'total', '2026-07-01', '2027-06-30',
+                                  jsonb_build_object('lote_ids', jsonb_build_array(pruebas.id('LVB')))) r $q$, '2400 {"compra": 1}');
 
 select pruebas.como('u_ajeno');
 select pruebas.espera_error('X01 Un usuario de otro campo no le saca datos',

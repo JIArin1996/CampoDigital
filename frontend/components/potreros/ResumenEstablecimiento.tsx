@@ -28,7 +28,11 @@ export function ResumenEstablecimiento({ potreros, formas, ocupacion, ugTotal, s
   const sinDibujar = potreros.length - dibujados.length
   const superficie = dibujados.reduce((s, p) => s + formas.get(p.id)!.area_ha, 0)
   // Área efectiva (sin las zonas no aprovechables): la carga va sobre ella
-  const efectiva = dibujados.reduce((s, p) => s + (formas.get(p.id)!.superficie_efectiva ?? formas.get(p.id)!.area_ha), 0)
+  const efectivaDe = (p: Potrero) => formas.get(p.id)!.superficie_efectiva ?? formas.get(p.id)!.area_ha
+  const efectiva = dibujados.reduce((s, p) => s + efectivaDe(p), 0)
+  // La carga global va sobre la superficie de pastoreo: potreros de uso Ganadería o sin uso cargado
+  const pastoreo = dibujados.filter(p => !p.uso_actual || p.uso_actual === "Ganadería")
+  const efectivaPastoreo = pastoreo.reduce((s, p) => s + efectivaDe(p), 0)
   const adentro = potreros.flatMap(p => (ocupacion.get(p.id) ?? []).map(l => ({ ...l, potrero: p })))
   const { cabezas } = totales(adentro)
   // Carga global (como el tablero de Indicadores): las UG de todos los animales del establecimiento, estén o no en
@@ -89,7 +93,8 @@ export function ResumenEstablecimiento({ potreros, formas, ocupacion, ugTotal, s
         {dato("Potreros", `${conAnimales.length} con animales`, `${vacios.length} en descanso`)}
         {dato("Animales en potreros", `${cabezas.toLocaleString("es-UY")} ${cabezas === 1 ? "cabeza" : "cabezas"}`,
           [...porEspecie].map(([e, n]) => `${e} ${n.toLocaleString("es-UY")}`).join(" · ") || null)}
-        {dato("Carga global", efectiva > 0 ? `${numero(ug / efectiva, 2)} UG/ha` : "—", `${numero(ug, 1)} UG`)}
+        {dato("Carga global", efectivaPastoreo > 0 ? `${numero(ug / efectivaPastoreo, 2)} UG/ha` : "—",
+          `${numero(ug, 1)} UG${pastoreo.length < dibujados.length ? ` · sobre ${numero(efectivaPastoreo, 1)} ha de pastoreo` : ""}`)}
       </dl>
 
       {sinUg.length > 0 && (

@@ -252,7 +252,8 @@ Reglas de las medidas nuevas:
   solo potreros de pastoreo (hoy cuenta todos los activos, sección 13 punto 2).
 - **UG sin potrero**: la carga global usa todos los animales, la de cada potrero solo los que están en él. Por eso
   no coinciden cuando hay lotes sin potrero asignado. La carga global avisa `ug_sin_potrero` ("X UG sin potrero
-  asignado"; en la promedio, las UG promedio del período).
+  asignado"): al cierre; con varios períodos (por mes), el mayor de ellos; en la carga promedio, las UG promedio del
+  período.
 - **Fila Total al abrir**: en una tabla abierta por un grupo (categoría, lote…), la fila **Total** la calcula la
   función (otra llamada sin abrir), no la suma de las filas. Con una nota debajo de la tabla: "El total lo calcula la
   base: no siempre es la suma de las filas" (stock al cierre, porcentajes, promedios, UG sin categoría).
@@ -436,13 +437,20 @@ Resultados esperados (ejercicio 2026/27): **kg producidos 2.691**; **ganancia di
 **Por categoría**: Novillos **2.691**; Vacas de cría **250** (las vacas de L-Cría-B del 5/10 al 5/11: mirando solo
 las vacas, el destete de los terneros no cambia quién está; el tramo de L-Cría lo corta la parición).
 
-**Pesada el mismo día que un evento** (prueba aparte: se agrega una pesada de L-Nov3 el 15/8/2026, el día del ajuste
-de −1 novillo; filtrado por L-Nov3, `min_dias` 7, ejercicio 2026/27):
+**Casos aparte** (lotes nuevos que se cargan después de las pruebas de 2026/27; cada prueba filtra por su lote):
 
-| Variante | Pesada del 15/8 | Tramos | Resultado |
+- **Esquila**: L-Ovejas, 200 ovejas de cría desde el 1/7/2026; pesadas el 15/9 (9.000 kg) y el 15/10/2026
+  (8.800 kg); esquila el 1/10. El tramo se descarta: **0 kg**, descartados: **esquila 1**.
+- **Pesada el mismo día que un evento**: L-VarA y L-VarB, 100 novillos desde el 1/7/2026, pesados ese día (30.000 kg,
+  300,0); compra de 20 novillos el 1/8 y pesada ese mismo día a 320,0; pesada el 1/9 de los 120 a 340,0 (40.800 kg).
+
+| Lote | Pesada del 1/8 | Tramos | Resultado |
 |---|---|---|---|
-| Después del ajuste | 137 novillos, 59.732 kg (436,0): coincide con el stock **posterior** | 1/8 → 15/8 descartado (ajuste); 15/8 → 15/9 **válido**: +14,0 × 137 = **1.918 kg** | kg producidos 2.691 + 1.918 = **4.609**; descartados: ajuste 1 |
-| Antes del ajuste | 138 novillos, 60.168 kg (436,0): coincide con el stock **anterior** | 1/8 → 15/8 **válido**: +6,0 × 138 = **828 kg**; 15/8 → 15/9 descartado (ajuste) | kg producidos 2.691 + 828 = **3.519**; descartados: ajuste 1 |
+| L-VarA | 100 novillos, 32.000 kg: coincide con el stock **anterior** a la compra (se pesó antes) | 1/7 → 1/8 **válido**: +20 × 100 = **2.000 kg**; 1/8 → 1/9 descartado (compra) | **2.000 kg**; descartados: compra 1 |
+| L-VarB | 120 novillos, 38.400 kg: coincide con el stock **posterior** (se pesó después) | 1/7 → 1/8 descartado (compra); 1/8 → 1/9 **válido**: +20 × 120 = **2.400 kg** | **2.400 kg**; descartados: compra 1 |
+
+El caso se arma con una compra porque una pesada no puede tener más cabezas que el stock de ese día: con una baja
+(venta, ajuste, consumo) el mismo día, solo se puede cargar la pesada con las cabezas de después.
 
 ### Economía (con titulares A y B)
 
@@ -475,7 +483,10 @@ Resultados esperados (ejercicio 2025/26):
   **150** (L-Nov3 desde el 1/2/2026), P3 **0**. **Días de descanso**: P3 **365**, P1 **215**, P2 **0**.
 - **UG sin potrero**: L-Nov1 y L-Nov2 no tienen potrero hasta la unión del 1/2/2026. Al cierre de octubre de 2025:
   140 novillos × 0,8 = **112 UG sin potrero**; la carga global de ese mes las cuenta y avisa "112 UG sin potrero
-  asignado". Al 30/6/2026: **0** (sin aviso).
+  asignado". Al 30/6/2026: **0** (sin aviso). Por mes en el ejercicio, el aviso dice el mayor: **120** (jul a set,
+  150 novillos).
+- **P4**, uso Forestación, dibujado: no cambia la carga global ni la superficie efectiva sin abrir; abierto por
+  potrero aparece (sin animales).
 
 ### Medidas nuevas (etapas 5 a 7)
 

@@ -37,6 +37,8 @@ export async function exportarExcel(archivo: string, encabezado: [string, string
             filas.push([rotuloPeriodo(f.periodo), f.etiqueta ?? "", `${m?.etiqueta ?? r.medida}${sufijo}`, f.valor, m?.unidad ?? "",
                         f.numerador, f.denominador])
           }
+          // El total de una tabla abierta, el que calculó la base (no la suma de las filas)
+          if (r.total !== undefined) filas.push(["", "Total", `${m?.etiqueta ?? r.medida}${sufijo}`, r.total, m?.unidad ?? "", null, null])
         }
       }
       agregar(d.resultados, "")

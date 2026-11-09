@@ -8,7 +8,7 @@ import {
 
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
-import { ETIQUETA_DIMENSION, MEJOR_SI_BAJA, MIN_DIAS_POR_DEFECTO, filtranEn, medidaDe, type Unidad } from "@/components/tablero/catalogo"
+import { ETIQUETA_DIMENSION, MEJOR_SI_BAJA, MIN_DIAS_POR_DEFECTO, SIN_COLOR, filtranEn, medidaDe, type Unidad } from "@/components/tablero/catalogo"
 import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { Dimension, FilaTablero, FiltroCruzado, FiltrosIds, TarjetaTablero } from "@/types/tablero"
@@ -67,7 +67,9 @@ export function filtrosDeTarjeta(tarjeta: TarjetaTablero, generales: FiltrosIds,
   return { efectivos, noAplican, fijos }
 }
 
-export interface Resultado { medida: string; filas: FilaTablero[] }
+// total: en una tabla abierta, el total de la medida calculado por la base (otra llamada sin abrir); no siempre es la
+// suma de las filas (stock al cierre, porcentajes, promedios). undefined: la tarjeta no lo muestra.
+export interface Resultado { medida: string; filas: FilaTablero[]; total?: number | null }
 
 // Lo que muestra una tarjeta, para exportarlo (Excel)
 export interface DatosTarjeta {
@@ -122,10 +124,17 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   useEffect(() => {
     if (datos?.clave === clave) return
     let vigente = true
-    const pedir = (rr: Rango) => Promise.all(def.medidas.map(async medida => ({
-      medida,
-      filas: await getDatosTablero({ establecimiento_id: estId, definicion: def, medida, desde: rr.desde, hasta: rr.hasta, filtros: efectivos }),
-    })))
+    // Tabla abierta por un grupo (sin el tiempo): también el total, calculado por la base
+    const conTotal = def.grafico === "tabla" && def.abrir_por !== null && def.tiempo === "total"
+    const pedir = (rr: Rango) => Promise.all(def.medidas.map(async medida => {
+      const consulta = { establecimiento_id: estId, medida, desde: rr.desde, hasta: rr.hasta, filtros: efectivos }
+      const sumaTotal = conTotal && !medidaDe(def.fuente, medida)?.abrirObligatorio
+      const [filas, total] = await Promise.all([
+        getDatosTablero({ ...consulta, definicion: def }),
+        sumaTotal ? getDatosTablero({ ...consulta, definicion: { ...def, abrir_por: null } }) : Promise.resolve(null),
+      ])
+      return { medida, filas, ...(sumaTotal ? { total: total?.[0]?.valor ?? null } : {}) }
+    }))
     Promise.all([pedir(r), rc ? pedir(rc) : Promise.resolve(null)])
       .then(([resultados, comparados]) => {
         CALCULADOS.set(clave, { hora: Date.now(), resultados, comparados })
@@ -218,7 +227,8 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
 
 const MOTIVO_DESCARTE: Record<string, string> = {
   venta: "venta", compra: "compra", union: "unión", division: "división", destete: "destete", paricion: "parición",
-  ajuste: "ajuste de stock", recategorizacion: "recategorización",
+  ajuste: "ajuste de stock", recategorizacion: "recategorización", paricion_madres: "parición de las madres pesadas",
+  esquila: "esquila", consumo: "consumo",
 }
 
 function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias: number }) {
@@ -238,6 +248,8 @@ function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias:
   if (avisos.usd_sin_lote) textos.push(`${usd(avisos.usd_sin_lote)} de movimientos sin lote quedaron afuera del filtro`)
   const sinDibujar = Number(avisos.potreros_sin_dibujar ?? 0)
   if (sinDibujar > 0) textos.push(`${sinDibujar} ${sinDibujar === 1 ? "potrero activo sin dibujar" : "potreros activos sin dibujar"}: no suma${sinDibujar === 1 ? "" : "n"} superficie y la carga queda más alta`)
+  const ugSinPotrero = Number(avisos.ug_sin_potrero ?? 0)
+  if (ugSinPotrero > 0) textos.push(`${ugSinPotrero.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG sin potrero asignado: cuentan en la carga global pero no en la de ningún potrero`)
   const sinUg = (avisos.categorias_sin_ug ?? null) as string[] | null
   if (sinUg && sinUg.length > 0) textos.push(`Sin UG cargada (no suman): ${sinUg.join(", ")}. Se cargan en Especies.`)
   if (textos.length === 0) return null
@@ -277,7 +289,7 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
       <div>
         <p className="text-3xl font-bold tabular-nums">{formato(f.valor, unidad)}</p>
         {comparados && <Variacion actual={f.valor} anterior={c?.valor ?? null} unidad={unidad} etiqueta={etiquetaComp ?? ""}
-          mejorSiBaja={MEJOR_SI_BAJA.includes(def.medidas[0])} />}
+          mejorSiBaja={MEJOR_SI_BAJA.includes(def.medidas[0])} sinColor={SIN_COLOR.includes(def.medidas[0])} />}
         {unidad === "%" && f.denominador !== null && (
           <p className="text-xs text-muted-foreground tabular-nums">
             {f.numerador?.toLocaleString("es-UY")} de {f.denominador.toLocaleString("es-UY")}
@@ -361,6 +373,7 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
   const leyenda = series.length + seriesComp.length > 1 ? <Legend wrapperStyle={{ fontSize: 12 }} /> : null
 
   if (def.grafico === "tabla") {
+    const conTotal = porGrupo && resultados.some(x => x.total !== undefined)
     return (
       <div className="h-full overflow-auto">
         <table className="w-full text-sm">
@@ -381,8 +394,16 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
                 {[...series, ...seriesComp].map(s => <td key={s.clave} className="py-1.5 pl-2 text-right tabular-nums">{fmt(f[s.clave])}</td>)}
               </tr>
             ))}
+            {conTotal && (
+              <tr className="border-t-2 font-semibold">
+                <td className="py-1.5 pr-2">Total</td>
+                {series.map(s => <td key={s.clave} className="py-1.5 pl-2 text-right tabular-nums">{fmt(resultados.find(x => x.medida === s.clave)?.total ?? null)}</td>)}
+                {seriesComp.map(s => <td key={s.clave} className="py-1.5 pl-2 text-right tabular-nums">{fmt(comparados?.[s.base]?.total ?? null)}</td>)}
+              </tr>
+            )}
           </tbody>
         </table>
+        {conTotal && <p className="mt-1 text-[11px] text-muted-foreground">El total lo calcula la base: no siempre es la suma de las filas.</p>}
       </div>
     )
   }
@@ -467,12 +488,13 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
 
 // La flecha de la comparación: ▲ / ▼ con la diferencia (en puntos si es un %, si no en %) y el valor anterior. Verde si
 // mejora (sube, o baja en las medidas donde bajar es bueno), rojo si empeora.
-function Variacion({ actual, anterior, unidad, etiqueta, mejorSiBaja }: {
+function Variacion({ actual, anterior, unidad, etiqueta, mejorSiBaja, sinColor = false }: {
   actual: number | null
   anterior: number | null
   unidad: Unidad
   etiqueta: string
   mejorSiBaja: boolean
+  sinColor?: boolean
 }) {
   if (actual === null || anterior === null) {
     return <p className="text-xs text-muted-foreground">Sin datos de {etiqueta} para comparar</p>
@@ -481,7 +503,7 @@ function Variacion({ actual, anterior, unidad, etiqueta, mejorSiBaja }: {
   const texto = unidad === "%"
     ? `${Math.abs(dif).toLocaleString("es-UY", { maximumFractionDigits: 1 })} pts`
     : anterior !== 0 ? `${Math.abs((dif / Math.abs(anterior)) * 100).toLocaleString("es-UY", { maximumFractionDigits: 1 })} %` : formato(Math.abs(dif), unidad)
-  const mejora = dif === 0 ? null : (dif > 0) !== mejorSiBaja
+  const mejora = dif === 0 || sinColor ? null : (dif > 0) !== mejorSiBaja
   return (
     <p className="text-xs">
       <span className={cn("font-semibold", mejora === null ? "text-muted-foreground" : mejora ? "text-emerald-700 dark:text-emerald-400" : "text-destructive")}>

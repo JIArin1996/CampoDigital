@@ -17,7 +17,9 @@ export interface Medida {
 }
 
 // Medidas donde bajar es bueno (la flecha de la comparación va en verde si baja)
-export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "dias_ocupacion"]
+export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago"]
+// Medidas que al comparar van sin color: subir o bajar no es bueno ni malo en sí
+export const SIN_COLOR = ["dias_ocupacion", "dias_descanso"]
 
 export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
   stock: {
