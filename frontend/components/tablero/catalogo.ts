@@ -49,9 +49,10 @@ MEDIDAS.economia = {
   pendiente_pago:  { etiqueta: "Pendiente de pago",   unidad: "USD", tiempos: ["total"] },
 }
 MEDIDAS.potreros = {
-  carga:          { etiqueta: "Carga",               unidad: "UG/ha", tiempos: ["total", "mes"] },
+  carga:          { etiqueta: "Carga (sobre el área efectiva)", unidad: "UG/ha", tiempos: ["total", "mes"] },
   ug:             { etiqueta: "Unidades ganaderas",  unidad: "UG",    tiempos: ["total", "mes"] },
   superficie:     { etiqueta: "Superficie",          unidad: "ha",    tiempos: ["total", "mes"], filtran: [] },
+  superficie_efectiva: { etiqueta: "Área efectiva",   unidad: "ha",    tiempos: ["total", "mes"], filtran: [] },
   dias_ocupacion: { etiqueta: "Días de ocupación",   unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
   dias_descanso:  { etiqueta: "Días de descanso",    unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
 }

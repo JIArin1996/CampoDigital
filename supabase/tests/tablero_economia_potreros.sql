@@ -1,10 +1,10 @@
 -- Campo Digital v2 — Pruebas del tablero de Indicadores, etapa 3: economía y potreros
 --
 -- CÓMO CORRERLO
---   1. Con todas las migraciones aplicadas (hasta 20261109000500_tablero_economia_potreros).
+--   1. Con todas las migraciones aplicadas (hasta 20261110000200_tablero_carga_efectiva).
 --   2. Pegar el script completo en el SQL Editor de Supabase y ejecutarlo.
 --   3. TERMINA CON UN ERROR A PROPÓSITO: "PRUEBAS TABLERO ECONOMÍA Y POTREROS: N OK, ...", que deshace todo.
---      El resultado esperado es "28 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
+--      El resultado esperado es "31 OK, 0 FALLA, 0 OMITIDAS, 0 PREPARACIONES FALLIDAS".
 --      Si una preparación falla (PREP), las pruebas que dependen de ella salen como OMITIDA.
 --
 -- Los datos son los de la sección 10 de contexto/DISENO-INDICADORES-TABLERO.md (lotes, movimientos económicos con
@@ -254,6 +254,9 @@ $$;
 create function pruebas.sup(p_clave text) returns numeric language sql stable as $$
   select superficie from public.potreros where id = pruebas.id(p_clave)
 $$;
+create function pruebas.efe(p_clave text) returns numeric language sql stable as $$
+  select superficie_efectiva from public.potreros where id = pruebas.id(p_clave)
+$$;
 
 grant execute on all functions in schema pruebas to authenticated, anon;
 
@@ -406,6 +409,22 @@ select pruebas.espera_valor('U06 Días de descanso: P3 365, P1 215, P2 0',
   $q$ select pruebas.tpot('dias_descanso', 'potrero', 'total') $q$, 'Potrero 3:365|Potrero 1:215|Potrero 2:0');
 select pruebas.espera_valor('U07 UG filtradas por novillos: 110,4',
   $q$ select pruebas.tpot('ug', null, 'total', jsonb_build_object('categoria_ids', jsonb_build_array(pruebas.id('novillos')))) $q$, '110.4');
+-- Una zona no aprovechable (Monte) en la mitad izquierda de P1: la carga pasa a ser sobre el área efectiva
+select pruebas.guardar('t_monte', $q$ select id from public.zona_tipos where establecimiento_id = pruebas.id('est_a') and nombre = 'Monte' $q$);
+select pruebas.como('u_operador');
+select pruebas.preparar('zona_P1', $q$ select public.guardar_zona_potrero(gen_random_uuid(), pruebas.id('P1'), pruebas.id('t_monte'),
+      pruebas.cuadro(-56.50, -56.495, -33.00, -32.99)) $q$);
+select pruebas.espera_valor('U07b Con la zona, la efectiva de P1 es menor que su superficie (la mitad, aprox.)',
+  $q$ select (pruebas.efe('P1') < pruebas.sup('P1') and pruebas.efe('P1') between pruebas.sup('P1') * 0.45 and pruebas.sup('P1') * 0.55)::text $q$, 'true');
+select pruebas.espera_valor('U07c Carga de P1 sobre su área efectiva: 110,4 / efectiva',
+  $q$ select (r.valor = round(110.4 / pruebas.efe('P1'), 3) and r.denominador = pruebas.efe('P1'))::text
+      from public.tablero_potreros(pruebas.id('est_a'), 'carga', 'potrero', 'total', '2025-07-01', '2026-06-30') r
+      where r.clave = pruebas.id('P1')::text $q$, 'true');
+select pruebas.espera_valor('U07d Carga global sobre la suma de las efectivas, y la medida superficie_efectiva',
+  $q$ select (r.valor = round(210.4 / (pruebas.efe('P1') + pruebas.efe('P2')), 3)
+              and (select trim_scale(x.valor) from public.tablero_potreros(pruebas.id('est_a'), 'superficie_efectiva', null, 'total', '2025-07-01', '2026-06-30') x)
+                  = trim_scale(pruebas.efe('P1') + pruebas.efe('P2')))::text
+      from public.tablero_potreros(pruebas.id('est_a'), 'carga', null, 'total', '2025-07-01', '2026-06-30') r $q$, 'true');
 select pruebas.espera_error('U08 Días sin abrir por potrero (no se puede)',
   $q$ select * from public.tablero_potreros(pruebas.id('est_a'), 'dias_ocupacion', null, 'total', '2025-07-01', '2026-06-30') $q$, '22023');
 
