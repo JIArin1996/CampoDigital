@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import { exigirFilas } from '@/lib/supabase/errores'
+import type { ZonaPotrero } from '@/lib/queries/zonas'
 import type { Estadia, Potrero, PotreroInsert, PotreroUpdate } from '@/types/database'
 import type { Json } from '@/types/supabase'
 
@@ -55,24 +56,30 @@ export async function reactivarPotrero(id: string) {
   return updatePotrero(id, { estado: 'activo' })
 }
 
-// Forma de los potreros para el mapa (v_potreros_mapa): GeoJSON, área geodésica y punto para la etiqueta.
-// Solo los dibujados.
+// Forma de los potreros para el mapa (v_potreros_mapa): GeoJSON, área geodésica, punto para la etiqueta, área
+// efectiva y zonas no aprovechables. Solo los dibujados.
 export interface FormaPotrero {
   id: string
   forma: GeoJSON.MultiPolygon
   area_ha: number
   etiqueta: GeoJSON.Point
+  superficie_efectiva: number | null
+  zonas: ZonaPotrero[]
 }
 
 export async function getFormasPotreros(establecimiento_id: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('v_potreros_mapa')
-    .select('id, forma, area_ha, etiqueta')
+    .select('id, forma, area_ha, etiqueta, superficie_efectiva, zonas')
     .eq('establecimiento_id', establecimiento_id)
     .not('forma', 'is', null)
   if (error) throw error
-  return (data ?? []).map(f => ({ id: f.id!, forma: f.forma, area_ha: Number(f.area_ha), etiqueta: f.etiqueta }) as unknown as FormaPotrero)
+  return (data ?? []).map(f => ({
+    id: f.id!, forma: f.forma, area_ha: Number(f.area_ha), etiqueta: f.etiqueta,
+    superficie_efectiva: f.superficie_efectiva === null ? null : Number(f.superficie_efectiva),
+    zonas: ((f.zonas ?? []) as unknown as ZonaPotrero[]).map(z => ({ ...z, ha: Number(z.ha) })),
+  }) as unknown as FormaPotrero)
 }
 
 // Guarda la forma de un potrero (GeoJSON en grados) o la borra (null). Devuelve el área geodésica en

@@ -1,5 +1,5 @@
 import {
-  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Contact,
+  Home, Layers, NotebookPen, CalendarDays, Menu, Settings, ClipboardList, Grid3X3, MapPin, Users, PawPrint, TrendingUp, Wallet, Contact, Fence,
   type LucideIcon,
 } from "lucide-react"
 
@@ -40,6 +40,8 @@ export const NAV_CONFIGURACION: ItemNav[] = [
   { href: "/especies",         label: "Especies",         icon: PawPrint, necesitaEstablecimiento: true },
   // Rubros, conceptos, titulares y pagadores, en pestañas (las rutas viejas redirigen ahí)
   { href: "/configuraciones/economia", label: "Economía", icon: Wallet, necesitaEstablecimiento: true },
+  // Tipos de zona no aprovechable (área efectiva de los potreros)
+  { href: "/configuraciones/potreros", label: "Potreros", icon: Fence, necesitaEstablecimiento: true },
   // Responsables de notas, tareas y actividades (usuarios o no)
   { href: "/configuraciones/personas", label: "Personas", icon: Contact, necesitaEstablecimiento: true },
   { href: "/establecimientos", label: "Establecimientos", icon: MapPin },

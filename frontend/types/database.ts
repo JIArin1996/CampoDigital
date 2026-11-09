@@ -18,7 +18,10 @@ export type RolMembresia = Exclude<Rol, 'administrador'>
 
 // superficie_total: columna calculada (la suma de los potreros activos dibujados; null sin ninguno). Se pide
 // con select('*, superficie_total') y no se edita.
-export type Establecimiento = Omit<Tables<'establecimientos'>, 'estado'> & { estado: EstadoBase; superficie_total: number | null }
+// superficie_efectiva_total: igual, la suma de las áreas efectivas (sin las zonas no aprovechables).
+export type Establecimiento = Omit<Tables<'establecimientos'>, 'estado'> & {
+  estado: EstadoBase; superficie_total: number | null; superficie_efectiva_total: number | null
+}
 
 // Datos que se cargan en el alta (crear_establecimiento) y que se pueden editar
 export type EstablecimientoDatos = Pick<

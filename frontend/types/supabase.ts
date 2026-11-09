@@ -2401,6 +2401,50 @@ export type Database = {
           },
         ]
       }
+      potrero_zonas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          forma: unknown
+          id: string
+          nota: string | null
+          potrero_id: string
+          tipo_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          forma: unknown
+          id?: string
+          nota?: string | null
+          potrero_id: string
+          tipo_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          forma?: unknown
+          id?: string
+          nota?: string | null
+          potrero_id?: string
+          tipo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "potrero_zonas_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       potreros: {
         Row: {
           aguada: boolean | null
@@ -2414,6 +2458,7 @@ export type Database = {
           observaciones: string | null
           sombra: boolean | null
           superficie: number | null
+          superficie_efectiva: number | null
           tipo_pastura: string | null
           updated_at: string
           uso_actual: string | null
@@ -2670,6 +2715,50 @@ export type Database = {
           },
         ]
       }
+      zona_tipos: {
+        Row: {
+          activo: boolean
+          color: string
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zona_tipos_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_actividades: {
@@ -2912,8 +3001,10 @@ export type Database = {
           observaciones: string | null
           sombra: boolean | null
           superficie: number | null
+          superficie_efectiva: number | null
           tipo_pastura: string | null
           uso_actual: string | null
+          zonas: Json | null
         }
         Insert: {
           aguada?: boolean | null
@@ -3712,11 +3803,19 @@ export type Database = {
         Args: { p_entrada_id: string }
         Returns: undefined
       }
+      borrar_zona_potrero: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       guardar_forma_potrero: {
         Args: {
           p_forma: Json
           p_potrero_id: string
         }
+        Returns: number
+      }
+      guardar_zona_potrero: {
+        Args: { p_forma: Json; p_id: string; p_nota?: string; p_potrero_id: string; p_tipo_id: string }
         Returns: number
       }
       linaje_lote: {
@@ -3964,6 +4063,10 @@ export type Database = {
       restaurar_archivo_lote: {
         Args: { p_archivo_id: string; p_lote_id: string }
         Returns: undefined
+      }
+      superficie_efectiva_total: {
+        Args: { e: Database["public"]["Tables"]["establecimientos"]["Row"] }
+        Returns: number
       }
       superficie_total: {
         Args: { e: Database["public"]["Tables"]["establecimientos"]["Row"] }

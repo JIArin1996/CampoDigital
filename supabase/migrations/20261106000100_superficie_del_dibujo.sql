@@ -10,6 +10,9 @@
 --   3. establecimientos.superficie_total: se borra la columna. La superficie total es la suma de los
 --      potreros activos, calculada por la función superficie_total(establecimientos), que la API expone
 --      como columna calculada (select=*,superficie_total). crear_establecimiento pierde p_superficie_total.
+--   Requiere 20261106000050 (limpia restos de un intento de área efectiva que chocaban con esta).
+
+begin;
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 1. Superficie del potrero = área del dibujo
@@ -190,3 +193,5 @@ $$;
 
 revoke execute on function public.superficie_total(public.establecimientos) from public, anon;
 grant  execute on function public.superficie_total(public.establecimientos) to authenticated;
+
+commit;

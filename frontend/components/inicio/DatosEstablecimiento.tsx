@@ -23,7 +23,11 @@ export function DatosEstablecimiento({ establecimiento: e, rol, puedeEditar }: {
 }) {
   const [abierto, setAbierto] = useState(false)
 
-  const resumen = [e.nombre, e.sistema_productivo, e.superficie_total ? ha(e.superficie_total) : null].filter(Boolean).join(" · ")
+  const superficie = e.superficie_total
+    ? ha(e.superficie_total) + (e.superficie_efectiva_total && Number(e.superficie_efectiva_total) < Number(e.superficie_total)
+      ? ` (${ha(e.superficie_efectiva_total)} efectivas)` : "")
+    : null
+  const resumen = [e.nombre, e.sistema_productivo, superficie].filter(Boolean).join(" · ")
   const datos: [string, string | null][] = [
     ["Departamento", e.departamento],
     ["Localidad", e.localidad],
