@@ -23,6 +23,8 @@ export interface PoligonoPotrero {
   etiqueta: GeoJSON.Point
   color: string
   punteado?: boolean
+  zonas?: { forma: GeoJSON.MultiPolygon; color: string }[]   // zonas no aprovechables (recortadas al potrero)
+  soloContorno?: boolean       // solo el perímetro, sin relleno ni etiqueta (mientras se dibujan sus zonas)
 }
 
 interface Props {
@@ -69,6 +71,30 @@ interface Etiqueta {
 }
 
 const SVG = "http://www.w3.org/2000/svg"
+
+// Trama rayada de un color (para las zonas no aprovechables): un <pattern> por color en el SVG del mapa
+function rayado(svg: SVGSVGElement, color: string) {
+  const id = `rayas-${color.replace("#", "")}`
+  if (!svg.querySelector(`#${id}`)) {
+    let defs = svg.querySelector("defs")
+    if (!defs) { defs = document.createElementNS(SVG, "defs"); svg.prepend(defs) }
+    const patron = document.createElementNS(SVG, "pattern")
+    patron.setAttribute("id", id)
+    patron.setAttribute("patternUnits", "userSpaceOnUse")
+    patron.setAttribute("width", "8")
+    patron.setAttribute("height", "8")
+    patron.setAttribute("patternTransform", "rotate(45)")
+    const fondo = document.createElementNS(SVG, "rect")
+    fondo.setAttribute("width", "8"); fondo.setAttribute("height", "8")
+    fondo.setAttribute("fill", color); fondo.setAttribute("fill-opacity", "0.25")
+    const raya = document.createElementNS(SVG, "rect")
+    raya.setAttribute("width", "3"); raya.setAttribute("height", "8")
+    raya.setAttribute("fill", color); raya.setAttribute("fill-opacity", "0.85")
+    patron.append(fondo, raya)
+    defs.append(patron)
+  }
+  return `url(#${id})`
+}
 
 // Lo escribe el usuario: va como texto, nunca como HTML
 function recuadro(nombre: string, lineas: string[], vacio: boolean, elegido: boolean, nivel: string) {
@@ -249,13 +275,31 @@ export default function MapaLeaflet({ capa, poligonos, seleccionado, onSeleccion
       const elegido = p.id === seleccionado
       L.geoJSON(p.forma, { interactive: false, pmIgnore: true, style: { color: "#ffffff", weight: elegido ? 8 : 5, opacity: 0.85, fill: false } }).addTo(grupo)
       const poligono = L.geoJSON(p.forma, {
+        interactive: !p.soloContorno,
         style: {
-          color: p.color, weight: elegido ? 4 : 2.5, dashArray: p.punteado ? "6 5" : undefined,
-          fillColor: p.color, fillOpacity: elegido ? 0.5 : 0.3,
+          color: p.soloContorno ? "#111827" : p.color, weight: p.soloContorno ? 3 : elegido ? 4 : 2.5,
+          dashArray: p.punteado ? "6 5" : undefined,
+          fill: !p.soloContorno, fillColor: p.color, fillOpacity: elegido ? 0.5 : 0.3,
         },
       })
-      poligono.on("click", () => alSeleccionar.current(p.id))
+      if (!p.soloContorno) poligono.on("click", () => alSeleccionar.current(p.id))
       poligono.addTo(grupo)
+
+      // Zonas no aprovechables: rayadas con el color de su tipo, con borde punteado (tocarlas elige el potrero)
+      for (const z of p.zonas ?? []) {
+        const zona = L.geoJSON(z.forma, {
+          pmIgnore: true,
+          style: { color: z.color, weight: 1.5, dashArray: "4 3", fillColor: z.color, fillOpacity: 1 },
+        })
+        zona.on("click", () => alSeleccionar.current(p.id))
+        zona.addTo(grupo)
+        zona.eachLayer(capa => {
+          const el = (capa as L.Path).getElement() as SVGPathElement | undefined
+          if (el?.ownerSVGElement) el.setAttribute("fill", rayado(el.ownerSVGElement, z.color))
+        })
+      }
+
+      if (p.soloContorno) continue
 
       // La etiqueta, en el punto pensado para ella (dentro del potrero); el elegido pasa al frente
       const etiqueta = crearEtiqueta(p, elegido)

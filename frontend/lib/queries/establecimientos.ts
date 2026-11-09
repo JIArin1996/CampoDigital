@@ -4,7 +4,7 @@ import type { Establecimiento, EstablecimientoDatos, EstablecimientoUpdate, RolM
 
 // La superficie total es una columna calculada por la base (la suma de los potreros activos dibujados):
 // hay que pedirla aparte del *
-const CON_SUPERFICIE = '*, superficie_total'
+const CON_SUPERFICIE = '*, superficie_total, superficie_efectiva_total'
 
 // Establecimientos activos del usuario (el RLS deja ver solo aquellos donde es miembro)
 export async function getEstablecimientos() {

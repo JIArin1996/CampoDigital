@@ -75,7 +75,7 @@ export default function EstablecimientosPage() {
   }
 
   const resumen = (est: Establecimiento) =>
-    [est.departamento, est.localidad, est.superficie_total ? `${est.superficie_total} ha` : null]
+    [est.departamento, est.localidad, est.superficie_total ? `${est.superficie_total} ha${est.superficie_efectiva_total && Number(est.superficie_efectiva_total) < Number(est.superficie_total) ? ` (${est.superficie_efectiva_total} efectivas)` : ""}` : null]
       .filter(Boolean)
       .join(" · ")
 
