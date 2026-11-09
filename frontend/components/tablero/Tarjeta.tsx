@@ -8,7 +8,7 @@ import {
 
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
-import { DIMENSIONES, ETIQUETA_DIMENSION, medidaDe, type Unidad } from "@/components/tablero/catalogo"
+import { DIMENSIONES, ETIQUETA_DIMENSION, MIN_DIAS_POR_DEFECTO, medidaDe, type Unidad } from "@/components/tablero/catalogo"
 import { rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { Dimension, FilaTablero, FiltroCruzado, FiltrosIds, TarjetaTablero } from "@/types/tablero"
@@ -24,9 +24,12 @@ const NOMBRE_DIM: Record<DimFiltro, string> = { especie: "Especie", categoria: "
 
 function formato(n: number | null, unidad: Unidad) {
   if (n === null || Number.isNaN(n)) return "—"
-  return unidad === "%"
-    ? `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} %`
-    : n.toLocaleString("es-UY", { maximumFractionDigits: 1 })
+  switch (unidad) {
+    case "%": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} %`
+    case "kg": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg`
+    case "kg/día": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg/día`
+    default: return n.toLocaleString("es-UY", { maximumFractionDigits: 1 })
+  }
 }
 
 const mismos = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
@@ -163,13 +166,25 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
       {elegir && listos && !elegido && def.grafico !== "numero" && (
         <p className="text-[11px] text-muted-foreground">Tocá una {def.grafico === "tabla" ? "fila" : def.grafico === "torta" ? "porción" : "barra"} para filtrar el resto del tablero.</p>
       )}
-      {avisos && <Avisos avisos={avisos} />}
+      {avisos && <Avisos avisos={avisos} minDias={def.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO} />}
     </section>
   )
 }
 
-function Avisos({ avisos }: { avisos: Record<string, unknown> }) {
+const MOTIVO_DESCARTE: Record<string, string> = {
+  venta: "venta", compra: "compra", union: "unión", division: "división", destete: "destete", paricion: "parición",
+  ajuste: "ajuste de stock", recategorizacion: "recategorización",
+}
+
+function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias: number }) {
   const textos: string[] = []
+  const descartes = (avisos.tramos_descartados ?? null) as Record<string, number> | null
+  if (descartes) {
+    const total = Object.values(descartes).reduce((s, n) => s + n, 0)
+    const partes = Object.entries(descartes).map(([motivo, n]) =>
+      motivo === "corto" ? `${n} de menos de ${minDias} días` : `${n} por ${MOTIVO_DESCARTE[motivo] ?? motivo}`)
+    textos.push(`${total} ${total === 1 ? "tramo descartado" : "tramos descartados"} entre pesadas: ${partes.join(", ")}`)
+  }
   const sin = Number(avisos.sin_servicio ?? 0)
   if (sin > 0) textos.push(`${sin} ${sin === 1 ? "actividad" : "actividades"} sin servicio registrado (no suman a ninguna temporada)`)
   if (avisos.destete_mixto) textos.push("Un destete sacó crías de dos temporadas: se contó entero en la más antigua")
@@ -210,6 +225,14 @@ function Contenido({ tarjeta, resultados, unidad, elegir, elegido }: {
           </p>
         )}
         {unidad === "cab" && <p className="text-xs text-muted-foreground">cabezas{f.periodo ? ` · ${rotuloPeriodo(f.periodo)}` : ""}</p>}
+        {unidad === "kg/día" && f.numerador !== null && f.denominador !== null && (
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {f.numerador.toLocaleString("es-UY")} kg en {f.denominador.toLocaleString("es-UY")} cabeza-días
+          </p>
+        )}
+        {unidad === "kg" && f.denominador !== null && (
+          <p className="text-xs text-muted-foreground tabular-nums">{f.denominador.toLocaleString("es-UY")} cabezas pesadas</p>
+        )}
       </div>
     )
   }

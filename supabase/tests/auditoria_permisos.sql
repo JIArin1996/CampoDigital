@@ -141,7 +141,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261109000200, tablero de indicadores): 151 filas, todas con ok = true.
+-- ESPERADO (después de 20261109000300, tablero de indicadores con pesadas): 152 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -159,7 +159,8 @@ order by 1 desc, 2, 3, 4;
 -- +2 de 20261106000100: el trigger calcular_superficie_potrero y la columna calculada superficie_total
 -- (guardar_forma_potrero y crear_establecimiento se recrean con menos parámetros: siguen siendo una cada una);
 -- +3 de 20261109000100 y 20261109000200: guardar_tablero, tablero_stock y tablero_reproductivos (las internas
--- _tablero_periodos y _tablero_uuids de la 0100 se borran en la 0200).)
+-- _tablero_periodos y _tablero_uuids de la 0100 se borran en la 0200);
+-- +1 de 20261109000300: tablero_pesadas.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -308,6 +309,7 @@ order by 1 desc, 2, 3, 4;
 --   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
+--   tablero_pesadas             | false            | true          | false | false
 --   tablero_reproductivos       | false            | true          | false | false
 --   tablero_stock               | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false

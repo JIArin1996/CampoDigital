@@ -123,17 +123,25 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
 - **Ganancia diaria y kg producidos — tramos entre pesadas**: se compara el **peso promedio del lote**
   (Σ peso / Σ cabezas, todas sus categorías) entre una pesada y la anterior **de su línea**:
   - La anterior es la última pesada del mismo lote; si no tiene, la última de sus **ancestros** (`linaje_lote`).
-  - **El tramo se descarta** si entre las dos pesadas hubo una **división, unión, compra o venta** que tocó al lote
-    (o a sus ancestros dentro del tramo), **salvo que haya una pesada en la fecha de ese evento**. Motivo: cambia la
-    composición y el promedio se mueve sin que nadie haya ganado o perdido kilos (vender los más pesados daría una
-    ganancia negativa falsa).
-  - **Recategorización y mortandad no cortan el tramo** (se compara el lote entero, no la categoría; los kg
-    producidos se calculan con las cabezas de la pesada final).
+  - **El tramo se descarta** si entre las dos pesadas cambió **quién está en las categorías pesadas**: una
+    **división, unión, compra, venta, destete, parición o ajuste** de alguna de las categorías que se pesaron en el
+    tramo, en el lote o en sus ancestros, **salvo que haya una pesada en la fecha de ese evento** (los días de las dos
+    pesadas no cuentan). Motivo: cambia la composición y el promedio se mueve sin que nadie haya ganado o perdido kilos
+    (vender los más pesados daría una ganancia negativa falsa; destetar los terneros subiría el promedio de un lote
+    pesado con sus terneros). Si el evento es de una categoría que no se pesó (ej. la parición suma terneros y solo se
+    pesan las vacas), el tramo vale.
+  - Con filtro o apertura **por categoría**, también descarta la **recategorización** que entra o sale de esa
+    categoría (ahí sí cambia quién está). Mirando el lote entero no la descarta: son los mismos animales.
+  - **La mortandad no corta el tramo** (los kg producidos se calculan con las cabezas de la pesada final).
   - **Mínimo entre pesadas: 21 días** (parámetro `min_dias` de la tarjeta, por defecto 21): el ruido por llenado
     (3-5 % del peso vivo) supera la ganancia en tramos cortos. Un tramo más corto se descarta.
   - Los tramos se toman entre **pesadas consecutivas** de la línea: una pesada descartada como final de un tramo sigue
     siendo el inicio del siguiente.
-  - La tarjeta muestra **cuántos tramos se descartaron y por qué** (aviso `tramos_descartados`).
+  - La tarjeta muestra **cuántos tramos se descartaron y por qué** (aviso `tramos_descartados`, con los motivos
+    `corto`, `division`, `union`, `compra`, `venta`, `destete`, `paricion`, `ajuste` y `recategorizacion`).
+  - Detalles (etapa 2, `tablero_pesadas`): los orígenes son los de **nivel 1** del linaje (los lotes de los que salió
+    directamente); con varios, el tramo empieza en la más vieja de sus últimas pesadas. Con filtro o apertura por
+    **categoría** se comparan solo las líneas de esa categoría. El tramo cuenta en el período de su pesada final.
 - **Economía**: siempre en **USD**. Un movimiento en pesos se convierte con el tipo de cambio cargado en ese
   movimiento (`monto_usd` es una columna calculada de la base). **Repartos entre titulares** (por % o por monto) se
   respetan al abrir por titular: a cada titular le toca `monto_usd × monto del titular / monto original`, igual que en
@@ -285,6 +293,30 @@ Resultados esperados (ejercicio 2025/26, mínimo 21 días):
 - **Ganancia diaria**: 10.431 / (100 × 61 + 70 × 61 + 138 × 61) = 10.431 / 18.788 = **0,555 kg/día**.
 - **Tramos descartados**: **4** (menos de 21 días 1, venta 1, compra 1, unión 1).
 - **Peso promedio** (lotes abiertos al 30/6/2026, su última pesada): L-Nov3, 56.649 / 138 = **410,5 kg**.
+
+#### Ejercicio 2026/27: destete, parición y ajuste
+
+| Lote | Fecha | Pesada | Promedio |
+|---|---|---|---|
+| L-Cría | 15/8/2026 | 100 vacas, 45.000 kg | 450,0 |
+| L-Cría | 25/9/2026 | 100 vacas, 45.500 kg | 455,0 |
+| L-Cría-B | 5/10/2026 | 50 vacas 22.500 kg + 40 terneros 4.000 kg | 294,4 |
+| L-Cría-B | 5/11/2026 | 50 vacas 22.750 kg + 3 terneros 330 kg | 435,5 |
+| L-Nov3 | 1/8/2026 | 138 novillos, 59.340 kg | 430,0 |
+| L-Nov3 | 15/9/2026 | 137 novillos, 61.650 kg (ajuste de −1 el 15/8) | 450,0 |
+
+| Tramo | Días | Resultado |
+|---|---|---|
+| L-Nov3 1/5 → 1/8/2026 | 92 | **Válido**: +19,5 kg/cab, **2.691 kg** (19,5 × 138) |
+| L-Nov3 1/8 → 15/9/2026 | 45 | Descartado: ajuste el 15/8 |
+| L-Cría 15/8 → 25/9/2026 | 41 | **Válido** (la parición del 15/9 suma terneros, que no se pesan): **500 kg** (5 × 100) |
+| L-Cría (25/9) → L-Cría-B 5/10/2026 | 10 | Descartado: menos de 21 días |
+| L-Cría-B 5/10 → 5/11/2026 | 31 | Descartado: destete el 1/11 (salen terneros pesados) |
+
+Resultados esperados (ejercicio 2026/27): **kg producidos 3.191**; **ganancia diaria** 3.191 / (138 × 92 + 100 × 41)
+= 3.191 / 16.796 = **0,19 kg/día**; **3 tramos descartados** (corto, destete, ajuste). **Por categoría**: Novillos
+**2.691**; Vacas de cría **750** (500 de L-Cría + 250 de las vacas de L-Cría-B: mirando solo las vacas, el destete de
+terneros no cambia quién está).
 
 ### Economía (con titulares A y B)
 

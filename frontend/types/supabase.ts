@@ -4054,6 +4054,27 @@ export type Database = {
         Args: { p_archivo_id: string; p_lote_id: string }
         Returns: undefined
       }
+      tablero_pesadas: {
+        Args: {
+          p_abrir_por: string
+          p_desde: string
+          p_establecimiento_id: string
+          p_filtros?: Json
+          p_hasta: string
+          p_medida: string
+          p_opciones?: Json
+          p_tiempo: string
+        }
+        Returns: {
+          avisos: Json
+          clave: string
+          denominador: number
+          etiqueta: string
+          numerador: number
+          periodo: string
+          valor: number
+        }[]
+      }
       tablero_reproductivos: {
         Args: {
           p_abrir_por: string

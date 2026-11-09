@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
-import { DIMENSIONES, ETIQUETA_DIMENSION, MEDIDAS, medidaDe } from "@/components/tablero/catalogo"
+import { DIMENSIONES, ETIQUETA_DIMENSION, MEDIDAS, MIN_DIAS_POR_DEFECTO, USAN_TRAMOS, medidaDe } from "@/components/tablero/catalogo"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
 import type { Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { DefinicionTarjeta, Dimension, Fuente, Grafico, TarjetaTablero, Tiempo } from "@/types/tablero"
 
-const NOMBRE_FUENTE: Partial<Record<Fuente, string>> = { stock: "Stock", reproductivos: "Reproductivos" }
+const NOMBRE_FUENTE: Partial<Record<Fuente, string>> = { stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos" }
 const NOMBRE_TIEMPO: Record<Tiempo, string> = {
   total: "Total del período", mes: "Por mes", ejercicio: "Por ejercicio", temporada: "Por temporada",
 }
@@ -68,6 +68,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const [categoria, setCategoria] = useState(d0?.filtros?.categoria_ids?.[0] ?? "")
   const [lote, setLote] = useState(d0?.filtros?.lote_ids?.[0] ?? "")
   const [periodo, setPeriodo] = useState(d0?.periodo && d0.periodo !== "tablero" ? String(d0.periodo.ejercicios) : "tablero")
+  const [minDias, setMinDias] = useState(String(d0?.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO))
   const [titulo, setTitulo] = useState(inicial?.titulo ?? "")
   const [tituloTocado, setTituloTocado] = useState(!!inicial)
 
@@ -83,6 +84,9 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       .map(([m, x]) => ({ m, etiqueta: x.etiqueta }))
   const extrasValidos = extras.filter(e => extrasPosibles.some(x => x.m === e))
   const tituloFinal = tituloTocado ? titulo : tituloSugerido(fuente, medida, abrir, tiempo)
+  const usaTramos = fuente === "pesadas" && [medida, ...extras].some(m => USAN_TRAMOS.includes(m))
+  const minDiasNum = Number(minDias)
+  const minDiasValido = Number.isInteger(minDiasNum) && minDiasNum >= 1 && minDiasNum <= 365
 
   // Al cambiar qué medir o cómo abrirlo, se acomoda lo que dejó de valer
   const elegirMedida = (valor: string) => {
@@ -110,6 +114,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
     tiempo,
     grafico,
     ...(periodo !== "tablero" ? { periodo: { ejercicios: Number(periodo) } } : {}),
+    ...(usaTramos && minDiasValido && minDiasNum !== MIN_DIAS_POR_DEFECTO ? { opciones: { min_dias: minDiasNum } } : {}),
     ...((especie || categoria || lote) ? {
       filtros: {
         ...(especie ? { especie_ids: [especie] } : {}),
@@ -173,6 +178,18 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
             </label>
           ))}
         </fieldset>
+      )}
+
+      {usaTramos && (
+        <label className={cn(etiqueta, "-mt-2")}>Mínimo de días entre pesadas
+          <Input type="number" inputMode="numeric" min={1} max={365} value={minDias} onChange={e => setMinDias(e.target.value)}
+            aria-invalid={!minDiasValido} className="w-28" />
+          <span className="text-xs">
+            Los tramos más cortos se descartan: el llenado (3 a 5 % del peso) pesa más que la ganancia. También los que
+            tienen en el medio algo que cambia quién está en las categorías pesadas: división, unión, compra, venta,
+            destete, parición o ajuste (y, por categoría, la recategorización).
+          </span>
+        </label>
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -248,7 +265,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       </div>
 
       <div className="mt-auto flex gap-2">
-        <Button className="flex-1" disabled={!tituloFinal.trim()} onClick={aceptar}>{inicial ? "Aplicar cambios" : "Agregar al tablero"}</Button>
+        <Button className="flex-1" disabled={!tituloFinal.trim() || (usaTramos && !minDiasValido)} onClick={aceptar}>{inicial ? "Aplicar cambios" : "Agregar al tablero"}</Button>
         <Button variant="outline" onClick={onCancelar}>Cancelar</Button>
       </div>
     </aside>

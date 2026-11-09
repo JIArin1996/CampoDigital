@@ -47,6 +47,7 @@ export interface ConsultaTablero {
 export async function getDatosTablero(c: ConsultaTablero): Promise<FilaTablero[]> {
   const funcion = c.definicion.fuente === 'stock' ? 'tablero_stock'
     : c.definicion.fuente === 'reproductivos' ? 'tablero_reproductivos'
+    : c.definicion.fuente === 'pesadas' ? 'tablero_pesadas'
     : null
   if (!funcion) throw new Error('Esta fuente de datos todavía no está disponible')
   const { data, error } = await createClient().rpc(funcion, {
@@ -57,6 +58,7 @@ export async function getDatosTablero(c: ConsultaTablero): Promise<FilaTablero[]
     p_desde: c.desde,
     p_hasta: c.hasta,
     p_filtros: c.filtros as Json,
+    p_opciones: (c.definicion.opciones ?? {}) as Json,
   })
   if (error) throw error
   return ((data ?? []) as unknown as FilaTablero[]).map(f => ({

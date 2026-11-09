@@ -16,6 +16,8 @@ export interface DefinicionTarjeta {
   periodo?: 'tablero' | { ejercicios: number }
   // Filtro propio: manda sobre el cruzado y el general (prioridad propio > cruzado > general)
   filtros?: FiltrosIds
+  // Parámetros de la medida: min_dias = mínimo de días entre pesadas (ganancia diaria y kg producidos; por defecto 21)
+  opciones?: { min_dias?: number }
 }
 
 export interface FiltrosIds {
