@@ -1,189 +1,331 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react"
+import { Suspense, useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
+import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal, Trash2, X } from "lucide-react"
+import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { getAportes, getIndicadores } from "@/lib/queries/indicadores"
-import { getEspecies, getLotesPorIds } from "@/lib/queries/lotes"
+import { getTablero, guardarTablero } from "@/lib/queries/tablero"
+import { getCategorias, getEspecies, getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { colorDeEspecie } from "@/components/lotes/agrupacion"
-import { fechaCorta } from "@/components/lotes/formato"
-import type { Especie } from "@/types/lotes"
-import type { AporteIndicador, Indicadores, TipoAporte } from "@/types/indicadores"
+import { SELECT_NATIVO } from "@/components/shared/estilos"
+import { nuevoId } from "@/components/actividades/formato"
+import { TARJETAS_LISTAS, plantilla } from "@/components/tablero/catalogo"
+import { opcionesPeriodo, periodoPorDefecto, rangoDe } from "@/components/tablero/periodos"
+import { Grilla } from "@/components/tablero/Grilla"
+import { Tarjeta, type FiltrosAplicados } from "@/components/tablero/Tarjeta"
+import { cn } from "@/lib/utils"
+import type { CategoriaAnimal, Especie } from "@/types/lotes"
+import type { Dimension, FiltrosTablero, PaginaTablero } from "@/types/tablero"
 
-// "2025/26" (la temporada va de julio a junio)
-const etiquetaTemporada = (t: number | null) => (t === null ? "Sin servicio registrado" : `Temporada ${t}/${String(t + 1).slice(2)}`)
-const porcentaje = (n: number | null) => (n === null ? "—" : `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} %`)
+export default function IndicadoresPage() {
+  return (
+    <Suspense fallback={<PageContainer><Cargando /></PageContainer>}>
+      <Indicadores />
+    </Suspense>
+  )
+}
 
-const ETIQUETA_APORTE: Record<TipoAporte, string> = {
-  servicio: "Servicio",
-  diagnostico_gestacion: "Diagnóstico",
-  paricion: "Parición",
-  destete: "Destete",
+interface Datos {
+  estId: string
+  guardado: PaginaTablero[] | null      // null: nunca se guardó, se muestra la plantilla
+  especies: Especie[]
+  categorias: CategoriaAnimal[]
+  lotes: { id: string; nombre: string }[]
+}
+
+// Pantalla de computadora (≥ 1024 px): ahí se edita el tablero
+function usePantallaGrande() {
+  const [grande, setGrande] = useState(false)
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 1024px)")
+    const actualizar = () => setGrande(m.matches)
+    actualizar()
+    m.addEventListener("change", actualizar)
+    return () => m.removeEventListener("change", actualizar)
+  }, [])
+  return grande
 }
 
 /**
- * Indicadores reproductivos por especie y temporada: % preñez, parición y destete sobre las
- * vacas entoradas. Cada temporada tiene su detalle (qué actividades suman en cada número).
+ * Indicadores: tablero del establecimiento con páginas (pestañas) y tarjetas en una grilla. Todos lo ven y usan los
+ * filtros generales (período, especie, categoría y lote, que quedan en la URL); solo el Administrador lo edita, y
+ * solo en la computadora: mover, cambiar el tamaño, sacar y agregar tarjetas, y crear, renombrar, ordenar y borrar
+ * páginas. Mientras el establecimiento no guardó su tablero, se ve la plantilla "Resumen".
  */
-export default function IndicadoresPage() {
-  const { establecimientoActivo, cargando } = useEstablecimiento()
+function Indicadores() {
+  const params = useSearchParams()
+  const { establecimientoActivo, esAdmin, cargando } = useEstablecimiento()
   const estId = establecimientoActivo?.id
-  const [datos, setDatos] = useState<{ estId: string; filas: Indicadores[]; especies: Especie[] } | null>(null)
+  const grande = usePantallaGrande()
+
+  const [datos, setDatos] = useState<Datos | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [recarga, setRecarga] = useState(0)
+  const [pagina, setPagina] = useState(Number(params.get("p") ?? 0) || 0)
+  const [filtros, setFiltros] = useState<FiltrosTablero>({
+    periodo: rangoDe(params.get("periodo") ?? "") ? params.get("periodo")! : periodoPorDefecto(),
+    especie: params.get("especie") ?? "",
+    categoria: params.get("categoria") ?? "",
+    lote: params.get("lote") ?? "",
+  })
+  const [borrador, setBorrador] = useState<PaginaTablero[] | null>(null)   // en edición
+  const [guardando, setGuardando] = useState(false)
+  const [panelFiltros, setPanelFiltros] = useState(false)
 
   useEffect(() => {
     if (!estId) return
     let vigente = true
-    Promise.all([getIndicadores(estId), getEspecies(estId)])
-      .then(([filas, especies]) => { if (vigente) setDatos({ estId, filas, especies }) })
-      .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudieron cargar los indicadores")) })
+    Promise.all([getTablero(estId), getEspecies(estId), getCategorias(estId), getLotes(estId, "activo")])
+      .then(([guardado, especies, categorias, lotes]) => {
+        if (vigente) setDatos({ estId, guardado, especies, categorias, lotes: lotes.map(l => ({ id: l.id, nombre: l.nombre })) })
+      })
+      .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar el tablero")) })
     return () => { vigente = false }
-  }, [estId])
+  }, [estId, recarga])
 
-  if (cargando || (estId && !datos && !error)) {
-    return <PageContainer><Cargando /></PageContainer>
-  }
+  // Los filtros y la página quedan en la URL (para volver o compartir)
+  useEffect(() => {
+    const q = new URLSearchParams()
+    if (pagina) q.set("p", String(pagina))
+    q.set("periodo", filtros.periodo)
+    if (filtros.especie) q.set("especie", filtros.especie)
+    if (filtros.categoria) q.set("categoria", filtros.categoria)
+    if (filtros.lote) q.set("lote", filtros.lote)
+    window.history.replaceState(null, "", `?${q.toString()}`)
+  }, [pagina, filtros])
+
+  if (cargando || (estId && !datos && !error)) return <PageContainer><Cargando /></PageContainer>
   if (!establecimientoActivo) {
     return <PageContainer><p className="text-muted-foreground">Elegí un establecimiento.</p></PageContainer>
   }
   if (error) return <PageContainer><p role="alert" className="text-sm text-destructive">{error}</p></PageContainer>
-
   const listos = datos && datos.estId === estId ? datos : null
-  const porEspecie = (listos?.especies ?? [])
-    .map(e => ({ especie: e, filas: listos!.filas.filter(f => f.especie_id === e.id) }))
-    .filter(g => g.filas.length > 0)
+  if (!listos) return <PageContainer><Cargando /></PageContainer>
 
-  return (
-    <PageContainer>
-      <h1 className="text-2xl font-bold">Indicadores reproductivos</h1>
-      <p className="text-sm text-muted-foreground mt-1 mb-6">
-        Sobre las vacas entoradas de cada temporada (de julio a junio, según la fecha del servicio).
-      </p>
+  const editando = borrador !== null && grande
+  const paginas = (editando ? borrador : null) ?? listos.guardado ?? plantilla()
+  const idx = Math.min(pagina, paginas.length - 1)
+  const actual = paginas[idx]
+  const rango = rangoDe(filtros.periodo)!
 
-      {porEspecie.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Todavía no hay datos. Los indicadores salen de los servicios, diagnósticos, pariciones y destetes que se cargan en{" "}
-          <Link href="/actividades" className="text-primary font-medium">Actividades</Link>.
-        </p>
-      ) : (
-        <div className="space-y-8 max-w-3xl">
-          {porEspecie.map(({ especie, filas }) => (
-            <section key={especie.id} className="space-y-3">
-              <h2 className="flex items-center gap-2 font-semibold">
-                <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorDeEspecie(especie) }} />
-                {especie.nombre}
-              </h2>
-              {filas.map(f => <TarjetaTemporada key={String(f.temporada)} fila={f} estId={estId!} />)}
-            </section>
-          ))}
-        </div>
-      )}
-    </PageContainer>
-  )
-}
+  const aplicados: FiltrosAplicados = {
+    especie_ids: filtros.especie ? [filtros.especie] : undefined,
+    categoria_ids: filtros.categoria ? [filtros.categoria] : undefined,
+    lote_ids: filtros.lote ? [filtros.lote] : undefined,
+  }
+  const activos: Dimension[] = [
+    ...(filtros.especie ? ["especie" as const] : []),
+    ...(filtros.categoria ? ["categoria" as const] : []),
+    ...(filtros.lote ? ["lote" as const] : []),
+  ]
 
-function TarjetaTemporada({ fila, estId }: { fila: Indicadores; estId: string }) {
-  const [abierto, setAbierto] = useState(false)
-  const [detalle, setDetalle] = useState<{ aportes: AporteIndicador[]; lotes: Map<string, string> } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const sinServicio = fila.temporada === null
-
-  const alternar = async () => {
-    setAbierto(a => !a)
-    if (detalle || abierto) return
+  // ── Edición ────────────────────────────────────────────────────────────────
+  const cambiarPagina = (cambio: (p: PaginaTablero) => PaginaTablero) =>
+    setBorrador(b => b && b.map((p, i) => (i === idx ? cambio(p) : p)))
+  const mover = (cambios: Map<string, { x: number; y: number; w: number; h: number }>) => {
+    const distinto = actual.tarjetas.some(t => {
+      const c = cambios.get(t.id)
+      return c && (c.x !== t.x || c.y !== t.y || c.w !== t.w || c.h !== t.h)
+    })
+    if (distinto) cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.map(t => ({ ...t, ...(cambios.get(t.id) ?? {}) })) }))
+  }
+  const agregarTarjeta = (i: number) => {
+    const lista = TARJETAS_LISTAS[i]
+    const abajo = actual.tarjetas.reduce((m, t) => Math.max(m, t.y + t.h), 0)
+    cambiarPagina(p => ({ ...p, tarjetas: [...p.tarjetas, { ...lista, id: nuevoId(), x: 0, y: abajo }] }))
+  }
+  const agregarPagina = () => {
+    setBorrador(b => b && [...b, { id: nuevoId(), nombre: `Página ${b.length + 1}`, tarjetas: [] }])
+    setPagina(paginas.length)
+  }
+  const correrPagina = (d: -1 | 1) => {
+    const j = idx + d
+    if (j < 0 || j >= paginas.length) return
+    setBorrador(b => {
+      if (!b) return b
+      const c = [...b]
+      ;[c[idx], c[j]] = [c[j], c[idx]]
+      return c
+    })
+    setPagina(j)
+  }
+  const borrarPagina = () => {
+    if (paginas.length === 1) return toast.error("El tablero necesita al menos una página")
+    if (!window.confirm(`¿Borrar la página "${actual.nombre}" con sus tarjetas?`)) return
+    setBorrador(b => b && b.filter((_, i) => i !== idx))
+    setPagina(Math.max(0, idx - 1))
+  }
+  const guardar = async () => {
+    if (!borrador) return
+    if (borrador.some(p => !p.nombre.trim())) return toast.error("Cada página necesita un nombre")
+    setGuardando(true)
     try {
-      const aportes = await getAportes(estId, fila.especie_id, fila.temporada)
-      const lotes = await getLotesPorIds([...new Set(aportes.map(a => a.lote_id))])
-      setDetalle({ aportes, lotes: new Map(lotes.map(l => [l.id, l.nombre])) })
+      await guardarTablero(listos.estId, borrador.map(p => ({ ...p, nombre: p.nombre.trim() })))
+      toast.success("Tablero guardado")
+      setBorrador(null)
+      setRecarga(r => r + 1)
     } catch (err) {
-      setError(mensajeDeError(err, "No se pudo cargar el detalle"))
+      toast.error(mensajeDeError(err, "No se pudo guardar el tablero"))
+    } finally {
+      setGuardando(false)
     }
   }
 
-  const dato = (titulo: string, pct: number | null, cuenta: number) => (
-    <div className="rounded-lg border px-3 py-2">
-      <p className="text-xs text-muted-foreground">{titulo}</p>
-      <p className="text-2xl font-bold tabular-nums">{porcentaje(pct)}</p>
-      <p className="text-xs text-muted-foreground tabular-nums">{cuenta} de {fila.entoradas}</p>
-    </div>
+  const categoriasVisibles = listos.categorias.filter(c => c.activo && (!filtros.especie || c.especie_id === filtros.especie))
+  const nombreEspecie = new Map(listos.especies.map(e => [e.id, e.nombre]))
+  const cantidadFiltros = activos.length
+  const selects = (
+    <>
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">Período
+        <select className={cn(SELECT_NATIVO, "min-w-44")} value={filtros.periodo}
+          onChange={e => setFiltros(f => ({ ...f, periodo: e.target.value }))}>
+          {opcionesPeriodo().map(o => <option key={o.clave} value={o.clave}>{o.etiqueta}</option>)}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">Especie
+        <select className={SELECT_NATIVO} value={filtros.especie}
+          onChange={e => setFiltros(f => ({ ...f, especie: e.target.value, categoria: "" }))}>
+          <option value="">Todas</option>
+          {listos.especies.filter(e => e.activo).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">Categoría
+        <select className={SELECT_NATIVO} value={filtros.categoria}
+          onChange={e => setFiltros(f => ({ ...f, categoria: e.target.value }))}>
+          <option value="">Todas</option>
+          {categoriasVisibles.map(c => (
+            <option key={c.id} value={c.id}>{filtros.especie ? c.nombre : `${nombreEspecie.get(c.especie_id) ?? ""} · ${c.nombre}`}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-muted-foreground">Lote
+        <select className={SELECT_NATIVO} value={filtros.lote} onChange={e => setFiltros(f => ({ ...f, lote: e.target.value }))}>
+          <option value="">Todos</option>
+          {listos.lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+        </select>
+      </label>
+    </>
   )
 
   return (
-    <Card>
-      <CardContent className="space-y-3 pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-semibold">{etiquetaTemporada(fila.temporada)}</h3>
-          {!sinServicio && <span className="text-sm text-muted-foreground tabular-nums">{fila.entoradas} entoradas</span>}
-        </div>
-
-        {sinServicio ? (
+    <PageContainer ancho>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">{editando ? `Editando · ${actual.nombre}` : "Indicadores"}</h1>
           <p className="text-sm text-muted-foreground">
-            Estas actividades no tienen un servicio cargado en el lote (o en los lotes de los que viene) en los 450 días anteriores,
-            así que no suman a ninguna temporada: {[
-              fila.prenadas > 0 && `${fila.prenadas} preñadas`,
-              fila.nacidas_vivas > 0 && `${fila.nacidas_vivas} crías nacidas`,
-              fila.destetadas > 0 && `${fila.destetadas} destetadas`,
-            ].filter(Boolean).join(", ") || "sin cabezas"}. Cargá el servicio para que cuenten.
+            {editando
+              ? "Arrastrá las tarjetas desde la manija y cambiá el tamaño desde la esquina de abajo a la derecha."
+              : listos.guardado ? establecimientoActivo.nombre : `${establecimientoActivo.nombre} · tablero de ejemplo (todavía no se guardó uno propio)`}
           </p>
-        ) : (
-          <>
-            <div className="grid grid-cols-3 gap-2">
-              {dato("Preñez", fila.pct_prenez, fila.prenadas)}
-              {dato("Parición", fila.pct_paricion, fila.nacidas_vivas)}
-              {dato("Destete", fila.pct_destete, fila.destetadas)}
+        </div>
+        {esAdmin && grande && (
+          editando ? (
+            <div className="flex flex-wrap gap-2">
+              <select aria-label="Agregar tarjeta" className={cn(SELECT_NATIVO, "w-auto")} value=""
+                onChange={e => { if (e.target.value !== "") agregarTarjeta(Number(e.target.value)) }}>
+                <option value="">+ Agregar tarjeta…</option>
+                {TARJETAS_LISTAS.map((t, i) => <option key={t.titulo} value={i}>{t.titulo}</option>)}
+              </select>
+              <Button variant="outline" onClick={() => { if (window.confirm("¿Volver al tablero de ejemplo? Se reemplazan todas las páginas.")) { setBorrador(plantilla()); setPagina(0) } }}>
+                Volver al ejemplo
+              </Button>
+              <Button variant="outline" disabled={guardando} onClick={() => setBorrador(null)}>Descartar</Button>
+              <Button disabled={guardando} onClick={() => void guardar()}>{guardando ? "Guardando..." : "Guardar tablero"}</Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {fila.diagnosticadas > 0 ? `${fila.diagnosticadas} diagnosticadas` : "Sin diagnóstico"}
-              {fila.nacidas_muertas > 0 && ` · ${fila.nacidas_muertas} nacidas muertas (no cuentan en el %)`}
-            </p>
-          </>
-        )}
-
-        {fila.destete_mixto && (
-          <p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-            <span>
-              <strong>Caso mixto:</strong> un destete sacó crías de pariciones de dos temporadas y se contó entero en esta (la de la
-              parición más antigua). Por eso el % de destete puede pasar de 100 acá y quedar bajo en la otra.
-            </span>
-          </p>
-        )}
-
-        <Button type="button" variant="ghost" size="sm" className="h-10 md:h-8 px-0 text-primary" onClick={() => void alternar()}>
-          {abierto ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
-          {abierto ? "Ocultar detalle" : "Ver detalle"}
-        </Button>
-
-        {abierto && (
-          error ? <p role="alert" className="text-sm text-destructive">{error}</p>
-          : !detalle ? <div className="h-16 rounded-lg bg-muted/30 animate-pulse" />
-          : (
-            <ul className="rounded-lg border divide-y text-sm">
-              {detalle.aportes.map(a => (
-                <li key={`${a.actividad_id}:${a.lote_id}`} className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 ${a.cuenta ? "" : "text-muted-foreground"}`}>
-                  <span className="min-w-0">
-                    <Link href={`/actividades/${a.actividad_id}`} className="font-medium text-primary">{ETIQUETA_APORTE[a.tipo]}</Link>
-                    {" · "}{fechaCorta(a.fecha)} · {detalle.lotes.get(a.lote_id) ?? "lote"}
-                  </span>
-                  <span className="tabular-nums">
-                    {a.tipo === "servicio" && `${a.entoradas} entoradas${a.cuenta ? "" : " (repaso: no se suma)"}`}
-                    {a.tipo === "diagnostico_gestacion" && `${a.prenadas} de ${a.diagnosticadas} preñadas${a.cuenta ? "" : " (hay uno posterior: no se suma)"}`}
-                    {a.tipo === "paricion" && `${a.nacidas_vivas} vivas${a.nacidas_muertas > 0 ? `, ${a.nacidas_muertas} muertas` : ""}`}
-                    {a.tipo === "destete" && `${a.destetadas} destetadas${a.mixto ? " (mixto)" : ""}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          ) : (
+            <Button onClick={() => setBorrador(structuredClone(paginas))}>Editar tablero</Button>
           )
         )}
-      </CardContent>
-    </Card>
+        {!grande && (
+          <Button variant="outline" className="h-11" onClick={() => setPanelFiltros(true)}>
+            <SlidersHorizontal className="mr-1 h-4 w-4" /> Filtros{cantidadFiltros > 0 ? ` · ${cantidadFiltros}` : ""}
+          </Button>
+        )}
+      </div>
+
+      {/* Páginas */}
+      <div role="tablist" aria-label="Páginas del tablero"
+        className={cn("mb-4 flex gap-1 overflow-x-auto", grande ? "border-b" : "-mx-4 px-4 pb-1")}>
+        {paginas.map((p, i) => (
+          editando && i === idx ? (
+            <div key={p.id} className="flex shrink-0 items-center gap-1 border-b-2 border-primary px-1 pb-1">
+              <input aria-label="Nombre de la página" value={p.nombre} maxLength={40}
+                onChange={e => cambiarPagina(x => ({ ...x, nombre: e.target.value }))}
+                className="h-8 w-40 rounded-md border px-2 text-sm font-semibold" />
+              <button type="button" aria-label="Mover a la izquierda" disabled={idx === 0} onClick={() => correrPagina(-1)}
+                className="rounded p-1 hover:bg-muted disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+              <button type="button" aria-label="Mover a la derecha" disabled={idx === paginas.length - 1} onClick={() => correrPagina(1)}
+                className="rounded p-1 hover:bg-muted disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
+              <button type="button" aria-label="Borrar la página" onClick={borrarPagina}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+            </div>
+          ) : (
+            <button key={p.id} type="button" role="tab" aria-selected={i === idx} onClick={() => setPagina(i)}
+              className={cn("shrink-0 text-sm transition-colors",
+                grande
+                  ? cn("border-b-2 px-4 py-2.5", i === idx ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground")
+                  : cn("min-h-10 rounded-full px-4", i === idx ? "bg-primary font-semibold text-primary-foreground" : "border bg-card"))}>
+              {p.nombre}
+            </button>
+          )
+        ))}
+        {editando && (
+          <button type="button" onClick={agregarPagina} className="flex shrink-0 items-center gap-1 px-3 py-2 text-sm text-primary hover:underline">
+            <Plus className="h-4 w-4" /> Página
+          </button>
+        )}
+      </div>
+
+      {/* Filtros generales: barra en la computadora; en el celular, un resumen y el panel de abajo */}
+      {grande ? (
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card px-3 py-2.5">{selects}</div>
+      ) : (
+        <p className="mb-3 text-sm text-muted-foreground">
+          {opcionesPeriodo().find(o => o.clave === filtros.periodo)?.etiqueta}
+          {filtros.especie && ` · ${nombreEspecie.get(filtros.especie) ?? ""}`}
+          {filtros.categoria && ` · ${listos.categorias.find(c => c.id === filtros.categoria)?.nombre ?? ""}`}
+          {filtros.lote && ` · ${listos.lotes.find(l => l.id === filtros.lote)?.nombre ?? ""}`}
+        </p>
+      )}
+
+      {actual.tarjetas.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          {editando ? "Página vacía: agregá tarjetas con “+ Agregar tarjeta”." : "Esta página no tiene tarjetas."}
+        </div>
+      ) : (
+        <Grilla tarjetas={actual.tarjetas} grande={grande} edicion={editando} onMover={mover}
+          render={t => (
+            <Tarjeta tarjeta={t} estId={listos.estId} rango={rango} filtros={aplicados} activos={activos} edicion={editando}
+              onQuitar={() => cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.filter(x => x.id !== t.id) }))} />
+          )} />
+      )}
+
+      {/* Celular: filtros en un panel desde abajo */}
+      {!grande && panelFiltros && (
+        <div className="fixed inset-0 z-50">
+          <button type="button" aria-label="Cerrar los filtros" className="absolute inset-0 bg-black/40" onClick={() => setPanelFiltros(false)} />
+          <section role="dialog" aria-modal="true" aria-label="Filtros"
+            className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col gap-3 overflow-y-auto rounded-t-2xl bg-background px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">Filtros</h2>
+              <button type="button" aria-label="Cerrar" onClick={() => setPanelFiltros(false)} className="rounded-full p-2 hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3 [&_select]:h-11">{selects}</div>
+            <div className="mt-1 flex gap-2">
+              <Button variant="outline" className="h-12 flex-1"
+                onClick={() => setFiltros(f => ({ ...f, especie: "", categoria: "", lote: "" }))}>Limpiar</Button>
+              <Button className="h-12 flex-[2]" onClick={() => setPanelFiltros(false)}>Ver resultados</Button>
+            </div>
+          </section>
+        </div>
+      )}
+    </PageContainer>
   )
 }

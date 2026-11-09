@@ -2632,6 +2632,91 @@ export type Database = {
         }
         Relationships: []
       }
+      tablero_paginas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          establecimiento_id: string
+          id: string
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id: string
+          id?: string
+          nombre: string
+          orden: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          establecimiento_id?: string
+          id?: string
+          nombre?: string
+          orden?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tablero_paginas_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tablero_tarjetas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          definicion: Json
+          establecimiento_id: string
+          h: number
+          id: string
+          pagina_id: string
+          titulo: string
+          w: number
+          x: number
+          y: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          definicion: Json
+          establecimiento_id: string
+          h: number
+          id?: string
+          pagina_id: string
+          titulo: string
+          w: number
+          x: number
+          y: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          definicion?: Json
+          establecimiento_id?: string
+          h?: number
+          id?: string
+          pagina_id?: string
+          titulo?: string
+          w?: number
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tablero_tarjetas_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       titulares: {
         Row: {
           activo: boolean
@@ -3719,6 +3804,10 @@ export type Database = {
         }
         Returns: number
       }
+      guardar_tablero: {
+        Args: { p_establecimiento_id: string; p_paginas: Json }
+        Returns: undefined
+      }
       linaje_lote: {
         Args: { p_lote_id: string }
         Returns: {
@@ -3964,6 +4053,48 @@ export type Database = {
       restaurar_archivo_lote: {
         Args: { p_archivo_id: string; p_lote_id: string }
         Returns: undefined
+      }
+      tablero_reproductivos: {
+        Args: {
+          p_abrir_por: string
+          p_desde: string
+          p_establecimiento_id: string
+          p_filtros?: Json
+          p_hasta: string
+          p_medida: string
+          p_opciones?: Json
+          p_tiempo: string
+        }
+        Returns: {
+          avisos: Json
+          clave: string
+          denominador: number
+          etiqueta: string
+          numerador: number
+          periodo: string
+          valor: number
+        }[]
+      }
+      tablero_stock: {
+        Args: {
+          p_abrir_por: string
+          p_desde: string
+          p_establecimiento_id: string
+          p_filtros?: Json
+          p_hasta: string
+          p_medida: string
+          p_opciones?: Json
+          p_tiempo: string
+        }
+        Returns: {
+          avisos: Json
+          clave: string
+          denominador: number
+          etiqueta: string
+          numerador: number
+          periodo: string
+          valor: number
+        }[]
       }
       superficie_total: {
         Args: { e: Database["public"]["Tables"]["establecimientos"]["Row"] }

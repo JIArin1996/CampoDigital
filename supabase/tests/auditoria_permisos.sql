@@ -141,7 +141,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261106000100, superficie del dibujo): 148 filas, todas con ok = true.
+-- ESPERADO (después de 20261109000200, tablero de indicadores): 151 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -157,7 +157,9 @@ order by 1 desc, 2, 3, 4;
 -- 0 de 20261104000600: entran cambiar_estado_decision y eliminar_entrada_bitacora, salen anular_entrada_bitacora
 -- y restaurar_entrada_bitacora;
 -- +2 de 20261106000100: el trigger calcular_superficie_potrero y la columna calculada superficie_total
--- (guardar_forma_potrero y crear_establecimiento se recrean con menos parámetros: siguen siendo una cada una).)
+-- (guardar_forma_potrero y crear_establecimiento se recrean con menos parámetros: siguen siendo una cada una);
+-- +3 de 20261109000100 y 20261109000200: guardar_tablero, tablero_stock y tablero_reproductivos (las internas
+-- _tablero_periodos y _tablero_uuids de la 0100 se borran en la 0200).)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -263,6 +265,7 @@ order by 1 desc, 2, 3, 4;
 --   estadia_cambio_estado_lote  | true             | false         | false | false
 --   fecha_hoy                   | false            | true          | false | false
 --   guardar_forma_potrero       | true             | true          | false | false
+--   guardar_tablero             | true             | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
 --   marcar_cierre_entrada       | false            | false         | false | false
 --   marcar_dosis_dada           | true             | true          | false | false
@@ -305,6 +308,8 @@ order by 1 desc, 2, 3, 4;
 --   sincronizar_potrero_lote    | true             | false         | false | false
 --   stock_al                    | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
+--   tablero_reproductivos       | false            | true          | false | false
+--   tablero_stock               | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
 --   validar_anios_nacimiento    | false            | false         | false | false
 --   validar_baja_categoria      | true             | false         | false | false
@@ -367,7 +372,7 @@ select
                                             'adjuntar_archivo_actividad', 'quitar_archivo_actividad', 'eliminar_actividad',
                                             'editar_compra', 'editar_venta', 'editar_pesada', 'editar_mortandad', 'editar_paricion',
                                             'editar_sanidad', 'editar_servicio', 'editar_diagnostico', 'editar_esquila',
-                                            'editar_personalizada', 'editar_destete'))
+                                            'editar_personalizada', 'editar_destete', 'guardar_tablero'))
   ) as ok
 from f
 order by f.funcion;

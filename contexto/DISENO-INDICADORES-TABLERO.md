@@ -166,7 +166,8 @@ fecha del servicio (igual que hoy). **Mes** = mes calendario.
 
 ## 6. Filtros
 
-- **Generales** (arriba): período, especie, lote, comparar con. Aplican a todas las tarjetas de la página.
+- **Generales** (arriba): período, especie, categoría, lote y (etapa 4) comparar con. Aplican a todas las tarjetas
+  de la página.
 - **Cruzados**: tocar un elemento de un gráfico (una categoría, un lote, un mes) agrega un filtro por esa dimensión y
   valor; se ve como chip con × junto a los generales. Tocar otro elemento de la misma dimensión lo reemplaza; tocar el
   mismo lo saca. La tarjeta de origen **resalta** el elemento elegido (no se filtra a sí misma).
@@ -182,9 +183,13 @@ Dos tablas nuevas (migración), por establecimiento:
 
 - `tablero_paginas (id, establecimiento_id, nombre, orden, created_at, updated_at)`
 - `tablero_tarjetas (id, establecimiento_id, pagina_id, titulo, definicion jsonb, x, y, w, h, created_at, updated_at)`
-  - `definicion`: `{fuente, medida, abrir_por, tiempo, grafico, filtros: {...}, periodo: "tablero" | {...}}`.
+  - `definicion`: `{fuente, medidas: [...], abrir_por, tiempo, grafico, filtros: {...}, periodo: "tablero" | {"ejercicios": n}}`.
+    `medidas` es una lista: con más de una (de la misma unidad) cada una es una serie del gráfico (ej. % preñez,
+    parición y destete por temporada).
+  - Se guarda entero con `guardar_tablero(establecimiento, páginas)` (security definer, solo administradores): las
+    tablas no tienen permisos de escritura para nadie.
   - `x, y, w, h`: posición en la grilla de 12 columnas (react-grid-layout).
-- RLS: leen los miembros; escriben **solo administradores** (políticas con `es_admin()`), con permisos por columna.
+- RLS: leen los miembros; escribe **solo el administrador**, a través de `guardar_tablero` (ver arriba).
 - **Plantilla por defecto**: si el establecimiento no tiene páginas guardadas, la app muestra la página **"Resumen"**
   definida en el código (stock y reproductivos). Al primer "Guardar tablero" del Administrador se guarda en la base.
 
