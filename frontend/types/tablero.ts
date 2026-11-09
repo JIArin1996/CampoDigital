@@ -14,6 +14,22 @@ export interface DefinicionTarjeta {
   grafico: Grafico
   // 'tablero' (o sin dato): el período de arriba. { ejercicios: n }: los últimos n ejercicios hasta el de arriba.
   periodo?: 'tablero' | { ejercicios: number }
+  // Filtro propio: manda sobre el cruzado y el general (prioridad propio > cruzado > general)
+  filtros?: FiltrosIds
+}
+
+export interface FiltrosIds {
+  especie_ids?: string[]
+  categoria_ids?: string[]
+  lote_ids?: string[]
+}
+
+// Filtro cruzado: lo que se tocó en un gráfico (una especie, categoría o lote), que filtra las demás tarjetas
+export interface FiltroCruzado {
+  dimension: 'especie' | 'categoria' | 'lote'
+  clave: string          // id
+  etiqueta: string
+  origen: string         // id de la tarjeta donde se tocó (esa no se filtra: resalta lo elegido)
 }
 
 export interface TarjetaTablero {

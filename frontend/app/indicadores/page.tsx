@@ -17,10 +17,11 @@ import { nuevoId } from "@/components/actividades/formato"
 import { TARJETAS_LISTAS, plantilla } from "@/components/tablero/catalogo"
 import { opcionesPeriodo, periodoPorDefecto, rangoDe } from "@/components/tablero/periodos"
 import { Grilla } from "@/components/tablero/Grilla"
-import { Tarjeta, type FiltrosAplicados } from "@/components/tablero/Tarjeta"
+import { Tarjeta } from "@/components/tablero/Tarjeta"
+import { Constructor } from "@/components/tablero/Constructor"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
-import type { Dimension, FiltrosTablero, PaginaTablero } from "@/types/tablero"
+import type { FiltroCruzado, FiltrosIds, FiltrosTablero, PaginaTablero, TarjetaTablero } from "@/types/tablero"
 
 export default function IndicadoresPage() {
   return (
@@ -53,9 +54,11 @@ function usePantallaGrande() {
 
 /**
  * Indicadores: tablero del establecimiento con páginas (pestañas) y tarjetas en una grilla. Todos lo ven y usan los
- * filtros generales (período, especie, categoría y lote, que quedan en la URL); solo el Administrador lo edita, y
- * solo en la computadora: mover, cambiar el tamaño, sacar y agregar tarjetas, y crear, renombrar, ordenar y borrar
- * páginas. Mientras el establecimiento no guardó su tablero, se ve la plantilla "Resumen".
+ * filtros generales (período, especie, categoría y lote, que quedan en la URL) y el filtrado cruzado (tocar una
+ * barra, porción o fila de una tarjeta abierta por especie, categoría o lote filtra las demás). Solo el
+ * Administrador lo edita, y solo en la computadora: mover, cambiar el tamaño, sacar, agregar y armar tarjetas con
+ * el constructor, y crear, renombrar, ordenar y borrar páginas. Mientras el establecimiento no guardó su tablero,
+ * se ve la plantilla "Resumen".
  */
 function Indicadores() {
   const params = useSearchParams()
@@ -76,6 +79,9 @@ function Indicadores() {
   const [borrador, setBorrador] = useState<PaginaTablero[] | null>(null)   // en edición
   const [guardando, setGuardando] = useState(false)
   const [panelFiltros, setPanelFiltros] = useState(false)
+  const [cruzado, setCruzado] = useState<FiltroCruzado | null>(null)
+  // Constructor abierto: tarjeta a editar, o null para una nueva
+  const [constructor, setConstructor] = useState<{ tarjeta: TarjetaTablero | null } | null>(null)
 
   useEffect(() => {
     if (!estId) return
@@ -113,16 +119,27 @@ function Indicadores() {
   const actual = paginas[idx]
   const rango = rangoDe(filtros.periodo)!
 
-  const aplicados: FiltrosAplicados = {
+  const generales: FiltrosIds = {
     especie_ids: filtros.especie ? [filtros.especie] : undefined,
     categoria_ids: filtros.categoria ? [filtros.categoria] : undefined,
     lote_ids: filtros.lote ? [filtros.lote] : undefined,
   }
-  const activos: Dimension[] = [
-    ...(filtros.especie ? ["especie" as const] : []),
-    ...(filtros.categoria ? ["categoria" as const] : []),
-    ...(filtros.lote ? ["lote" as const] : []),
-  ]
+  const nombres = {
+    especie: new Map(listos.especies.map(e => [e.id, e.nombre])),
+    categoria: new Map(listos.categorias.map(c => [c.id, c.nombre])),
+    lote: new Map(listos.lotes.map(l => [l.id, l.nombre])),
+  }
+  const nombre = (dim: "especie" | "categoria" | "lote", id: string) => nombres[dim].get(id) ?? "—"
+  // Tocar lo mismo otra vez lo saca; otra cosa de la misma dimensión lo reemplaza
+  const elegir = (origen: string) => (c: Omit<FiltroCruzado, "origen">) =>
+    setCruzado(x => (x && x.dimension === c.dimension && x.clave === c.clave ? null : { ...c, origen }))
+  const chipCruzado = cruzado && (
+    <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-accent pl-3 pr-1 text-sm font-semibold text-accent-foreground">
+      Filtrado por {cruzado.dimension === "categoria" ? "categoría" : cruzado.dimension}: {cruzado.etiqueta}
+      <button type="button" aria-label={`Sacar el filtro ${cruzado.etiqueta}`} onClick={() => setCruzado(null)}
+        className="rounded-full p-1 hover:bg-background/60"><X className="h-4 w-4" /></button>
+    </span>
+  )
 
   // ── Edición ────────────────────────────────────────────────────────────────
   const cambiarPagina = (cambio: (p: PaginaTablero) => PaginaTablero) =>
@@ -176,9 +193,19 @@ function Indicadores() {
     }
   }
 
+  const aceptarTarjeta = (t: TarjetaTablero) => {
+    const existe = actual.tarjetas.some(x => x.id === t.id)
+    const abajo = actual.tarjetas.reduce((m, x) => Math.max(m, x.y + x.h), 0)
+    cambiarPagina(p => ({
+      ...p,
+      tarjetas: existe ? p.tarjetas.map(x => (x.id === t.id ? t : x)) : [...p.tarjetas, { ...t, x: 0, y: abajo }],
+    }))
+    setConstructor(null)
+  }
+
   const categoriasVisibles = listos.categorias.filter(c => c.activo && (!filtros.especie || c.especie_id === filtros.especie))
-  const nombreEspecie = new Map(listos.especies.map(e => [e.id, e.nombre]))
-  const cantidadFiltros = activos.length
+  const nombreEspecie = nombres.especie
+  const cantidadFiltros = [filtros.especie, filtros.categoria, filtros.lote].filter(Boolean).length + (cruzado ? 1 : 0)
   const selects = (
     <>
       <label className="flex flex-col gap-1 text-xs text-muted-foreground">Período
@@ -226,15 +253,16 @@ function Indicadores() {
         {esAdmin && grande && (
           editando ? (
             <div className="flex flex-wrap gap-2">
-              <select aria-label="Agregar tarjeta" className={cn(SELECT_NATIVO, "w-auto")} value=""
+              <Button onClick={() => setConstructor({ tarjeta: null })}><Plus className="mr-1 h-4 w-4" /> Nueva tarjeta</Button>
+              <select aria-label="Agregar una tarjeta lista" className={cn(SELECT_NATIVO, "w-auto")} value=""
                 onChange={e => { if (e.target.value !== "") agregarTarjeta(Number(e.target.value)) }}>
-                <option value="">+ Agregar tarjeta…</option>
+                <option value="">Agregar una tarjeta lista…</option>
                 {TARJETAS_LISTAS.map((t, i) => <option key={t.titulo} value={i}>{t.titulo}</option>)}
               </select>
               <Button variant="outline" onClick={() => { if (window.confirm("¿Volver al tablero de ejemplo? Se reemplazan todas las páginas.")) { setBorrador(plantilla()); setPagina(0) } }}>
                 Volver al ejemplo
               </Button>
-              <Button variant="outline" disabled={guardando} onClick={() => setBorrador(null)}>Descartar</Button>
+              <Button variant="outline" disabled={guardando} onClick={() => { setBorrador(null); setConstructor(null) }}>Descartar</Button>
               <Button disabled={guardando} onClick={() => void guardar()}>{guardando ? "Guardando..." : "Guardar tablero"}</Button>
             </div>
           ) : (
@@ -283,27 +311,41 @@ function Indicadores() {
 
       {/* Filtros generales: barra en la computadora; en el celular, un resumen y el panel de abajo */}
       {grande ? (
-        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card px-3 py-2.5">{selects}</div>
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-card px-3 py-2.5">
+          {selects}
+          {chipCruzado && <div className="ml-auto self-center">{chipCruzado}</div>}
+        </div>
       ) : (
         <p className="mb-3 text-sm text-muted-foreground">
           {opcionesPeriodo().find(o => o.clave === filtros.periodo)?.etiqueta}
           {filtros.especie && ` · ${nombreEspecie.get(filtros.especie) ?? ""}`}
           {filtros.categoria && ` · ${listos.categorias.find(c => c.id === filtros.categoria)?.nombre ?? ""}`}
           {filtros.lote && ` · ${listos.lotes.find(l => l.id === filtros.lote)?.nombre ?? ""}`}
+          {cruzado && <span className="mt-2 flex">{chipCruzado}</span>}
         </p>
       )}
 
-      {actual.tarjetas.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {editando ? "Página vacía: agregá tarjetas con “+ Agregar tarjeta”." : "Esta página no tiene tarjetas."}
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          {actual.tarjetas.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              {editando ? "Página vacía: armá una con “Nueva tarjeta” o agregá una lista." : "Esta página no tiene tarjetas."}
+            </div>
+          ) : (
+            <Grilla tarjetas={actual.tarjetas} grande={grande} edicion={editando} onMover={mover}
+              render={t => (
+                <Tarjeta tarjeta={t} estId={listos.estId} rango={rango} generales={generales} cruzado={cruzado} nombre={nombre}
+                  edicion={editando} onElegir={elegir(t.id)} onEditar={() => setConstructor({ tarjeta: t })}
+                  onQuitar={() => cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.filter(x => x.id !== t.id) }))} />
+              )} />
+          )}
         </div>
-      ) : (
-        <Grilla tarjetas={actual.tarjetas} grande={grande} edicion={editando} onMover={mover}
-          render={t => (
-            <Tarjeta tarjeta={t} estId={listos.estId} rango={rango} filtros={aplicados} activos={activos} edicion={editando}
-              onQuitar={() => cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.filter(x => x.id !== t.id) }))} />
-          )} />
-      )}
+        {editando && constructor && (
+          <Constructor key={constructor.tarjeta?.id ?? "nueva"} inicial={constructor.tarjeta} estId={listos.estId} rango={rango}
+            especies={listos.especies} categorias={listos.categorias} lotes={listos.lotes} nombre={nombre}
+            onAceptar={aceptarTarjeta} onCancelar={() => setConstructor(null)} />
+        )}
+      </div>
 
       {/* Celular: filtros en un panel desde abajo */}
       {!grande && panelFiltros && (
@@ -318,9 +360,10 @@ function Indicadores() {
               </button>
             </div>
             <div className="flex flex-col gap-3 [&_select]:h-11">{selects}</div>
+            {chipCruzado && <div>{chipCruzado}</div>}
             <div className="mt-1 flex gap-2">
               <Button variant="outline" className="h-12 flex-1"
-                onClick={() => setFiltros(f => ({ ...f, especie: "", categoria: "", lote: "" }))}>Limpiar</Button>
+                onClick={() => { setFiltros(f => ({ ...f, especie: "", categoria: "", lote: "" })); setCruzado(null) }}>Limpiar</Button>
               <Button className="h-12 flex-[2]" onClick={() => setPanelFiltros(false)}>Ver resultados</Button>
             </div>
           </section>
