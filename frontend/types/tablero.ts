@@ -1,6 +1,6 @@
 // Tablero de Indicadores (diseño: contexto/DISENO-INDICADORES-TABLERO.md)
 
-export type Fuente = 'stock' | 'reproductivos' | 'pesadas' | 'economia' | 'potreros'
+export type Fuente = 'stock' | 'reproductivos' | 'pesadas' | 'economia' | 'potreros' | 'produccion'
 export type Dimension = 'especie' | 'categoria' | 'lote' | 'motivo' | 'rubro' | 'concepto' | 'grupo' | 'titular' | 'potrero'
 export type Tiempo = 'total' | 'mes' | 'ejercicio' | 'temporada'
 export type Grafico = 'numero' | 'barras' | 'barras_horizontales' | 'lineas' | 'torta' | 'tabla'

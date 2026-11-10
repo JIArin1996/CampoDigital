@@ -50,6 +50,7 @@ export async function getDatosTablero(c: ConsultaTablero): Promise<FilaTablero[]
     : c.definicion.fuente === 'pesadas' ? 'tablero_pesadas'
     : c.definicion.fuente === 'economia' ? 'tablero_economia'
     : c.definicion.fuente === 'potreros' ? 'tablero_potreros'
+    : c.definicion.fuente === 'produccion' ? 'tablero_produccion'
     : null
   if (!funcion) throw new Error('Esta fuente de datos todavía no está disponible')
   const { data, error } = await createClient().rpc(funcion, {

@@ -143,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261111000300, actividad Consumo): 164 filas, todas con ok = true.
+-- ESPERADO (después de 20261112000200, fuente Producción del tablero): 165 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -166,7 +166,8 @@ order by 1 desc, 2, 3, 4;
 -- +4 de 20261109000500: tablero_economia, tablero_potreros, la interna _ug_por_nombre y el trigger completar_ug_categoria;
 -- +5 de 20261110000100: guardar_zona_potrero, borrar_zona_potrero, superficie_efectiva_total y las internas
 -- _cargar_zona_tipos y _geometria_de_geojson;
--- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo.)
+-- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo;
+-- +1 de 20261112000200: tablero_produccion.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -328,6 +329,7 @@ order by 1 desc, 2, 3, 4;
 --   tablero_economia            | false            | true          | false | false
 --   tablero_pesadas             | false            | true          | false | false
 --   tablero_potreros            | false            | true          | false | false
+--   tablero_produccion          | false            | true          | false | false
 --   tablero_reproductivos       | false            | true          | false | false
 --   tablero_stock               | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false

@@ -343,8 +343,25 @@ Dos tablas nuevas (migración), por establecimiento:
       le aplica.
     - **% vacas de cría** sin abrir por especie y con más de una especie: aviso `varias_especies`.
     - **Peso al destete**: solo los orígenes con peso (aviso `destetados_sin_peso`).
-  - **6b**: `tablero_produccion` (kg en stock, producción de carne, kg vendidos y comprados, peso de venta, lana,
-    carne equivalente).
+  - **6b** (hecho): `tablero_produccion`, fuente "Kilos y lana" (kg en stock al cierre, producción de carne, kg
+    vendidos y comprados, peso de venta, lana total y por animal, carne equivalente). Reglas fijadas al hacerla:
+    - **Pesada posterior**: además de lo de la sección 4, la cortan la recategorización y la parición del lote; un
+      evento el mismo día de la pesada no la corta si la pesada tiene las cabezas de la fecha.
+    - **Pesada anterior de los ancestros**: si hay varias el mismo día (ej. los dos lotes de una unión), se ponderan
+      por cabezas.
+    - **Altas iniciales del período**: se restan en la producción de carne, valuadas a su fecha como el stock (si no,
+      cargar un lote nuevo contaría como kilos producidos).
+    - **Producción y carne equivalente** se abren y filtran solo por especie: abiertas por lote o categoría, los kg
+      que pasan de un lote o categoría a otro (unión, destete, recategorización) parecerían producción de uno y
+      pérdida del otro.
+    - **Lana**: por especie o lote; una esquila de varios lotes se reparte por las cabezas de cada uno ese día. Lana
+      por animal = lana / cabezas de los lotes esquilados ese día.
+    - **Carne equivalente**: producción de carne de las especies de grupo bovino y ovino + lana × factor (opción
+      `factor_lana`, 2,48).
+    - **Avisos** (`cab_con_peso_referencia`, `cab_sin_peso`, `cab_vendidas_sin_kg`, `cab_compradas_sin_kg`,
+      `cab_consumidas_sin_kg`): los del último período; las cabezas una vez por lote y categoría.
+    - **Kg en stock promedio** (sección 4, "Semi-aditivas, dos versiones"): queda afuera (decisión del 10/11/2026).
+      Valuar cada día con la regla de las pesadas es pesado y ninguna medida combinada lo usa; hay kg al cierre.
   - **6c**: economía (gastos operativos, precio de venta, flujo de caja, % del gasto, saldos) y potreros (carga
     promedio, presión, Ha SPG, ha forestadas, sin animales, días desde la última salida).
   - **6d**: `tablero_gestion` (tareas, carencias, próximas dosis).

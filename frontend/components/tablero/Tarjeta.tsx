@@ -29,6 +29,7 @@ function formato(n: number | null, unidad: Unidad) {
     case "kg": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg`
     case "kg/día": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg/día`
     case "kg/vaca": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg/vaca`
+    case "kg/cab": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 2 })} kg/cab`
     case "razón": return n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     case "USD": return `${n < 0 ? "−" : ""}USD ${Math.abs(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
     case "UG/ha": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UG/ha`
@@ -257,6 +258,13 @@ function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias:
   if (avisos.varias_especies) textos.push("Mezcla especies: abrí o filtrá por especie para ver el % de cada una")
   const sinPeso = Number(avisos.destetados_sin_peso ?? 0)
   if (sinPeso > 0) textos.push(`${sinPeso} ${sinPeso === 1 ? "destetado" : "destetados"} sin peso: no suman kilos`)
+  const cab = (clave: string) => Number(avisos[clave] ?? 0)
+  const cabezas = (n: number) => `${n.toLocaleString("es-UY")} ${n === 1 ? "cabeza" : "cabezas"}`
+  if (cab("cab_con_peso_referencia") > 0) textos.push(`${cabezas(cab("cab_con_peso_referencia"))} sin pesada cerca (60 días): se valuaron con el peso de referencia`)
+  if (cab("cab_sin_peso") > 0) textos.push(`${cabezas(cab("cab_sin_peso"))} sin pesada ni peso de referencia: no suman kilos. El peso de referencia se carga en Especies.`)
+  if (cab("cab_vendidas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_vendidas_sin_kg"))} vendidas sin kg`)
+  if (cab("cab_compradas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_compradas_sin_kg"))} compradas sin kg`)
+  if (cab("cab_consumidas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_consumidas_sin_kg"))} de consumo sin kg`)
   if (textos.length === 0) return null
   return (
     <ul className="space-y-0.5 text-xs text-amber-800 dark:text-amber-300">

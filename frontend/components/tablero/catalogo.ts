@@ -6,7 +6,7 @@ import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTabler
  * marcar los filtros que no aplican.
  */
 
-export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "USD" | "UG" | "UG/ha" | "ha" | "días" | "razón"
+export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "UG" | "UG/ha" | "ha" | "días" | "razón"
 
 export interface Medida {
   etiqueta: string
@@ -77,6 +77,20 @@ MEDIDAS.potreros = {
   dias_descanso:  { etiqueta: "Días de descanso",    unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
 }
 
+// Kilos y lana (etapa 6b): kg en stock valuados con la pesada más cercana (o el peso de referencia) y producción de
+// carne por inventario. La producción y la carne equivalente solo se abren y filtran por especie (los kg pasan de un
+// lote o una categoría a otro); la lana, por especie y lote (la esquila no dice categorías).
+MEDIDAS.produccion = {
+  kg_stock:          { etiqueta: "Kg en stock al cierre",      unidad: "kg",     tiempos: ["total", "mes", "ejercicio"] },
+  produccion_carne:  { etiqueta: "Producción de carne",        unidad: "kg",     tiempos: ["total", "ejercicio"], abrir: ["especie"], filtran: ["especie"] },
+  kg_vendidos:       { etiqueta: "Kg vendidos",                unidad: "kg",     tiempos: ["total", "mes", "ejercicio"] },
+  kg_comprados:      { etiqueta: "Kg comprados",               unidad: "kg",     tiempos: ["total", "mes", "ejercicio"] },
+  peso_venta:        { etiqueta: "Peso promedio de venta",     unidad: "kg",     tiempos: ["total", "mes", "ejercicio"] },
+  lana:              { etiqueta: "Lana",                       unidad: "kg",     tiempos: ["total", "ejercicio"], abrir: ["especie", "lote"], filtran: ["especie", "lote"] },
+  lana_por_animal:   { etiqueta: "Lana por animal esquilado",  unidad: "kg/cab", tiempos: ["total", "ejercicio"], abrir: ["especie", "lote"], filtran: ["especie", "lote"] },
+  carne_equivalente: { etiqueta: "Carne equivalente",          unidad: "kg",     tiempos: ["total", "ejercicio"], abrir: ["especie"], filtran: ["especie"] },
+}
+
 // Medidas de pesadas que usan tramos entre pesadas (y el mínimo de días)
 export const USAN_TRAMOS = ["ganancia_diaria", "kg_producidos"]
 export const MIN_DIAS_POR_DEFECTO = 21
@@ -88,6 +102,7 @@ export const DIMENSIONES: Partial<Record<Fuente, Dimension[]>> = {
   pesadas: ["especie", "categoria", "lote"],
   economia: ["especie", "lote", "rubro", "concepto", "grupo", "titular"],
   potreros: ["potrero"],
+  produccion: ["especie", "categoria", "lote"],
 }
 
 // Qué filtros (especie, categoría, lote) le aplican a cada fuente; los demás se marcan "no aplica"
@@ -97,6 +112,7 @@ export const FILTRAN: Partial<Record<Fuente, Dimension[]>> = {
   pesadas: ["especie", "categoria", "lote"],
   economia: ["especie", "lote"],
   potreros: ["especie", "categoria", "lote"],
+  produccion: ["especie", "categoria", "lote"],
 }
 
 // Los filtros que aplican a una tarjeta: los de su primera medida si los define, si no los de su fuente
