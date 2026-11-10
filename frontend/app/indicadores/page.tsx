@@ -203,7 +203,12 @@ function Indicadores() {
   }
   const guardar = async () => {
     if (!borrador) return
-    if (borrador.some(p => !p.nombre.trim())) return toast.error("Cada página necesita un nombre")
+    // Lleva a la página sin nombre (las otras pestañas no muestran el campo para escribirlo)
+    const sinNombre = borrador.findIndex(p => !p.nombre.trim())
+    if (sinNombre >= 0) {
+      setPagina(sinNombre)
+      return toast.error(`La página ${sinNombre + 1} no tiene nombre: escribile uno en la pestaña`)
+    }
     setGuardando(true)
     try {
       await guardarTablero(listos.estId, borrador.map(p => ({ ...p, nombre: p.nombre.trim() })))
@@ -405,7 +410,8 @@ function Indicadores() {
         {paginas.map((p, i) => (
           editando && i === idx ? (
             <div key={p.id} className="flex shrink-0 items-center gap-1 border-b-2 border-primary px-1 pb-1">
-              <input aria-label="Nombre de la página" value={p.nombre} maxLength={40}
+              <input aria-label="Nombre de la página" value={p.nombre} maxLength={40} placeholder="Nombre de la página"
+                aria-invalid={!p.nombre.trim()}
                 onChange={e => cambiarPagina(x => ({ ...x, nombre: e.target.value }))}
                 className="h-8 w-40 rounded-md border px-2 text-sm font-semibold" />
               <button type="button" aria-label="Mover a la izquierda" disabled={idx === 0} onClick={() => correrPagina(-1)}
@@ -421,7 +427,7 @@ function Indicadores() {
                 grande
                   ? cn("border-b-2 px-4 py-2.5", i === idx ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground")
                   : cn("min-h-10 rounded-full px-4", i === idx ? "bg-primary font-semibold text-primary-foreground" : "border bg-card"))}>
-              {p.nombre}
+              {p.nombre.trim() || <span className="italic text-destructive">Sin nombre</span>}
             </button>
           )
         ))}

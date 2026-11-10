@@ -6,7 +6,7 @@ import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTabler
  * marcar los filtros que no aplican.
  */
 
-export type Unidad = "cab" | "%" | "kg" | "kg/día" | "USD" | "UG" | "UG/ha" | "ha" | "días"
+export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "USD" | "UG" | "UG/ha" | "ha" | "días" | "razón"
 
 export interface Medida {
   etiqueta: string
@@ -14,10 +14,11 @@ export interface Medida {
   tiempos: Tiempo[]
   filtran?: Dimension[]     // qué filtros le aplican, si no son todos los de su fuente (ver FILTRAN)
   abrirObligatorio?: boolean // solo tiene sentido abierta (ej. días de descanso, por potrero)
+  abrir?: Dimension[]        // por qué se puede abrir, si no son todas las de su fuente (ver DIMENSIONES)
 }
 
 // Medidas donde bajar es bueno (la flecha de la comparación va en verde si baja)
-export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago"]
+export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "pct_perdidas"]
 // Medidas que al comparar van sin color: subir o bajar no es bueno ni malo en sí
 export const SIN_COLOR = ["dias_ocupacion", "dias_descanso"]
 
@@ -26,6 +27,14 @@ export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
     stock:         { etiqueta: "Stock al cierre",  unidad: "cab", tiempos: ["total", "mes", "ejercicio"] },
     movimientos:   { etiqueta: "Altas y bajas",    unidad: "cab", tiempos: ["total", "mes", "ejercicio"] },
     mortandad_pct: { etiqueta: "Mortandad",        unidad: "%",   tiempos: ["total", "ejercicio"] },
+    // Etapa 6a
+    ug:             { etiqueta: "UG al cierre",       unidad: "UG",  tiempos: ["total", "mes", "ejercicio"] },
+    ug_promedio:    { etiqueta: "UG promedio",        unidad: "UG",  tiempos: ["total", "mes", "ejercicio"] },
+    stock_promedio: { etiqueta: "Stock promedio",     unidad: "cab", tiempos: ["total", "mes", "ejercicio"] },
+    pct_extraccion: { etiqueta: "Tasa de extracción", unidad: "%",   tiempos: ["total", "ejercicio"] },
+    pct_vacas_cria: { etiqueta: "% vacas de cría",    unidad: "%",   tiempos: ["total", "mes", "ejercicio"], abrir: ["especie", "lote"] },
+    lanar_vacuno:    { etiqueta: "Relación lanar/vacuno",      unidad: "razón", tiempos: ["total", "mes", "ejercicio"], abrir: [], filtran: ["categoria", "lote"] },
+    lanar_vacuno_ug: { etiqueta: "Relación lanar/vacuno (UG)", unidad: "razón", tiempos: ["total", "mes", "ejercicio"], abrir: [], filtran: ["categoria", "lote"] },
   },
   reproductivos: {
     pct_prenez:         { etiqueta: "% Preñez",         unidad: "%",   tiempos: ["temporada", "total"] },
@@ -37,6 +46,12 @@ export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
     nacidos_vivos:      { etiqueta: "Nacidos vivos",    unidad: "cab", tiempos: ["temporada", "total"] },
     nacidos_muertos:    { etiqueta: "Nacidos muertos",  unidad: "cab", tiempos: ["temporada", "total"] },
     destetados:         { etiqueta: "Destetados",       unidad: "cab", tiempos: ["temporada", "total"] },
+    // Etapa 6a
+    pct_perdidas:       { etiqueta: "% Pérdidas preñez → destete", unidad: "%",       tiempos: ["temporada", "total"] },
+    pct_reposicion:     { etiqueta: "% Reposición",                unidad: "%",       tiempos: ["temporada", "total"] },
+    kg_destetados:      { etiqueta: "Kg destetados",               unidad: "kg",      tiempos: ["temporada", "total"] },
+    kg_destetados_vaca: { etiqueta: "Kg destetados por vaca entorada", unidad: "kg/vaca", tiempos: ["temporada", "total"] },
+    peso_destete:       { etiqueta: "Peso promedio al destete",    unidad: "kg",      tiempos: ["temporada", "total"] },
   },
   pesadas: {
     peso_promedio:   { etiqueta: "Peso promedio",   unidad: "kg",     tiempos: ["total", "mes"] },
@@ -69,7 +84,7 @@ export const MIN_DIAS_POR_DEFECTO = 21
 // Por qué se puede abrir cada fuente (motivo, además, en altas y bajas)
 export const DIMENSIONES: Partial<Record<Fuente, Dimension[]>> = {
   stock: ["especie", "categoria", "lote"],
-  reproductivos: ["especie", "lote"],
+  reproductivos: ["especie", "categoria", "lote"],   // categoría de entore (la del lote servido)
   pesadas: ["especie", "categoria", "lote"],
   economia: ["especie", "lote", "rubro", "concepto", "grupo", "titular"],
   potreros: ["potrero"],
@@ -78,7 +93,7 @@ export const DIMENSIONES: Partial<Record<Fuente, Dimension[]>> = {
 // Qué filtros (especie, categoría, lote) le aplican a cada fuente; los demás se marcan "no aplica"
 export const FILTRAN: Partial<Record<Fuente, Dimension[]>> = {
   stock: ["especie", "categoria", "lote"],
-  reproductivos: ["especie", "lote"],
+  reproductivos: ["especie", "categoria", "lote"],
   pesadas: ["especie", "categoria", "lote"],
   economia: ["especie", "lote"],
   potreros: ["especie", "categoria", "lote"],
@@ -101,6 +116,10 @@ export const ETIQUETA_DIMENSION: Record<Dimension, string> = {
 }
 
 export const medidaDe = (fuente: Fuente, medida: string): Medida | undefined => MEDIDAS[fuente]?.[medida]
+
+// Por qué se puede abrir una medida: las de su fuente (o las suyas, si las define) y, en altas y bajas, el motivo
+export const abrirDe = (fuente: Fuente, medida: string): Dimension[] =>
+  [...(medidaDe(fuente, medida)?.abrir ?? DIMENSIONES[fuente] ?? []), ...(medida === "movimientos" ? ["motivo" as const] : [])]
 
 // Filtros generales activos que la tarjeta no usa ("Filtro de categoría no aplica")
 export function filtrosQueNoAplican(def: DefinicionTarjeta, activos: Dimension[]): Dimension[] {

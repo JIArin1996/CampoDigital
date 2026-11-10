@@ -28,6 +28,8 @@ function formato(n: number | null, unidad: Unidad) {
     case "%": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} %`
     case "kg": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg`
     case "kg/día": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg/día`
+    case "kg/vaca": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg/vaca`
+    case "razón": return n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     case "USD": return `${n < 0 ? "−" : ""}USD ${Math.abs(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
     case "UG/ha": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UG/ha`
     case "UG": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG`
@@ -252,6 +254,9 @@ function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias:
   if (ugSinPotrero > 0) textos.push(`${ugSinPotrero.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG sin potrero asignado: cuentan en la carga global pero no en la de ningún potrero`)
   const sinUg = (avisos.categorias_sin_ug ?? null) as string[] | null
   if (sinUg && sinUg.length > 0) textos.push(`Sin UG cargada (no suman): ${sinUg.join(", ")}. Se cargan en Especies.`)
+  if (avisos.varias_especies) textos.push("Mezcla especies: abrí o filtrá por especie para ver el % de cada una")
+  const sinPeso = Number(avisos.destetados_sin_peso ?? 0)
+  if (sinPeso > 0) textos.push(`${sinPeso} ${sinPeso === 1 ? "destetado" : "destetados"} sin peso: no suman kilos`)
   if (textos.length === 0) return null
   return (
     <ul className="space-y-0.5 text-xs text-amber-800 dark:text-amber-300">

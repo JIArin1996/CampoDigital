@@ -386,11 +386,12 @@ select pruebas.espera_valor('R08 Abierto por especie',
   $q$ select pruebas.trep('pct_prenez', 'especie', 'temporada') $q$, '2025/26:Vacunos:90:90:100');
 select pruebas.espera_valor('R09 Total (sin temporada)',
   $q$ select pruebas.trep('pct_paricion', null, 'total') $q$, '80:80:100');
-select pruebas.espera_valor('R10 El filtro de categoría no aplica: se ignora (la app lo marca)',
-  $q$ select pruebas.trep('pct_prenez', null, 'temporada', jsonb_build_object('categoria_ids', jsonb_build_array(pruebas.id('novillos')))) $q$,
+-- Desde 20261112000100 (etapa 6a) la categoría es la de entore: la del lote servido el día del servicio
+select pruebas.espera_valor('R10 El filtro de categoría es el de la categoría de entore (Vacas de cría)',
+  $q$ select pruebas.trep('pct_prenez', null, 'temporada', jsonb_build_object('categoria_ids', jsonb_build_array(pruebas.id('vacas_cria')))) $q$,
   '2025/26:90:90:100');
-select pruebas.espera_error('R11 Abrir reproductivos por categoría (no se puede)',
-  $q$ select * from public.tablero_reproductivos(pruebas.id('est_a'), 'pct_prenez', 'categoria', 'temporada', '2025-07-01', '2026-06-30') $q$, '22023');
+select pruebas.espera_valor('R11 Abierto por categoría de entore',
+  $q$ select pruebas.trep('pct_prenez', 'categoria', 'temporada') $q$, '2025/26:Vacas de cría:90:90:100');
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- 5. Guardar el tablero

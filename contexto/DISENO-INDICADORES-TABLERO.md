@@ -332,7 +332,22 @@ Dos tablas nuevas (migración), por establecimiento:
     tramos de pesadas con la parición de las madres, la esquila, el consumo y la pesada del mismo día que un
     evento; fila Total de la tabla calculada por la base; días de ocupación y descanso sin color al comparar.
 - **6 — Medidas nuevas de las fuentes**: las de la tabla "Medidas nuevas" (sección 4), `tablero_produccion` y
-  `tablero_gestion`, con sus pruebas (sección 10, "Medidas nuevas").
+  `tablero_gestion`, con sus pruebas (sección 10, "Medidas nuevas"). En cuatro partes:
+  - **6a** (hecho): stock (UG al cierre, stock y UG promedio, extracción, % vacas de cría, lanar/vacuno) y
+    reproductivos (pérdidas, reposición, kg destetados, kg por vaca, peso al destete, categoría de entore).
+    Reglas fijadas al hacerla:
+    - **Categoría de entore**: las categorías **con rol** (cría o reposición) que tenía el lote servido el día del
+      servicio; con más de una, "Mixto"; con ninguna, "Sin categoría". Diagnóstico, parición y destete van a la
+      categoría de su servicio. Una categoría propia (ej. "Vacas de 2º entore") necesita su rol para contar.
+    - **Relación lanar/vacuno**: por el grupo de la especie (ovino / bovino); no se abre y el filtro de especie no
+      le aplica.
+    - **% vacas de cría** sin abrir por especie y con más de una especie: aviso `varias_especies`.
+    - **Peso al destete**: solo los orígenes con peso (aviso `destetados_sin_peso`).
+  - **6b**: `tablero_produccion` (kg en stock, producción de carne, kg vendidos y comprados, peso de venta, lana,
+    carne equivalente).
+  - **6c**: economía (gastos operativos, precio de venta, flujo de caja, % del gasto, saldos) y potreros (carga
+    promedio, presión, Ha SPG, ha forestadas, sin animales, días desde la última salida).
+  - **6d**: `tablero_gestion` (tareas, carencias, próximas dosis).
 - **7 — Medidas combinadas y metas** (sección 11): `tablero_medidas`, `guardar_medida`, `tablero_combinada`, el
   paso "Nueva medida" del constructor y la meta de cada tarjeta.
 - **8 — Tableros por defecto**: las cuatro páginas (Resumen, Economía, Producción, Potreros) en la plantilla; la

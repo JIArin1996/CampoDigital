@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
-import { DIMENSIONES, ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, USAN_TRAMOS, medidaDe } from "@/components/tablero/catalogo"
+import { ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, USAN_TRAMOS, abrirDe, medidaDe } from "@/components/tablero/catalogo"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
 import type { Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
@@ -75,10 +75,9 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const [tituloTocado, setTituloTocado] = useState(!!inicial)
 
   const info = medidaDe(fuente, medida)
-  const dims = DIMENSIONES[fuente] ?? []
   const filtran = info?.filtran ?? FILTRAN[fuente] ?? []
   const abrirObligatorio = !!info?.abrirObligatorio
-  const opcionesAbrir: Dimension[] = [...dims, ...(medida === "movimientos" ? ["motivo" as const] : [])]
+  const opcionesAbrir: Dimension[] = abrirDe(fuente, medida)
   const tiempos = info?.tiempos ?? ["total"]
   // Otras medidas que se pueden sumar como series: misma fuente y unidad, y que admitan el mismo tiempo
   // (no cuando está abierta y en el tiempo: ahí cada grupo ya es una serie)
@@ -96,7 +95,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const elegirMedida = (valor: string) => {
     const [f, m] = valor.split(":") as [Fuente, string]
     const nueva = medidaDe(f, m)!
-    const posibles = ((DIMENSIONES[f] ?? []) as Dimension[]).concat(m === "movimientos" ? ["motivo"] : [])
+    const posibles = abrirDe(f, m)
     // Algunas medidas solo tienen sentido abiertas (ej. días de descanso, por potrero)
     const abrirOk = abrir !== null && posibles.includes(abrir) ? abrir : nueva.abrirObligatorio ? posibles[0] : null
     const t = nueva.tiempos.includes(tiempo) ? tiempo : nueva.tiempos[0]
@@ -212,8 +211,9 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
         </label>
       </div>
       <p className="-mt-2 text-xs text-muted-foreground">
-        {NOMBRE_FUENTE[fuente]} se abre por {dims.map(d => ETIQUETA_DIMENSION[d]).join(", ")}
-        {medida === "movimientos" ? " o motivo" : ""}.
+        {opcionesAbrir.length > 0
+          ? `${info?.etiqueta ?? NOMBRE_FUENTE[fuente]} se abre por ${opcionesAbrir.map(d => ETIQUETA_DIMENSION[d]).join(", ")}.`
+          : `${info?.etiqueta ?? NOMBRE_FUENTE[fuente]} no se abre.`}
         {filtran.length < 3 && ` Le aplican los filtros de ${filtran.length ? filtran.map(d => ETIQUETA_DIMENSION[d]).join(" y ") : "nada (no se filtra)"}.`}
       </p>
 
