@@ -6,7 +6,7 @@ import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTabler
  * marcar los filtros que no aplican.
  */
 
-export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "UG" | "UG/ha" | "ha" | "días" | "razón"
+export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "USD/kg" | "UG" | "UG/ha" | "UG-día/ha" | "ha" | "días" | "razón" | "potreros"
 
 export interface Medida {
   etiqueta: string
@@ -18,7 +18,7 @@ export interface Medida {
 }
 
 // Medidas donde bajar es bueno (la flecha de la comparación va en verde si baja)
-export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "pct_perdidas"]
+export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "pct_perdidas", "gastos_operativos"]
 // Medidas que al comparar van sin color: subir o bajar no es bueno ni malo en sí
 export const SIN_COLOR = ["dias_ocupacion", "dias_descanso"]
 
@@ -67,6 +67,13 @@ MEDIDAS.economia = {
   gastos:          { etiqueta: "Gastos",              unidad: "USD", tiempos: ["total", "mes", "ejercicio"] },
   pendiente_cobro: { etiqueta: "Pendiente de cobro",  unidad: "USD", tiempos: ["total"] },
   pendiente_pago:  { etiqueta: "Pendiente de pago",   unidad: "USD", tiempos: ["total"] },
+  // Etapa 6c
+  gastos_operativos: { etiqueta: "Gastos operativos (sin compras de hacienda)", unidad: "USD", tiempos: ["total", "mes", "ejercicio"] },
+  precio_venta:      { etiqueta: "Precio promedio de venta", unidad: "USD/kg", tiempos: ["total", "ejercicio"], abrir: ["especie", "lote"] },
+  flujo_caja:        { etiqueta: "Flujo de caja (por fecha de pago)", unidad: "USD", tiempos: ["total", "mes", "ejercicio"] },
+  pct_gasto:         { etiqueta: "% del gasto", unidad: "%", tiempos: ["total", "ejercicio"], abrirObligatorio: true,
+                       abrir: ["concepto", "grupo", "rubro", "especie", "lote", "titular", "pagador"] },
+  saldos:            { etiqueta: "Saldos entre titulares y pagadores", unidad: "USD", tiempos: ["total"], abrir: ["par"], abrirObligatorio: true, filtran: [] },
 }
 MEDIDAS.potreros = {
   carga:          { etiqueta: "Carga (sobre el área efectiva)", unidad: "UG/ha", tiempos: ["total", "mes"] },
@@ -75,6 +82,14 @@ MEDIDAS.potreros = {
   superficie_efectiva: { etiqueta: "Área efectiva",   unidad: "ha",    tiempos: ["total", "mes"], filtran: [] },
   dias_ocupacion: { etiqueta: "Días de ocupación",   unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
   dias_descanso:  { etiqueta: "Días de descanso",    unidad: "días",  tiempos: ["total", "mes", "ejercicio"], filtran: [], abrirObligatorio: true },
+  // Etapa 6c
+  carga_promedio: { etiqueta: "Carga promedio (UG-día)", unidad: "UG/ha", tiempos: ["total", "mes", "ejercicio"] },
+  presion:        { etiqueta: "Presión acumulada",      unidad: "UG-día/ha", tiempos: ["total", "mes", "ejercicio"] },
+  ha_spg:         { etiqueta: "Ha SPG (pastoreo)",      unidad: "ha",    tiempos: ["total"], abrir: [], filtran: [] },
+  ha_forestadas:  { etiqueta: "Ha forestadas",          unidad: "ha",    tiempos: ["total"], abrir: [], filtran: [] },
+  potreros_sin_animales: { etiqueta: "Potreros sin animales", unidad: "potreros", tiempos: ["total", "mes"], abrir: [], filtran: [] },
+  ha_sin_animales: { etiqueta: "Ha sin animales",       unidad: "ha",    tiempos: ["total", "mes"], abrir: [], filtran: [] },
+  dias_desde_salida: { etiqueta: "Días desde la última salida", unidad: "días", tiempos: ["total"], filtran: [], abrirObligatorio: true },
 }
 
 // Kilos y lana (etapa 6b): kg en stock valuados con la pesada más cercana (o el peso de referencia) y producción de
@@ -100,7 +115,7 @@ export const DIMENSIONES: Partial<Record<Fuente, Dimension[]>> = {
   stock: ["especie", "categoria", "lote"],
   reproductivos: ["especie", "categoria", "lote"],   // categoría de entore (la del lote servido)
   pesadas: ["especie", "categoria", "lote"],
-  economia: ["especie", "lote", "rubro", "concepto", "grupo", "titular"],
+  economia: ["especie", "lote", "rubro", "concepto", "grupo", "titular", "pagador"],
   potreros: ["potrero"],
   produccion: ["especie", "categoria", "lote"],
 }
@@ -129,6 +144,8 @@ export const ETIQUETA_DIMENSION: Record<Dimension, string> = {
   grupo: "grupo",
   titular: "titular",
   potrero: "potrero",
+  pagador: "pagador",
+  par: "deudor y acreedor",
 }
 
 export const medidaDe = (fuente: Fuente, medida: string): Medida | undefined => MEDIDAS[fuente]?.[medida]

@@ -362,8 +362,23 @@ Dos tablas nuevas (migración), por establecimiento:
       `cab_consumidas_sin_kg`): los del último período; las cabezas una vez por lote y categoría.
     - **Kg en stock promedio** (sección 4, "Semi-aditivas, dos versiones"): queda afuera (decisión del 10/11/2026).
       Valuar cada día con la regla de las pesadas es pesado y ninguna medida combinada lo usa; hay kg al cierre.
-  - **6c**: economía (gastos operativos, precio de venta, flujo de caja, % del gasto, saldos) y potreros (carga
-    promedio, presión, Ha SPG, ha forestadas, sin animales, días desde la última salida).
+  - **6c** (hecho): economía (gastos operativos, precio de venta, flujo de caja, % del gasto, saldos) y potreros
+    (carga promedio, presión, Ha SPG, ha forestadas, sin animales, días desde la última salida). Reglas fijadas al
+    hacerla:
+    - **Compras de hacienda** = movimientos de una actividad de compra (gastos operativos = gastos sin ellas).
+    - **Precio de venta**: solo ventas con kg en todas sus líneas (aviso `usd_ventas_sin_kg`); se abre por especie o
+      lote.
+    - **Flujo de caja**: por la fecha de pago; un movimiento pagado sin fecha de pago va por su fecha.
+    - **% del gasto**: siempre abierto (por concepto, grupo, rubro, especie, lote, titular o pagador).
+    - **Saldos**: lo pagado y las liquidaciones hasta el fin del período, una fila por deudor y acreedor (dimensión
+      nueva "deudor y acreedor"); los filtros no aplican. La economía también se abre por **pagador**.
+    - **Carga promedio y presión por potrero**: UG-día de los lotes en sus estadías [ingreso, salida). La global
+      avisa `ug_sin_potrero` con las UG promedio que no estuvieron en ningún potrero.
+    - **Ha forestadas**: no hay un tipo de zona "Forestación" de base; el administrador lo crea en los tipos de zona
+      (se reconoce por el nombre, sin mayúsculas ni tildes).
+    - **Días desde la última salida**: solo los potreros sin animales al cierre que alguna vez tuvieron.
+    - **Aviso `superficie_actual`**: en las medidas nuevas con superficie, cuando el período termina antes del 1 de
+      enero del año en curso.
   - **6d**: `tablero_gestion` (tareas, carencias, próximas dosis).
 - **7 — Medidas combinadas y metas** (sección 11): `tablero_medidas`, `guardar_medida`, `tablero_combinada`, el
   paso "Nueva medida" del constructor y la meta de cada tarjeta.

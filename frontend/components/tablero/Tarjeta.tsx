@@ -32,6 +32,9 @@ function formato(n: number | null, unidad: Unidad) {
     case "kg/cab": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 2 })} kg/cab`
     case "razón": return n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     case "USD": return `${n < 0 ? "−" : ""}USD ${Math.abs(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
+    case "USD/kg": return `USD ${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg`
+    case "UG-día/ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG-día/ha`
+    case "potreros": return `${n.toLocaleString("es-UY")} ${n === 1 ? "potrero" : "potreros"}`
     case "UG/ha": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UG/ha`
     case "UG": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG`
     case "ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} ha`
@@ -264,6 +267,8 @@ function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias:
   if (cab("cab_sin_peso") > 0) textos.push(`${cabezas(cab("cab_sin_peso"))} sin pesada ni peso de referencia: no suman kilos. El peso de referencia se carga en Especies.`)
   if (cab("cab_vendidas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_vendidas_sin_kg"))} vendidas sin kg`)
   if (cab("cab_compradas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_compradas_sin_kg"))} compradas sin kg`)
+  if (avisos.usd_ventas_sin_kg) textos.push(`${usd(avisos.usd_ventas_sin_kg)} de ventas sin kg: no entran en el precio por kg`)
+  if (avisos.superficie_actual) textos.push("Superficies de hoy: los potreros no guardan su historial")
   if (cab("cab_consumidas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_consumidas_sin_kg"))} de consumo sin kg`)
   if (textos.length === 0) return null
   return (
