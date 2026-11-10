@@ -601,6 +601,7 @@ export type Database = {
           created_by: string | null
           establecimiento_id: string
           lote_id: string
+          peso_vivo_total_kg: number | null
           rol: string
         }
         Insert: {
@@ -609,6 +610,7 @@ export type Database = {
           created_by?: string | null
           establecimiento_id: string
           lote_id: string
+          peso_vivo_total_kg?: number | null
           rol: string
         }
         Update: {
@@ -617,6 +619,7 @@ export type Database = {
           created_by?: string | null
           establecimiento_id?: string
           lote_id?: string
+          peso_vivo_total_kg?: number | null
           rol?: string
         }
         Relationships: [
@@ -1040,6 +1043,8 @@ export type Database = {
           id: string
           nombre: string
           orden: number
+          peso_referencia_kg: number | null
+          rol: string | null
           sexo: string | null
           ug: number | null
           updated_at: string
@@ -1054,6 +1059,8 @@ export type Database = {
           id?: string
           nombre: string
           orden?: number
+          peso_referencia_kg?: number | null
+          rol?: string | null
           sexo?: string | null
           ug?: number | null
           updated_at?: string
@@ -1068,6 +1075,8 @@ export type Database = {
           id?: string
           nombre?: string
           orden?: number
+          peso_referencia_kg?: number | null
+          rol?: string | null
           sexo?: string | null
           ug?: number | null
           updated_at?: string

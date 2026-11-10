@@ -107,9 +107,10 @@ export async function getCarencias(lote_ids: string[], al: string) {
 
 // Lotes de una actividad con su rol (principal, cria, origen, destino)
 export async function getLotesConRol(actividad_id: string) {
-  const { data, error } = await createClient().from('actividad_lotes').select('lote_id, rol').eq('actividad_id', actividad_id)
+  const { data, error } = await createClient().from('actividad_lotes').select('lote_id, rol, peso_vivo_total_kg').eq('actividad_id', actividad_id)
   if (error) throw error
-  return (data ?? []) as { lote_id: string; rol: 'principal' | 'cria' | 'origen' | 'destino' }[]
+  // peso_vivo_total_kg: en el destete, el peso de las crías que salieron de ese origen (opcional)
+  return (data ?? []) as { lote_id: string; rol: 'principal' | 'cria' | 'origen' | 'destino'; peso_vivo_total_kg: number | null }[]
 }
 
 // Historial de cría del establecimiento, para el destete: pariciones vigentes (fecha y lote donde

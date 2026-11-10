@@ -101,6 +101,10 @@ export function FormularioDestete({ loteInicial, datos, edicion }: {
       && categorias.some(c => c.id === s.categoria_id && c.cria_al_pie))
     return crias.length > 0 ? { [loteInicial]: Object.fromEntries(crias.map(s => [s.categoria_id, String(s.cabezas)])) } : {}
   })
+  // Peso total de las crías que salen de cada origen (kg, opcional). Al editar, el que se cargó.
+  const [pesos, setPesos] = useState<Record<string, string>>(() => Object.fromEntries(
+    (edicion?.roles ?? []).filter(r => r.rol === "origen" && r.peso_vivo_total_kg != null)
+      .map(r => [r.lote_id, String(r.peso_vivo_total_kg).replace(".", ",")])))
   // Al editar: los machos y las hembras que salieron de las sin sexar (lo que entró de cada sexo menos lo
   // que ya salió sexado)
   const [sexadoInicial] = useState(() => {
@@ -294,7 +298,14 @@ export function FormularioDestete({ loteInicial, datos, edicion }: {
         const n = efectivas[loteId]?.[catId] ?? 0
         if (n > 0) lineas.push({ categoria_id: catId, cabezas: n })
       }
-      if (lineas.length > 0) origenes.push({ lote_id: loteId, lineas })
+      const textoKg = (pesos[loteId] ?? "").trim()
+      // "6.840" y "6840,5" (puntos de miles, coma decimal) o "6840.5"
+      const normal = textoKg.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(textoKg) ? textoKg.replace(/\./g, "").replace(",", ".") : textoKg
+      const kg = textoKg === "" ? null : Number(normal)
+      if (kg !== null && !(Number.isFinite(kg) && kg > 0)) {
+        return setError(`El peso de las crías de ${lote?.nombre ?? "un lote"} tiene que ser un número de kilos mayor a cero`)
+      }
+      if (lineas.length > 0) origenes.push({ lote_id: loteId, lineas, ...(kg !== null ? { peso_vivo_total_kg: Math.round(kg * 100) / 100 } : {}) })
     }
     if (!sexadoValido) {
       return setError(`Machos y hembras tienen que ser números enteros, sin negativos, y sumar como máximo ${sinSexar}`)
@@ -447,6 +458,14 @@ export function FormularioDestete({ loteInicial, datos, edicion }: {
                               </span>
                             </div>
                           ))}
+                          <label className="flex items-center justify-between gap-2 px-3 py-2">
+                            <span className="text-sm">
+                              Peso total de las crías <span className="text-muted-foreground">(kg, opcional)</span>
+                            </span>
+                            <Input aria-label={`Peso total de las crías que se destetan de ${l.nombre} (kg)`} inputMode="decimal"
+                              className={`${CAMPO} w-28 text-right tabular-nums`} placeholder="—" disabled={enviando}
+                              value={pesos[l.id] ?? ""} onChange={e => setPesos(prev => ({ ...prev, [l.id]: e.target.value }))} />
+                          </label>
                         </div>
                       </div>
                     )}

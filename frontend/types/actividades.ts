@@ -98,7 +98,8 @@ export type PrecioCarga = {
 
 // Destete: lo que sale de cada origen (solo cría al pie) y lo que entra a cada lote nuevo (ya sexado)
 export type LineaDestete = { categoria_id: string; cabezas: number }
-export type OrigenDestete = { lote_id: string; lineas: LineaDestete[] }
+// peso_vivo_total_kg: el peso de todas las crías que salen de ese lote (opcional)
+export type OrigenDestete = { lote_id: string; lineas: LineaDestete[]; peso_vivo_total_kg?: number }
 export type DestinoDestete = { nombre: string; potrero_id?: string; anios_nacimiento: number[]; lineas: LineaDestete[] }
 
 // Lote nuevo que crea una compra o una parición

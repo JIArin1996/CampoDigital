@@ -616,12 +616,12 @@ Cómo:
 | Ha forestadas | **Existe**: uso del potrero (`uso_actual` = Forestación) y zonas no aprovechables | Σ potreros de uso Forestación + zonas de un tipo "Forestación" |
 | Superficies con historial | **Falta**: los potreros no guardan fecha de alta, baja ni cambio de uso o dibujo | Más adelante (sección 13, punto 1); mientras tanto, superficies actuales con aviso |
 | UG por categoría | **Existe** (`categorias_animales.ug`) | — |
-| Peso de referencia por categoría | **Falta** | Columna `categorias_animales.peso_referencia_kg`, editable en Especies, como la UG |
+| Peso de referencia por categoría | **Hecho (5b)** | Columna `categorias_animales.peso_referencia_kg`, editable en Especies, como la UG. Sin valor por defecto (no se inventa): sin peso, la categoría no suma kilos y se avisa |
 | Kg en compras y ventas | **Existe, opcional** (`actividad_lineas.peso_vivo_total_kg`); kg de gancho en ventas a frigorífico | Avisar las ventas y compras sin kg |
-| Kg en el destete | **Falta**: el destete no lleva peso | Peso vivo opcional por línea en el destete, como en compra y venta |
+| Kg en el destete | **Hecho (5b)** | Peso vivo total opcional de las crías que salen de cada lote de origen (`actividad_lotes.peso_vivo_total_kg`, fila del origen): así cada destete se asigna a la temporada de su origen |
 | Kg de lana | **Existe** (`act_esquila.kg_lana_total`, uno por esquila) | — |
 | Consumo (faena propia) | **Falta**: hoy se cargaría como mortandad o ajuste | Motivo de baja "Consumo" con peso opcional: cuenta en extracción y producción, no en mortandad (decidido) |
-| Categoría de cría y de reposición | **Falta**: las categorías no dicen cuál es la de cría (Vacas de cría, Ovejas de cría) ni la de reposición (Vaquillonas, Borregas) | Marca por categoría (`rol`: cría, reposición), cargada por nombre como la UG |
+| Categoría de cría y de reposición | **Hecho (5b)** | `categorias_animales.rol` (cría: Vacas de cría, Ovejas de cría, Yeguas; reposición: Vaquillonas, Borregas), cargado por nombre con el mismo trigger de la UG y editable en Especies |
 | Preñez por categoría de entore | **Existe a medias**: el servicio y el diagnóstico son un número por lote | Por la categoría del lote servido; lote mixto → "Mixto" |
 | Fecha de pago y estado | **Existe** (`fecha_pago`, `estado`) | — |
 | Pagadores y saldos | **Existe** (`pagadores`, `v_saldos`) | — |
