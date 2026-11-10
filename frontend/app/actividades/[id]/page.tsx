@@ -278,7 +278,7 @@ export default function ActividadPage() {
           <DialogHeader>
             <DialogTitle>Eliminar {titulo.toLowerCase()}</DialogTitle>
             <DialogDescription>
-              {["compra", "venta", "mortandad", "paricion", "destete"].includes(a.tipo)
+              {["compra", "venta", "mortandad", "consumo", "paricion", "destete"].includes(a.tipo)
                 ? "Deja de verse en toda la app y el stock vuelve a como estaba. Si tiene precio, el movimiento de Economía se anula."
                 : "Deja de verse en toda la app. No cambia el stock."}
             </DialogDescription>

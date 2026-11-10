@@ -210,6 +210,20 @@ export async function registrarMortandad(p: Comunes & { lote_id: string; causa?:
   return data as string
 }
 
+// Consumo (faena propia): baja de stock; peso vivo total opcional por categoría
+export async function registrarConsumo(p: Comunes & { lote_id: string }) {
+  const { data, error } = await createClient().rpc('registrar_consumo', {
+    p_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
 interface CompraVenta {
   modalidad: Modalidad
   contraparte?: string | null
@@ -424,6 +438,19 @@ export async function editarMortandad(p: Comunes & { lote_id: string; causa?: st
     p_lineas: p.lineas,
     p_causa: p.causa ?? undefined,
     p_observaciones: p.observaciones ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarConsumo(p: Comunes & { lote_id: string }) {
+  const { data, error } = await createClient().rpc('editar_consumo', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
     p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })

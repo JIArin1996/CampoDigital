@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import {
-  editarCompra, editarMortandad, editarParicion, editarPesada, editarVenta, getCarencias, registrarCompra,
+  editarCompra, editarConsumo, editarMortandad, editarParicion, editarPesada, editarVenta, getCarencias, registrarCompra, registrarConsumo,
   registrarMortandad, registrarParicion, registrarPesada, registrarVenta, type ActividadParaEditar,
 } from "@/lib/queries/actividades"
 import { mensajeDeError } from "@/lib/supabase/errores"
@@ -46,7 +46,7 @@ const leer = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")
 const aTexto = (n: number | null | undefined) => (n == null ? "" : String(Number(n)).replace(".", ","))
 
 /**
- * Pesada, mortandad, compra, venta y parición: carga nueva o edición (`edicion`).
+ * Pesada, mortandad, consumo, compra, venta y parición: carga nueva o edición (`edicion`).
  * Al editar, la actividad conserva su id; la compra o la parición que creó su lote no cambia de destino.
  */
 export function FormularioConStock({ tipo, loteInicial, datos, edicion }: {
@@ -69,7 +69,7 @@ export function FormularioConStock({ tipo, loteInicial, datos, edicion }: {
   const [loteId, setLoteId] = useState(a?.lote_id ?? (lotes.some(l => l.id === loteInicial) ? loteInicial : ""))
   const [cantidades, setCantidades] = useState<Record<string, string>>(() =>
     Object.fromEntries((edicion?.lineas ?? []).map(l => [l.categoria_id, String(l.cabezas)])))
-  // En la pesada se edita el promedio (total / cabezas); en la compra y la venta, el total
+  // En la pesada se edita el promedio (total / cabezas); en la compra, la venta y el consumo, el total
   const [pesos, setPesos] = useState<Record<string, string>>(() =>
     Object.fromEntries((edicion?.lineas ?? []).filter(l => l.peso_vivo_total_kg != null).map(l => [
       l.categoria_id,
@@ -143,23 +143,23 @@ export function FormularioConStock({ tipo, loteInicial, datos, edicion }: {
   const especieId = tipo === "compra" && destinoNuevo ? nuevoEspecie : lote?.especie_id
   const especie = especies.find(e => e.id === especieId)
   const stockLote = new Map(stock.filter(s => s.lote_id === loteId).map(s => [s.categoria_id, s.cabezas]))
-  // Al editar una venta o una mortandad, lo que sacó del lote vuelve a estar disponible
+  // Al editar una venta, una mortandad o un consumo, lo que sacó del lote vuelve a estar disponible
   const propias = new Map(
-    edicion && (tipo === "venta" || tipo === "mortandad") && loteId === a?.lote_id
+    edicion && (tipo === "venta" || tipo === "mortandad" || tipo === "consumo") && loteId === a?.lote_id
       ? edicion.lineas.map(l => [l.categoria_id, l.cabezas] as const)
       : [])
   const hay = (catId: string) => (stockLote.get(catId) ?? 0) + (propias.get(catId) ?? 0)
 
-  // Categorías que se muestran: las que tienen stock (pesada, venta, mortandad), las de cría al pie
+  // Categorías que se muestran: las que tienen stock (pesada, venta, mortandad, consumo), las de cría al pie
   // (parición: la base no acepta otras) o todas las de la especie (compra)
-  const conStock = tipo === "pesada" || tipo === "venta" || tipo === "mortandad"
+  const conStock = tipo === "pesada" || tipo === "venta" || tipo === "mortandad" || tipo === "consumo"
   const categoriasForm = categorias
     .filter(c => c.especie_id === especieId)
     .filter(c => !conStock || hay(c.id) > 0)
     .filter(c => tipo !== "paricion" || c.cria_al_pie)
-  const llevaPeso = tipo === "pesada" || tipo === "compra" || tipo === "venta"
+  const llevaPeso = tipo === "pesada" || tipo === "compra" || tipo === "venta" || tipo === "consumo"
   // En la pesada se carga el peso PROMEDIO por categoría y el total sale de promedio × cabezas;
-  // en la compra y la venta, el peso vivo total (opcional)
+  // en la compra, la venta y el consumo, el peso vivo total (opcional)
   const conPromedio = tipo === "pesada"
   const total = categoriasForm.reduce((s, c) => s + (Number(cantidades[c.id]) || 0), 0)
   // Peso vivo total de una categoría (kg, con dos decimales como lo guarda la base); null si falta algo
@@ -280,7 +280,8 @@ export function FormularioConStock({ tipo, loteInicial, datos, edicion }: {
         if (tipo === "pesada") await editarPesada({ ...comunes, lote_id: loteId })
         else if (tipo === "mortandad") {
           await editarMortandad({ ...comunes, lote_id: loteId, causa, observaciones: observaciones.trim() || null })
-        } else if (tipo === "venta") await editarVenta({ ...comunes, ...compraventa, lote_id: loteId })
+        } else if (tipo === "consumo") await editarConsumo({ ...comunes, lote_id: loteId })
+        else if (tipo === "venta") await editarVenta({ ...comunes, ...compraventa, lote_id: loteId })
         else if (tipo === "compra") await editarCompra({ ...comunes, ...compraventa, lote_id: destinoFijo ? null : loteId })
         else await editarParicion({ ...comunes, lote_madres_id: loteId, nacidos_muertos: muertos ?? 0, lote_cria_id: loteCria })
         toast.success(`${ETIQUETA_ACTIVIDAD[tipo]} actualizada`)
@@ -291,7 +292,8 @@ export function FormularioConStock({ tipo, loteInicial, datos, edicion }: {
       if (tipo === "pesada") await registrarPesada({ ...comunes, lote_id: loteId })
       else if (tipo === "mortandad") {
         await registrarMortandad({ ...comunes, lote_id: loteId, causa, observaciones: observaciones.trim() || null })
-      } else if (tipo === "venta") await registrarVenta({ ...comunes, ...compraventa, lote_id: loteId })
+      } else if (tipo === "consumo") await registrarConsumo({ ...comunes, lote_id: loteId })
+      else if (tipo === "venta") await registrarVenta({ ...comunes, ...compraventa, lote_id: loteId })
       else if (tipo === "compra") {
         const loteNuevo: LoteNuevoCarga | null = destinoNuevo
           ? {

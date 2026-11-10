@@ -3741,6 +3741,17 @@ export type Database = {
         }
         Returns: string
       }
+      editar_consumo: {
+        Args: {
+          p_actividad_id: string
+          p_fecha: string
+          p_lineas: Json
+          p_lote_id: string
+          p_notas?: string
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
       editar_destete: {
         Args: {
           p_actividad_id: string
@@ -4002,6 +4013,17 @@ export type Database = {
           p_modalidad: string
           p_notas?: string
           p_precio?: Json
+          p_responsables?: string[]
+        }
+        Returns: string
+      }
+      registrar_consumo: {
+        Args: {
+          p_fecha: string
+          p_id: string
+          p_lineas: Json
+          p_lote_id: string
+          p_notas?: string
           p_responsables?: string[]
         }
         Returns: string

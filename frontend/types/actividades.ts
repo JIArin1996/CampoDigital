@@ -6,12 +6,13 @@
 
 import type { Tables } from './supabase'
 
-// Los 12 tipos del enfoque; en la 6a se registran los 5 primeros
+// Los tipos de actividad; los 6 primeros cambian el stock o lo miden (consumo: faena propia, desde la etapa 5c
+// de Indicadores)
 export type TipoActividad =
-  | 'pesada' | 'mortandad' | 'compra' | 'venta' | 'paricion'
+  | 'pesada' | 'mortandad' | 'compra' | 'venta' | 'paricion' | 'consumo'
   | 'sanidad' | 'antiparasitario' | 'servicio' | 'diagnostico_gestacion' | 'destete' | 'esquila' | 'personalizada'
 
-export type TipoActividad6a = 'pesada' | 'mortandad' | 'compra' | 'venta' | 'paricion'
+export type TipoActividad6a = 'pesada' | 'mortandad' | 'compra' | 'venta' | 'paricion' | 'consumo'
 
 // Las que no mueven stock (6b-1). Antiparasitario no se carga como tipo: es una categoría de producto de sanidad.
 export type TipoActividad6b1 = 'sanidad' | 'servicio' | 'diagnostico_gestacion' | 'esquila' | 'personalizada'

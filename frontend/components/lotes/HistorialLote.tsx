@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react"
 import Link from "next/link"
 import {
   ArrowRight, ArrowRightLeft, Baby, Banknote, ChevronRight, CircleCheck, CircleX, CirclePlus, HeartCrack, MapPin, Merge, MilkOff,
-  ShoppingCart, SlidersHorizontal, Split,
+  ShoppingCart, SlidersHorizontal, Split, UtensilsCrossed,
 } from "lucide-react"
 
 import { ETIQUETA_EVENTO, fechaCorta } from "@/components/lotes/formato"
@@ -28,6 +28,7 @@ const ICONO_EVENTO: Record<TipoEventoLote, LucideIcon> = {
   union: Merge,
   ajuste: SlidersHorizontal,
   destete: MilkOff,
+  consumo: UtensilsCrossed,
 }
 
 // Tono de cada fila: suma (verde), resta (rojo), sin cambio de cabezas o movimiento de potrero

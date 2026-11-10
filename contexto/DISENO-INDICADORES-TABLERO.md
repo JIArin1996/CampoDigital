@@ -620,7 +620,7 @@ Cómo:
 | Kg en compras y ventas | **Existe, opcional** (`actividad_lineas.peso_vivo_total_kg`); kg de gancho en ventas a frigorífico | Avisar las ventas y compras sin kg |
 | Kg en el destete | **Hecho (5b)** | Peso vivo total opcional de las crías que salen de cada lote de origen (`actividad_lotes.peso_vivo_total_kg`, fila del origen): así cada destete se asigna a la temporada de su origen |
 | Kg de lana | **Existe** (`act_esquila.kg_lana_total`, uno por esquila) | — |
-| Consumo (faena propia) | **Falta**: hoy se cargaría como mortandad o ajuste | Motivo de baja "Consumo" con peso opcional: cuenta en extracción y producción, no en mortandad (decidido) |
+| Consumo (faena propia) | **Hecho (5c)** | Actividad nueva "Consumo" (lote, categorías, cabezas y peso vivo total opcional; evento de lote `consumo`): cuenta en extracción y producción, no en mortandad; corta el tramo de pesadas |
 | Categoría de cría y de reposición | **Hecho (5b)** | `categorias_animales.rol` (cría: Vacas de cría, Ovejas de cría, Yeguas; reposición: Vaquillonas, Borregas), cargado por nombre con el mismo trigger de la UG y editable en Especies |
 | Preñez por categoría de entore | **Existe a medias**: el servicio y el diagnóstico son un número por lote | Por la categoría del lote servido; lote mixto → "Mixto" |
 | Fecha de pago y estado | **Existe** (`fecha_pago`, `estado`) | — |

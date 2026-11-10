@@ -143,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261110000100, área efectiva, con el tablero de indicadores): 161 filas, todas con ok = true.
+-- ESPERADO (después de 20261111000300, actividad Consumo): 164 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -165,7 +165,8 @@ order by 1 desc, 2, 3, 4;
 -- +1 de 20261109000300: tablero_pesadas;
 -- +4 de 20261109000500: tablero_economia, tablero_potreros, la interna _ug_por_nombre y el trigger completar_ug_categoria;
 -- +5 de 20261110000100: guardar_zona_potrero, borrar_zona_potrero, superficie_efectiva_total y las internas
--- _cargar_zona_tipos y _geometria_de_geojson.)
+-- _cargar_zona_tipos y _geometria_de_geojson;
+-- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -184,6 +185,7 @@ order by 1 desc, 2, 3, 4;
 --   _cargar_catalogos_base      | false            | false         | false | false
 --   _cargar_compraventa         | false            | false         | false | false
 --   _cargar_conceptos_base      | false            | false         | false | false
+--   _cargar_consumo             | false            | false         | false | false
 --   _cargar_destete             | false            | false         | false | false
 --   _cargar_diagnostico         | false            | false         | false | false
 --   _cargar_esquila             | false            | false         | false | false
@@ -256,6 +258,7 @@ order by 1 desc, 2, 3, 4;
 --   deshacer_cambio_potrero     | true             | true          | false | false
 --   dividir_lote                | true             | true          | false | false
 --   editar_compra               | true             | true          | false | false
+--   editar_consumo              | true             | true          | false | false
 --   editar_destete              | true             | true          | false | false
 --   editar_diagnostico          | true             | true          | false | false
 --   editar_entrada_bitacora     | true             | true          | false | false
@@ -302,6 +305,7 @@ order by 1 desc, 2, 3, 4;
 --   recategorizar_lote          | true             | true          | false | false
 --   registrar_ajuste            | true             | true          | false | false
 --   registrar_compra            | true             | true          | false | false
+--   registrar_consumo           | true             | true          | false | false
 --   registrar_destete           | true             | true          | false | false
 --   registrar_diagnostico       | true             | true          | false | false
 --   registrar_esquila           | true             | true          | false | false
@@ -390,6 +394,7 @@ select
                                             'editar_compra', 'editar_venta', 'editar_pesada', 'editar_mortandad', 'editar_paricion',
                                             'editar_sanidad', 'editar_servicio', 'editar_diagnostico', 'editar_esquila',
                                             'editar_personalizada', 'editar_destete', 'guardar_tablero',
+                                            'registrar_consumo', 'editar_consumo',
                                             'guardar_zona_potrero', 'borrar_zona_potrero'))
   ) as ok
 from f
