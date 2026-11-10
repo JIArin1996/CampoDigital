@@ -379,7 +379,15 @@ Dos tablas nuevas (migración), por establecimiento:
     - **Días desde la última salida**: solo los potreros sin animales al cierre que alguna vez tuvieron.
     - **Aviso `superficie_actual`**: en las medidas nuevas con superficie, cuando el período termina antes del 1 de
       enero del año en curso.
-  - **6d**: `tablero_gestion` (tareas, carencias, próximas dosis).
+  - **6d** (hecho): `tablero_gestion`, fuente "Gestión" (tareas vencidas y que vencen en 15 días, lotes y cabezas con
+    carencia, próximas dosis en 15 días). Reglas fijadas al hacerla:
+    - **Todo a la fecha de cierre** del período (tiempo "total"), así comparar con el año anterior mira el mismo día.
+    - **Tarea pendiente al cierre**: cargada hasta ese día y no realizada, o realizada después (si se marca hoy, al
+      cierre de junio seguía pendiente). Vencida: vencimiento antes del cierre; próxima: del cierre a 15 días después.
+    - **Carencia activa**: el fin de la carencia es posterior al cierre, y el lote tiene animales ese día.
+    - **Próxima dosis**: entre el cierre y 15 días después, no dada al cierre.
+    - **Por lote**: una tarea con varios lotes cuenta en cada uno; sin lote, "Sin lote". Con filtro de especie o
+      lote, lo que no tiene lote queda afuera.
 - **7 — Medidas combinadas y metas** (sección 11): `tablero_medidas`, `guardar_medida`, `tablero_combinada`, el
   paso "Nueva medida" del constructor y la meta de cada tarjeta.
 - **8 — Tableros por defecto**: las cuatro páginas (Resumen, Economía, Producción, Potreros) en la plantilla; la

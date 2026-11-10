@@ -6,7 +6,7 @@ import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTabler
  * marcar los filtros que no aplican.
  */
 
-export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "USD/kg" | "UG" | "UG/ha" | "UG-día/ha" | "ha" | "días" | "razón" | "potreros"
+export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "USD/kg" | "UG" | "UG/ha" | "UG-día/ha" | "ha" | "días" | "razón" | "potreros" | "tareas" | "lotes" | "dosis"
 
 export interface Medida {
   etiqueta: string
@@ -18,7 +18,7 @@ export interface Medida {
 }
 
 // Medidas donde bajar es bueno (la flecha de la comparación va en verde si baja)
-export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "pct_perdidas", "gastos_operativos"]
+export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "pct_perdidas", "gastos_operativos", "tareas_vencidas"]
 // Medidas que al comparar van sin color: subir o bajar no es bueno ni malo en sí
 export const SIN_COLOR = ["dias_ocupacion", "dias_descanso"]
 
@@ -106,6 +106,15 @@ MEDIDAS.produccion = {
   carne_equivalente: { etiqueta: "Carne equivalente",          unidad: "kg",     tiempos: ["total", "ejercicio"], abrir: ["especie"], filtran: ["especie"] },
 }
 
+// Gestión (etapa 6d): lo pendiente a la fecha de cierre del período (tareas de la bitácora, carencias y próximas dosis)
+MEDIDAS.gestion = {
+  tareas_vencidas: { etiqueta: "Tareas vencidas",                   unidad: "tareas", tiempos: ["total"] },
+  tareas_proximas: { etiqueta: "Tareas que vencen en 15 días",      unidad: "tareas", tiempos: ["total"] },
+  lotes_carencia:  { etiqueta: "Lotes con carencia",                unidad: "lotes",  tiempos: ["total"] },
+  cab_carencia:    { etiqueta: "Cabezas con carencia",              unidad: "cab",    tiempos: ["total"] },
+  proximas_dosis:  { etiqueta: "Próximas dosis (15 días)",          unidad: "dosis",  tiempos: ["total"] },
+}
+
 // Medidas de pesadas que usan tramos entre pesadas (y el mínimo de días)
 export const USAN_TRAMOS = ["ganancia_diaria", "kg_producidos"]
 export const MIN_DIAS_POR_DEFECTO = 21
@@ -118,6 +127,7 @@ export const DIMENSIONES: Partial<Record<Fuente, Dimension[]>> = {
   economia: ["especie", "lote", "rubro", "concepto", "grupo", "titular", "pagador"],
   potreros: ["potrero"],
   produccion: ["especie", "categoria", "lote"],
+  gestion: ["lote"],
 }
 
 // Qué filtros (especie, categoría, lote) le aplican a cada fuente; los demás se marcan "no aplica"
@@ -128,6 +138,7 @@ export const FILTRAN: Partial<Record<Fuente, Dimension[]>> = {
   economia: ["especie", "lote"],
   potreros: ["especie", "categoria", "lote"],
   produccion: ["especie", "categoria", "lote"],
+  gestion: ["especie", "lote"],
 }
 
 // Los filtros que aplican a una tarjeta: los de su primera medida si los define, si no los de su fuente

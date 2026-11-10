@@ -143,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261112000200, fuente Producción del tablero): 165 filas, todas con ok = true.
+-- ESPERADO (después de 20261112000600, fuente Gestión del tablero): 166 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -167,7 +167,8 @@ order by 1 desc, 2, 3, 4;
 -- +5 de 20261110000100: guardar_zona_potrero, borrar_zona_potrero, superficie_efectiva_total y las internas
 -- _cargar_zona_tipos y _geometria_de_geojson;
 -- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo;
--- +1 de 20261112000200: tablero_produccion.)
+-- +1 de 20261112000200: tablero_produccion;
+-- +1 de 20261112000600: tablero_gestion.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -327,6 +328,7 @@ order by 1 desc, 2, 3, 4;
 --   superficie_efectiva_total   | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
 --   tablero_economia            | false            | true          | false | false
+--   tablero_gestion             | false            | true          | false | false
 --   tablero_pesadas             | false            | true          | false | false
 --   tablero_potreros            | false            | true          | false | false
 --   tablero_produccion          | false            | true          | false | false

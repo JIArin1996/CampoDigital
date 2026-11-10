@@ -15,7 +15,7 @@ import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { DefinicionTarjeta, Dimension, Fuente, Grafico, TarjetaTablero, Tiempo } from "@/types/tablero"
 
 const NOMBRE_FUENTE: Partial<Record<Fuente, string>> = {
-  stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos", economia: "Economía", potreros: "Potreros", produccion: "Kilos y lana",
+  stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos", economia: "Economía", potreros: "Potreros", produccion: "Kilos y lana", gestion: "Gestión",
 }
 const NOMBRE_TIEMPO: Record<Tiempo, string> = {
   total: "Total del período", mes: "Por mes", ejercicio: "Por ejercicio", temporada: "Por temporada",

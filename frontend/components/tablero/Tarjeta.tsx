@@ -34,6 +34,9 @@ function formato(n: number | null, unidad: Unidad) {
     case "USD": return `${n < 0 ? "−" : ""}USD ${Math.abs(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
     case "USD/kg": return `USD ${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg`
     case "UG-día/ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG-día/ha`
+    case "tareas": return `${n.toLocaleString("es-UY")} ${n === 1 ? "tarea" : "tareas"}`
+    case "lotes": return `${n.toLocaleString("es-UY")} ${n === 1 ? "lote" : "lotes"}`
+    case "dosis": return `${n.toLocaleString("es-UY")} dosis`
     case "potreros": return `${n.toLocaleString("es-UY")} ${n === 1 ? "potrero" : "potreros"}`
     case "UG/ha": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UG/ha`
     case "UG": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG`
