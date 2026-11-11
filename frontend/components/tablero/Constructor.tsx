@@ -15,7 +15,7 @@ import {
   medidaDe, propiaDe,
 } from "@/components/tablero/catalogo"
 import { BuscadorMedidas } from "@/components/tablero/BuscadorMedidas"
-import { EditorMedida } from "@/components/tablero/EditorMedida"
+import { BorrarIndicador, IndicadorCalculado } from "@/components/tablero/IndicadorCalculado"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
 import {
   CONFIG_NUEVA, ORDEN_VISTAS, VISTAS, aplicarVista, cambiarMedida, cambiarPeriodo, cambiarSeparar, configDe, disponibilidad, graficosDe,
@@ -60,7 +60,7 @@ function Subseccion({ titulo, noAplica, children }: { titulo: string; noAplica?:
  * grande a la derecha; título y botones en el pie. Las combinaciones salen de vistas.ts (siempre válidas para el
  * catálogo) y cada ajuste automático avisa con Deshacer.
  */
-export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales, especies, categorias, lotes, nombre, propias, onPropiasCambiaron, propiaEnUso, onAceptar, onCancelar }: {
+export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales, especies, categorias, lotes, nombre, propias, onPropiasCambiaron, tarjetasQueUsan, onAceptar, onCancelar }: {
   inicial: TarjetaTablero | null               // null: tarjeta nueva
   estId: string
   rango: Rango
@@ -72,7 +72,7 @@ export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales,
   nombre: (dim: "especie" | "categoria" | "lote", id: string) => string
   propias: MedidaPropia[]
   onPropiasCambiaron: () => Promise<void>       // vuelve a leerlas y las registra en el catálogo
-  propiaEnUso: (id: string) => boolean          // la usa una tarjeta del tablero (guardado o en edición)
+  tarjetasQueUsan: (id: string) => string[]     // las tarjetas que usan un indicador (del tablero guardado o en edición)
   onAceptar: (t: TarjetaTablero) => void
   onCancelar: () => void
 }) {
@@ -94,6 +94,8 @@ export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales,
   const [masOpciones, setMasOpciones] = useState(false)
   // Indicador calculado abierto encima: el que se cambia, o null para uno nuevo
   const [editorMedida, setEditorMedida] = useState<{ medida: MedidaPropia | null } | null>(null)
+  const [aBorrar, setABorrar] = useState<MedidaPropia | null>(null)
+  const [borrando, setBorrando] = useState(false)
 
   const { fuente, medida, abrir, tiempo, grafico } = config
   const info = medidaDe(fuente, medida)
@@ -174,20 +176,20 @@ export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales,
     onAceptar({ ...borrador, id: inicial?.id ?? nuevoId(), titulo: tituloFinal.trim(), ...(cambioDeTipo ? tamano(grafico) : {}) })
   }
 
+  // Borrar un indicador: confirmación propia; si lo usan tarjetas u otros indicadores, dice cuáles y no deja
   const borrarMedida = async () => {
-    const p = propiaDe(medida)
-    if (!p) return
-    if (propiaEnUso(p.id)) {
-      return toast.error(`"${p.nombre}" lo usa una tarjeta del tablero: cambiá o sacá esa tarjeta primero`)
-    }
-    if (!window.confirm(`¿Borrar el indicador "${p.nombre}"? No se puede deshacer.`)) return
+    if (!aBorrar) return
+    setBorrando(true)
     try {
-      await eliminarMedida(p.id)
+      await eliminarMedida(aBorrar.id)
       await onPropiasCambiaron()
+      setABorrar(null)
       elegirMedida("stock", "stock")
       toast.success("Indicador borrado")
     } catch (err) {
       toast.error(mensajeDeError(err, "No se pudo borrar el indicador"))
+    } finally {
+      setBorrando(false)
     }
   }
 
@@ -236,7 +238,7 @@ export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales,
                   <span className="text-muted-foreground">= {formula(propia.definicion)}</span>
                   {esFabrica(medida) ? <span className="text-muted-foreground">(de fábrica: no se cambia)</span> : <>
                     <button type="button" className={cn("font-semibold text-primary underline-offset-2 hover:underline", foco)} onClick={() => setEditorMedida({ medida: propia })}>Editar indicador</button>
-                    <button type="button" className={cn("font-semibold text-destructive underline-offset-2 hover:underline", foco)} onClick={borrarMedida}>Borrar indicador</button>
+                    <button type="button" className={cn("font-semibold text-destructive underline-offset-2 hover:underline", foco)} onClick={() => setABorrar(propia)}>Borrar indicador</button>
                   </>}
                 </div>
               )}
@@ -430,21 +432,22 @@ export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales,
           <Button disabled={!puedeAceptar} onClick={aceptar}>{inicial ? "Aplicar cambios" : "Agregar al tablero"}</Button>
         </footer>
 
-        {/* Indicador calculado, encima del constructor (la R3 lo rediseña) */}
+        {/* Indicador calculado y su borrado, encima del constructor */}
         {editorMedida && (
-          <Dialog open onOpenChange={a => { if (!a) setEditorMedida(null) }}>
-            <DialogContent className="w-[560px] max-w-[calc(100vw-2rem)] sm:max-w-[560px]">
-              <DialogTitle className="sr-only">{editorMedida.medida ? "Editar indicador calculado" : "Nuevo indicador calculado"}</DialogTitle>
-              <EditorMedida key={editorMedida.medida?.id ?? "nueva"} estId={estId} inicial={editorMedida.medida} propias={propias}
-                onCancelar={() => setEditorMedida(null)}
-                onGuardada={async id => {
-                  await onPropiasCambiaron()
-                  setEditorMedida(null)
-                  if (medidaDe("combinada", id)) elegirMedida("combinada", id)
-                  toast.success("Indicador guardado")
-                }} />
-            </DialogContent>
-          </Dialog>
+          <IndicadorCalculado key={editorMedida.medida?.id ?? "nuevo"} estId={estId} inicial={editorMedida.medida} propias={propias}
+            rango={rango} etiquetaPeriodo={etiquetaPeriodo} generales={generales}
+            onCancelar={() => setEditorMedida(null)}
+            onGuardado={async id => {
+              await onPropiasCambiaron()
+              setEditorMedida(null)
+              if (medidaDe("combinada", id)) elegirMedida("combinada", id)
+              toast.success("Indicador guardado")
+            }} />
+        )}
+        {aBorrar && (
+          <BorrarIndicador indicador={aBorrar} borrando={borrando} onBorrar={borrarMedida} onCancelar={() => setABorrar(null)}
+            tarjetas={tarjetasQueUsan(aBorrar.id)}
+            indicadores={propias.filter(p => [p.definicion.a, p.definicion.b].some(o => "propia" in o && o.propia === aBorrar.id)).map(p => p.nombre)} />
         )}
       </DialogContent>
     </Dialog>

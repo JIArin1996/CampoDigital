@@ -232,9 +232,15 @@ function Indicadores() {
     registrarPropias(propias)
     setDatos(d => (d && d.estId === listos.estId ? { ...d, propias } : d))
   }
-  // Una medida propia que usa alguna tarjeta (la del tablero guardado o la del que se está editando) no se borra
-  const propiaEnUso = (id: string) => [...paginas, ...(listos.guardado ?? [])].some(p =>
-    p.tarjetas.some(t => t.definicion.fuente === "combinada" && t.definicion.medidas.includes(id)))
+  // Las tarjetas que usan un indicador calculado (en el tablero que se edita o en el guardado): mientras haya, no se borra
+  const tarjetasQueUsan = (id: string) => {
+    const usan = (ps: PaginaTablero[]) => ps.flatMap(p => p.tarjetas
+      .filter(t => t.definicion.fuente === "combinada" && t.definicion.medidas.includes(id))
+      .map(t => `"${t.titulo}" (página ${p.nombre})`))
+    const enEdicion = usan(paginas)
+    const guardadas = usan(listos.guardado ?? []).filter(t => !enEdicion.includes(t)).map(t => `${t}, en el tablero guardado`)
+    return [...enEdicion, ...guardadas]
+  }
 
   const aceptarTarjeta = (t: TarjetaTablero) => {
     const existe = actual.tarjetas.some(x => x.id === t.id)
@@ -488,7 +494,7 @@ function Indicadores() {
           <Constructor key={constructor.tarjeta?.id ?? "nueva"} inicial={constructor.tarjeta} estId={listos.estId} rango={rango}
             etiquetaPeriodo={etiquetaPeriodo} generales={generales}
             especies={listos.especies} categorias={listos.categorias} lotes={listos.lotes} nombre={nombre}
-            propias={listos.propias} onPropiasCambiaron={recargarPropias} propiaEnUso={propiaEnUso}
+            propias={listos.propias} onPropiasCambiaron={recargarPropias} tarjetasQueUsan={tarjetasQueUsan}
             onAceptar={aceptarTarjeta} onCancelar={() => setConstructor(null)} />
         )}
       </div>

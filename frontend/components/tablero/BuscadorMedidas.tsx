@@ -40,11 +40,13 @@ const grupoDe = (r: Resultado) =>
  * una línea de descripción, sinónimos ("plata" → Resultado), "Usadas recientemente" arriba y, al costado, el glosario
  * de la medida resaltada (se lee también con el teclado). Al final, crear un indicador calculado.
  */
-export function BuscadorMedidas({ fuente, medida, onElegir, onNuevoIndicador }: {
+export function BuscadorMedidas({ fuente, medida, onElegir, onNuevoIndicador, permitir, nombreCampo = "Qué medir" }: {
   fuente: Fuente
   medida: string
   onElegir: (fuente: Fuente, medida: string) => void
-  onNuevoIndicador: () => void
+  onNuevoIndicador?: () => void               // sin esto, no ofrece crear un indicador (dentro del indicador calculado)
+  permitir?: (fuente: Fuente, medida: string) => boolean // qué medidas se ofrecen (por defecto, todas)
+  nombreCampo?: string                        // para el lector de pantalla: "Qué medir", "Medida A"...
 }) {
   const [abierto, setAbierto] = useState(false)
   const [texto, setTexto] = useState("")
@@ -52,7 +54,7 @@ export function BuscadorMedidas({ fuente, medida, onElegir, onNuevoIndicador }: 
   const [recientes, setRecientes] = useState<string[]>([])
 
   const info = medidaDe(fuente, medida)
-  const resultados = useMemo(() => buscarMedidas(texto), [texto])
+  const resultados = useMemo(() => buscarMedidas(texto).filter(r => !permitir || permitir(r.fuente, r.medida)), [texto, permitir])
   // Sin texto: las recientes arriba y todas agrupadas por fuente; con texto: las coincidencias, en su orden
   const grupos = useMemo(() => {
     const porGrupo = new Map<string, Resultado[]>()
@@ -62,7 +64,7 @@ export function BuscadorMedidas({ fuente, medida, onElegir, onNuevoIndicador }: 
     }
     return [...porGrupo.entries()]
   }, [resultados, texto])
-  const recientesValidas = texto.trim() ? [] : recientes.filter(k => { const [f, m] = separar(k); return !!medidaDe(f, m) })
+  const recientesValidas = texto.trim() ? [] : recientes.filter(k => { const [f, m] = separar(k); return !!medidaDe(f, m) && (!permitir || permitir(f, m)) })
 
   const elegir = (clave: string) => {
     const [f, m] = separar(clave)
@@ -92,7 +94,7 @@ export function BuscadorMedidas({ fuente, medida, onElegir, onNuevoIndicador }: 
   return (
     <Popover open={abierto} onOpenChange={a => { setAbierto(a); if (a) { setTexto(""); setRecientes(leerRecientes()) } }}>
       <PopoverTrigger
-        render={<button type="button" aria-label={`Qué medir: ${info?.etiqueta ?? medida}. Cambiar`} />}
+        render={<button type="button" aria-label={`${nombreCampo}: ${info?.etiqueta ?? medida}. Cambiar`} />}
         className="flex w-full items-center gap-2.5 rounded-lg border border-input bg-background px-3 py-2.5 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -129,12 +131,14 @@ export function BuscadorMedidas({ fuente, medida, onElegir, onNuevoIndicador }: 
               {grupos.map(([g, lista]) => (
                 <CommandGroup key={g} heading={g}>{lista.map(r => item(r, ""))}</CommandGroup>
               ))}
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem value="nuevo-indicador" onSelect={() => { setAbierto(false); onNuevoIndicador() }} className="font-semibold text-primary">
-                  <Plus className="h-4 w-4" aria-hidden /> Crear un indicador calculado (A ÷ B, A × B…)
-                </CommandItem>
-              </CommandGroup>
+              {onNuevoIndicador && <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem value="nuevo-indicador" onSelect={() => { setAbierto(false); onNuevoIndicador() }} className="font-semibold text-primary">
+                    <Plus className="h-4 w-4" aria-hidden /> Crear un indicador calculado (A ÷ B, A × B…)
+                  </CommandItem>
+                </CommandGroup>
+              </>}
             </CommandList>
             <aside aria-live="polite" className="border-l bg-muted/40 p-3 text-sm">
               {terminos.length > 0 ? terminos.map(t => (

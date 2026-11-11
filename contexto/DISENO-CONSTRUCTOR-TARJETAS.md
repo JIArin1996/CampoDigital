@@ -95,11 +95,14 @@ la base no cambia en este rediseño.
 - Fórmula en bloques: [Medida A] [÷ × + −] [Medida B o un número], con el mismo buscador del punto 2.
 - **Resultado de ejemplo con datos reales:** "En 2025/26 da 37,55 USD/UG" (USD 8.000 ÷ 213,07 UG), más los avisos que
   ya existen (B del campo entero, conviene la versión promedio, sin tiempo en común, dividir por cero) y por qué se
-  separa.
+  separa. El ejemplo pide A y B a sus propias funciones (sin separar, con el período y los filtros del tablero) y hace
+  la cuenta en la app: es una muestra; en las tarjetas lo calcula la base (`tablero_combinada`, que solo trabaja con
+  indicadores guardados). Si el indicador solo se ve separado, no hay ejemplo y lo dice.
 - Unidad (sugerida) y "Al comparar, es mejor que" suba / baje / da igual.
 - Botón **Guardar indicador** y debajo "Queda disponible para todas las tarjetas del campo". Al guardar vuelve al
   constructor con el indicador elegido.
-- **Borrar:** diálogo de confirmación propio (no `window.confirm`). Si lo usan tarjetas, dice cuáles y no deja.
+- **Borrar:** diálogo de confirmación propio (no `window.confirm`). Si lo usan tarjetas (del tablero en edición o del
+  guardado) u otros indicadores, dice cuáles y no deja.
 
 ## 8. Ajustes en el tablero
 
