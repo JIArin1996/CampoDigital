@@ -433,7 +433,13 @@ Dos tablas nuevas (migración), por establecimiento:
       va abierto por especie.
     - **Comparar con el ejercicio anterior**, prendido por defecto.
     - "Agregar tarjeta lista" ofrece las tarjetas de las cuatro páginas.
-  - **8b**: la tarjeta de mapa.
+  - **8b** (hecho): la tarjeta de mapa (sin cambios en la base). Reglas fijadas al hacerla:
+    - **Gráfico "Mapa"**: solo abierto por potrero y en el total del período. Reusa el mapa de Potreros (imagen,
+      formas, zonas y etiquetas con el valor) y lee las formas una vez por establecimiento.
+    - **Color**: sin meta, tres tonos de menos a más con cortes en los tercios de los valores; con meta, verde si
+      cumple y ámbar si no. Sin valor o en 0, gris punteado. Leyenda debajo con los cortes.
+    - **En el tablero la rueda del mouse no hace zoom** (baja la página); se acerca con los botones o los dedos.
+    - No compara con el año anterior ni filtra las otras tarjetas (el potrero no es un filtro cruzado).
 - **Más adelante**: actividad "Señalada" y su indicador para ovinos; superficies con historial; precio de
   referencia por categoría y producto bruto; **diagnóstico con preñadas por categoría** (opcional), para no perder
   la preñez de las vaquillonas cuando se entoran junto con las vacas.

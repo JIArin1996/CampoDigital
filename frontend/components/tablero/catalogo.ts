@@ -133,8 +133,8 @@ export const PENDIENTES: Record<string, string> = {
   renta_forestal_ha: "más adelante: necesita filtrar los ingresos por rubro (Forestación)",
   pct_senalada: "más adelante, con la actividad Señalada",
 }
-// Gráficos que todavía no existen
-export const GRAFICOS_PENDIENTES: Partial<Record<string, string>> = { mapa: "en la etapa 8b" }
+// Gráficos que todavía no existen (el mapa llegó en la 8b)
+export const GRAFICOS_PENDIENTES: Partial<Record<string, string>> = {}
 
 // Medidas de pesadas que usan tramos entre pesadas (y el mínimo de días)
 export const USAN_TRAMOS = ["ganancia_diaria", "kg_producidos"]

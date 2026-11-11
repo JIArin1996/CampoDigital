@@ -12,6 +12,8 @@ import { mensajeDeError } from "@/lib/supabase/errores"
 import {
   ETIQUETA_DIMENSION, GRAFICOS_PENDIENTES, MIN_DIAS_POR_DEFECTO, PENDIENTES, comparacionDe, filtranEn, medidaDe, nombreOperando, propiaDe, rasgosDe, type Unidad,
 } from "@/components/tablero/catalogo"
+import { formato } from "@/components/tablero/formato"
+import { MapaTarjeta } from "@/components/tablero/MapaTarjeta"
 import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { Dimension, FilaTablero, FiltroCruzado, FiltrosIds, TarjetaTablero } from "@/types/tablero"
@@ -24,32 +26,6 @@ type DimFiltro = "especie" | "categoria" | "lote"
 const DIMS_FILTRO: DimFiltro[] = ["especie", "categoria", "lote"]
 const CLAVE_IDS: Record<DimFiltro, keyof FiltrosIds> = { especie: "especie_ids", categoria: "categoria_ids", lote: "lote_ids" }
 const NOMBRE_DIM: Record<DimFiltro, string> = { especie: "Especie", categoria: "Categoría", lote: "Lote" }
-
-function formato(n: number | null, unidad: Unidad) {
-  if (n === null || Number.isNaN(n)) return "—"
-  switch (unidad) {
-    case "%": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} %`
-    case "kg": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg`
-    case "kg/día": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} kg/día`
-    case "kg/vaca": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} kg/vaca`
-    case "kg/cab": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 2 })} kg/cab`
-    case "razón": return n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    case "USD": return `${n < 0 ? "−" : ""}USD ${Math.abs(n).toLocaleString("es-UY", { maximumFractionDigits: 0 })}`
-    case "USD/kg": return `USD ${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/kg`
-    case "UG-día/ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG-día/ha`
-    case "tareas": return `${n.toLocaleString("es-UY")} ${n === 1 ? "tarea" : "tareas"}`
-    case "lotes": return `${n.toLocaleString("es-UY")} ${n === 1 ? "lote" : "lotes"}`
-    case "dosis": return `${n.toLocaleString("es-UY")} dosis`
-    case "potreros": return `${n.toLocaleString("es-UY")} ${n === 1 ? "potrero" : "potreros"}`
-    case "UG/ha": return `${n.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} UG/ha`
-    case "UG": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG`
-    case "ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} ha`
-    case "días": return `${n.toLocaleString("es-UY")} ${n === 1 ? "día" : "días"}`
-    case "cab": return n.toLocaleString("es-UY", { maximumFractionDigits: 1 })
-    // Medidas propias: la unidad que eligió el administrador ("USD/ha"), o ninguna
-    default: return `${n.toLocaleString("es-UY", { maximumFractionDigits: 2 })}${unidad ? ` ${unidad}` : ""}`
-  }
-}
 
 const mismos = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
 
@@ -238,7 +214,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
         ) : !listos ? (
           <div className="h-full min-h-12 rounded-md bg-muted/40 animate-pulse" aria-label="Calculando" />
         ) : (
-          <Contenido tarjeta={tarjeta} resultados={listos} comparados={comparados} etiquetaComp={comparar} unidad={unidad} animar={!impresion}
+          <Contenido tarjeta={tarjeta} estId={estId} resultados={listos} comparados={comparados} etiquetaComp={comparar} unidad={unidad} animar={!impresion}
             elegir={elegir} elegido={elegido} />
         )}
       </div>
@@ -340,8 +316,9 @@ function Avisos({ avisos, minDias, operandos }: { avisos: Record<string, unknown
 
 type FilaGrafico = Record<string, string | number | null>
 
-function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, animar, elegir, elegido }: {
+function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unidad, animar, elegir, elegido }: {
   tarjeta: TarjetaTablero
+  estId: string
   animar: boolean
   resultados: Resultado[]
   comparados: Resultado[] | null
@@ -397,6 +374,11 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
         )}
       </div>
     )
+  }
+
+  // Mapa (etapa 8b): los potreros coloreados por el valor de la primera medida, abierta por potrero
+  if (def.grafico === "mapa") {
+    return <MapaTarjeta estId={estId} filas={resultados[0]?.filas ?? []} unidad={unidad} meta={def.meta} />
   }
 
   // Datos para los gráficos: un renglón por grupo (abierto, total) o por período, y una serie por medida (o por

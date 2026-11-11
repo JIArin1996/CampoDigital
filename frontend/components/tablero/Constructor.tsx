@@ -33,6 +33,7 @@ const GRAFICOS: { id: Grafico; nombre: string }[] = [
   { id: "lineas", nombre: "Líneas" },
   { id: "torta", nombre: "Torta" },
   { id: "tabla", nombre: "Tabla" },
+  { id: "mapa", nombre: "Mapa" },
 ]
 
 // Qué gráficos sirven para lo elegido: acostadas y torta, para comparar grupos (abierto y en total); líneas y barras
@@ -40,6 +41,7 @@ const GRAFICOS: { id: Grafico; nombre: string }[] = [
 function graficoValido(g: Grafico, abrir: Dimension | null, tiempo: Tiempo) {
   if (g === "barras_horizontales" || g === "torta") return abrir !== null && tiempo === "total"
   if (g === "lineas" || g === "barras_linea") return tiempo !== "total"
+  if (g === "mapa") return abrir === "potrero" && tiempo === "total"
   return true
 }
 
@@ -300,7 +302,8 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
             const valido = graficoValido(g.id, abrir, tiempo)
             return (
               <button key={g.id} type="button" disabled={!valido} aria-pressed={grafico === g.id} onClick={() => setGrafico(g.id)}
-                title={valido ? undefined : g.id === "lineas" ? "Necesita tiempo (por mes, ejercicio o temporada)" : "Necesita abrir por algo, en el total del período"}
+                title={valido ? undefined : g.id === "lineas" || g.id === "barras_linea" ? "Necesita tiempo (por mes, ejercicio o temporada)"
+                  : g.id === "mapa" ? "Necesita abrir por potrero, en el total del período" : "Necesita abrir por algo, en el total del período"}
                 className={cn("h-9 rounded-md border text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40",
                   grafico === g.id ? "border-primary bg-primary font-semibold text-primary-foreground" : "hover:bg-muted")}>
                 {g.nombre}
