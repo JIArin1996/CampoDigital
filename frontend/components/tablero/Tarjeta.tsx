@@ -1,17 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useId, useState } from "react"
 import { AlertTriangle, GripVertical, Pencil, X } from "lucide-react"
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis,
   YAxis,
 } from "recharts"
 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import {
   ETIQUETA_DIMENSION, GRAFICOS_PENDIENTES, MIN_DIAS_POR_DEFECTO, PENDIENTES, comparacionDe, filtranEn, medidaDe, nombreOperando, propiaDe, rasgosDe, type Unidad,
 } from "@/components/tablero/catalogo"
+import { detalleDe, doceMeses, enCurso } from "@/components/tablero/detalle"
 import { formato } from "@/components/tablero/formato"
 import { MapaTarjeta } from "@/components/tablero/MapaTarjeta"
 import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
@@ -77,7 +79,7 @@ export interface DatosTarjeta {
  */
 // Lo último que calculó cada tarjeta: al pasar a la vista de impresión las tarjetas se vuelven a armar y no hace
 // falta pedir los datos de nuevo (solo se usa al imprimir, y por un minuto)
-const CALCULADOS = new Map<string, { hora: number; resultados: Resultado[]; comparados: Resultado[] | null }>()
+const CALCULADOS = new Map<string, { hora: number; resultados: Resultado[]; comparados: Resultado[] | null; linea: FilaTablero[] | null }>()
 const calculado = (clave: string) => {
   const c = CALCULADOS.get(clave)
   return c && Date.now() - c.hora < 60_000 ? c : null
@@ -107,9 +109,9 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   const pendiente = GRAFICOS_PENDIENTES[def.grafico] ?? (existe || def.fuente === "combinada" ? null : PENDIENTES[def.medidas[0]] ?? "más adelante")
   const borrada = def.fuente === "combinada" && !existe
 
-  const [datos, setDatos] = useState<{ clave: string; resultados: Resultado[]; comparados: Resultado[] | null } | null>(() => {
+  const [datos, setDatos] = useState<{ clave: string; resultados: Resultado[]; comparados: Resultado[] | null; linea: FilaTablero[] | null } | null>(() => {
     const c = impresion ? calculado(clave) : null
-    return c ? { clave, resultados: c.resultados, comparados: c.comparados } : null
+    return c ? { clave, resultados: c.resultados, comparados: c.comparados, linea: c.linea } : null
   })
   const [error, setError] = useState<{ clave: string; texto: string } | null>(null)
 
@@ -128,10 +130,17 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
       const acumular = def.tiempo !== "total" && !!def.acumuladas?.includes(medida)
       return { medida, filas: acumular ? acumulado(filas) : filas, ...(sumaTotal ? { total: total?.[0]?.valor ?? null } : {}) }
     }))
-    Promise.all([pedir(r), rc ? pedir(rc) : Promise.resolve(null)])
-      .then(([resultados, comparados]) => {
-        CALCULADOS.set(clave, { hora: Date.now(), resultados, comparados })
-        if (vigente) setDatos({ clave, resultados, comparados })
+    // Número sin separar de una medida que se ve mes a mes: también los últimos 12 meses, para la minilínea (si falla,
+    // la tarjeta se muestra igual, sin ella)
+    const conLinea = def.grafico === "numero" && def.abrir_por === null && !!medidaDe(def.fuente, def.medidas[0])?.tiempos.includes("mes")
+    const linea = conLinea
+      ? getDatosTablero({ establecimiento_id: estId, medida: def.medidas[0], ...doceMeses(r.hasta), filtros: efectivos, definicion: { ...def, tiempo: "mes" } })
+        .catch(() => null)
+      : Promise.resolve(null)
+    Promise.all([pedir(r), rc ? pedir(rc) : Promise.resolve(null), linea])
+      .then(([resultados, comparados, linea]) => {
+        CALCULADOS.set(clave, { hora: Date.now(), resultados, comparados, linea })
+        if (vigente) setDatos({ clave, resultados, comparados, linea })
       })
       .catch(err => { if (vigente) setError({ clave, texto: mensajeDeError(err, "No se pudieron calcular los datos") }) })
     return () => { vigente = false }
@@ -141,6 +150,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
 
   const listos = datos?.clave === clave ? datos.resultados : null
   const comparados = datos?.clave === clave ? datos.comparados : null
+  const linea = datos?.clave === clave ? datos.linea : null
   const fallo = error?.clave === clave ? error.texto : null
   const filasListas = listos?.flatMap(x => x.filas) ?? []
   const avisos = def.fuente === "combinada" ? avisosCombinada(filasListas) : filasListas.find(f => f.avisos)?.avisos ?? null
@@ -160,6 +170,8 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
     ? (clave: string, etiqueta: string) => { if (clave !== "sin") onElegir({ dimension: dimCruzable, clave, etiqueta }) }
     : undefined
   const elegido = cruzado && cruzado.origen === tarjeta.id ? cruzado.clave : null
+  const textosAviso = avisos ? textosAvisos(avisos, def.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO,
+    propia ? { a: nombreOperando(propia.definicion.a), b: nombreOperando(propia.definicion.b) } : undefined) : []
 
   return (
     <section aria-label={tarjeta.titulo}
@@ -186,6 +198,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
               Mostrar solo: {f.ids.map(id => nombre(f.dim, id)).join(", ")}
             </span>
           ))}
+          {textosAviso.length > 0 && !impresion && <AvisosCompactos textos={textosAviso} titulo={tarjeta.titulo} />}
           {edicion && onEditar && (
             <button type="button" onClick={onEditar} aria-label={`Editar la tarjeta ${tarjeta.titulo}`} title="Editar"
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -213,7 +226,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
         ) : !listos ? (
           <div className="h-full min-h-12 rounded-md bg-muted/40 animate-pulse" aria-label="Calculando" />
         ) : (
-          <Contenido tarjeta={tarjeta} estId={estId} resultados={listos} comparados={comparados} etiquetaComp={comparar} unidad={unidad} animar={!impresion}
+          <Contenido tarjeta={tarjeta} estId={estId} resultados={listos} comparados={comparados} linea={linea} etiquetaComp={comparar} unidad={unidad} animar={!impresion}
             elegir={elegir} elegido={elegido} />
         )}
       </div>
@@ -221,8 +234,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
       {elegir && listos && !elegido && def.grafico !== "numero" && (
         <p className="text-[11px] text-muted-foreground">Tocá una {def.grafico === "tabla" ? "fila" : def.grafico === "torta" ? "porción" : "barra"} para filtrar el resto del tablero.</p>
       )}
-      {avisos && <Avisos avisos={avisos} minDias={def.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO}
-        operandos={propia ? { a: nombreOperando(propia.definicion.a), b: nombreOperando(propia.definicion.b) } : undefined} />}
+      {impresion && textosAviso.length > 0 && <ListaAvisos textos={textosAviso} />}
     </section>
   )
 }
@@ -261,7 +273,8 @@ function avisosCombinada(filas: FilaTablero[]): Record<string, unknown> | null {
   }
 }
 
-function Avisos({ avisos, minDias, operandos }: { avisos: Record<string, unknown>; minDias: number; operandos?: { a: string; b: string } }) {
+// Los avisos de los datos de una tarjeta, en palabras
+function textosAvisos(avisos: Record<string, unknown>, minDias: number, operandos?: { a: string; b: string }): string[] {
   const textos: string[] = []
   if (operandos) {
     const filas = Number(avisos.filas ?? 1)
@@ -303,29 +316,52 @@ function Avisos({ avisos, minDias, operandos }: { avisos: Record<string, unknown
   if (avisos.usd_ventas_sin_kg) textos.push(`${usd(avisos.usd_ventas_sin_kg)} de ventas sin kg: no entran en el precio por kg`)
   if (avisos.superficie_actual) textos.push("Superficies de hoy: los potreros no guardan su historial")
   if (cab("cab_consumidas_sin_kg") > 0) textos.push(`${cabezas(cab("cab_consumidas_sin_kg"))} de consumo sin kg`)
-  if (textos.length === 0) return null
+  return textos
+}
+
+function ListaAvisos({ textos }: { textos: string[] }) {
   return (
-    <ul className="space-y-0.5 text-xs text-amber-800 dark:text-amber-300">
+    <ul className="space-y-1 text-xs text-amber-800 dark:text-amber-300">
       {textos.map(t => (
-        <li key={t} className="flex items-start gap-1"><AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />{t}</li>
+        <li key={t} className="flex items-start gap-1.5"><AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />{t}</li>
       ))}
     </ul>
   )
 }
 
+// ⚠ con la cantidad de avisos: abre la lista (con teclado también) en lugar de ocupar lugar en la tarjeta
+function AvisosCompactos({ textos, titulo }: { textos: string[]; titulo: string }) {
+  const cuantos = `${textos.length} ${textos.length === 1 ? "aviso" : "avisos"}`
+  return (
+    <Popover>
+      <PopoverTrigger render={<button type="button" aria-label={`${cuantos} sobre los datos de ${titulo}`} />}
+        className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 outline-none hover:bg-amber-200 focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-amber-950 dark:text-amber-300">
+        <AlertTriangle className="h-3 w-3" aria-hidden />{textos.length}
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-2rem)] gap-2">
+        <p className="text-sm font-semibold">{cuantos} sobre estos datos</p>
+        <ListaAvisos textos={textos} />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 type FilaGrafico = Record<string, string | number | null>
 
-function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unidad, animar, elegir, elegido }: {
+function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp, unidad, animar, elegir, elegido }: {
   tarjeta: TarjetaTablero
   estId: string
   animar: boolean
   resultados: Resultado[]
   comparados: Resultado[] | null
+  linea: FilaTablero[] | null                    // los últimos 12 meses (tarjeta de número)
   etiquetaComp: string | null
   unidad: Unidad
   elegir?: (clave: string, etiqueta: string) => void
   elegido: string | null
 }) {
+  // Ids de los rayados de esta tarjeta (período en curso)
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "")
   const def = tarjeta.definicion
   const fuente = def.fuente
   const nombreMedida = (m: string) =>
@@ -340,10 +376,14 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
     const c = filasC[filasC.length - 1]
     const meta = def.meta
     const cumple = meta && f.valor !== null ? (meta.mejor === "baja" ? f.valor <= meta.valor : f.valor >= meta.valor) : null
+    const detalle = detalleDe(fuente, def.medidas[0], f)
     return (
-      <div>
-        <p className={cn("text-3xl font-bold tabular-nums", cumple === true && "text-emerald-700 dark:text-emerald-400",
-          cumple === false && "text-amber-700 dark:text-amber-400")}>{formato(f.valor, unidad)}</p>
+      <div className="flex flex-col gap-0.5">
+        <div className="flex items-end gap-3">
+          <p className={cn("text-3xl font-bold tabular-nums", cumple === true && "text-emerald-700 dark:text-emerald-400",
+            cumple === false && "text-amber-700 dark:text-amber-400")}>{formato(f.valor, unidad)}</p>
+          {linea && <MiniLinea filas={linea} unidad={unidad} animar={animar} />}
+        </div>
         {meta && (
           <p className={cn("text-xs font-medium", cumple === true ? "text-emerald-700 dark:text-emerald-400" : cumple === false ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
             Meta {formato(meta.valor, unidad)}{cumple === true ? " · cumple" : cumple === false ? (meta.mejor === "baja" ? " · se pasa" : " · no llega") : ""}
@@ -352,25 +392,20 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
         {comparados && <Variacion actual={f.valor} anterior={c?.valor ?? null} unidad={unidad} etiqueta={etiquetaComp ?? ""}
           mejorSiBaja={comparacionDe(fuente, def.medidas[0]) === "baja"} sinColor={comparacionDe(fuente, def.medidas[0]) === null} />}
         {fuente === "combinada" && f.numerador !== null && f.denominador !== null && <DetalleDivision medida={def.medidas[0]} a={f.numerador} b={f.denominador} />}
-        {unidad === "%" && f.denominador !== null && (
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {f.numerador?.toLocaleString("es-UY")} de {f.denominador.toLocaleString("es-UY")}
-          </p>
-        )}
-        {unidad === "cab" && <p className="text-xs text-muted-foreground">cabezas{f.periodo ? ` · ${rotuloPeriodo(f.periodo)}` : ""}</p>}
-        {unidad === "kg/día" && f.numerador !== null && f.denominador !== null && (
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {f.numerador.toLocaleString("es-UY")} kg en {f.denominador.toLocaleString("es-UY")} cabeza-días
-          </p>
-        )}
-        {unidad === "kg" && f.denominador !== null && (
-          <p className="text-xs text-muted-foreground tabular-nums">{f.denominador.toLocaleString("es-UY")} cabezas pesadas</p>
-        )}
-        {unidad === "UG/ha" && f.numerador !== null && (
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {f.numerador.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG en {f.denominador !== null ? `${f.denominador.toLocaleString("es-UY", { maximumFractionDigits: 1 })} ha` : "potreros sin dibujar"}
-          </p>
-        )}
+        {/* El detalle: numerador y denominador en palabras ("468 preñadas de 520 entoradas") */}
+        {detalle ? <p className="text-xs text-muted-foreground tabular-nums">{detalle}</p> : <>
+          {unidad === "%" && f.numerador !== null && f.denominador !== null && (
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {f.numerador.toLocaleString("es-UY")} de {f.denominador.toLocaleString("es-UY")}
+            </p>
+          )}
+          {unidad === "cab" && <p className="text-xs text-muted-foreground">cabezas{f.periodo ? ` · ${rotuloPeriodo(f.periodo)}` : ""}</p>}
+          {unidad === "UG/ha" && f.numerador !== null && f.denominador === null && (
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {f.numerador.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG en potreros sin dibujar
+            </p>
+          )}
+        </>}
       </div>
     )
   }
@@ -397,19 +432,49 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
     series = [...new Map(filas.map(f => [f.clave ?? "", f.etiqueta ?? "—"])).entries()].map(([c, n]) => ({ clave: c, nombre: n }))
     const periodos = [...new Set(filas.map(f => f.periodo))]
     filasGrafico = periodos.map(p => ({
-      x: rotuloPeriodo(p),
+      x: rotuloPeriodo(p), _periodo: p,
       ...Object.fromEntries(series.map(s => [s.clave, filas.find(f => f.periodo === p && (f.clave ?? "") === s.clave)?.valor ?? null])),
     }))
   } else {
     series = resultados.map(x => ({ clave: x.medida, nombre: nombreMedida(x.medida) }))
     const periodos = [...new Set(resultados.flatMap(x => x.filas.map(f => f.periodo)))]
     filasGrafico = periodos.map(p => ({
-      x: rotuloPeriodo(p),
+      x: rotuloPeriodo(p), _periodo: p,
       ...Object.fromEntries(resultados.map(x => [x.medida, x.filas.find(f => f.periodo === p)?.valor ?? null])),
     }))
   }
 
   if (filasGrafico.length === 0) return <p className="text-sm text-muted-foreground">Sin datos en el período.</p>
+
+  // Período en curso (en el tiempo): la barra rayada y el punto punteado, con una línea que lo dice
+  const parciales = new Set(porGrupo ? [] : filasGrafico.flatMap((f, i) => (enCurso((f._periodo as string | null) ?? null) ? [i] : [])))
+  const rayas = (i: number) => `url(#rayas-${uid}-${i % COLORES.length})`
+  const defsRayas = parciales.size > 0 ? (
+    <svg width="0" height="0" className="absolute" aria-hidden>
+      <defs>
+        {COLORES.map((c, i) => (
+          <pattern key={c} id={`rayas-${uid}-${i}`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill={c} fillOpacity="0.25" />
+            <rect width="3" height="6" fill={c} />
+          </pattern>
+        ))}
+      </defs>
+    </svg>
+  ) : null
+  const conNota = (grafico: React.ReactNode) => parciales.size === 0 ? grafico : (
+    <div className="flex h-full flex-col">
+      {defsRayas}
+      <div className="min-h-0 flex-1">{grafico}</div>
+      <p className="text-[11px] text-muted-foreground">
+        {[...parciales].map(i => String(filasGrafico[i].x)).join(", ")}: todavía no terminó (rayado o punteado), el valor puede cambiar.
+      </p>
+    </div>
+  )
+  const puntoParcial = (color: string) => function PuntoParcial(p: { cx?: number; cy?: number; index?: number }) {
+    return p.index !== undefined && parciales.has(p.index) && p.cx !== undefined && p.cy !== undefined
+      ? <circle key={`p${p.index}`} cx={p.cx} cy={p.cy} r={4} fill="var(--card)" stroke={color} strokeWidth={2} strokeDasharray="2 2" />
+      : <g key={`p${p.index}`} />
+  }
 
   // Meta: línea punteada horizontal (en las barras acostadas, vertical). Agranda el eje si queda afuera.
   const lineaMeta = (eje: "x" | "y") => def.meta ? (
@@ -502,7 +567,7 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
   }
 
   if (def.grafico === "lineas") {
-    return (
+    return conNota(
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={filasGrafico} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -512,7 +577,8 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
           {leyenda}
           {lineaMeta("y")}
           {series.map((s, i) => (
-            <Line key={s.clave} isAnimationActive={animar} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[i % COLORES.length]} strokeWidth={2} dot={false} connectNulls />
+            <Line key={s.clave} isAnimationActive={animar} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[i % COLORES.length]} strokeWidth={2}
+              dot={parciales.size ? puntoParcial(COLORES[i % COLORES.length]) : false} connectNulls />
           ))}
           {seriesComp.map(s => (
             <Line key={s.clave} isAnimationActive={animar} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[s.base % COLORES.length]} strokeWidth={2}
@@ -527,7 +593,7 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
   if (def.grafico === "barras_linea") {
     const barras = series.slice(0, -1)
     const linea = series[series.length - 1]
-    return (
+    return conNota(
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={filasGrafico} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -537,10 +603,12 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
           {leyenda}
           {lineaMeta("y")}
           {barras.map((s, i) => (
-            <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2} />
+            <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2}>
+              {filasGrafico.map((_, j) => <Cell key={j} fill={parciales.has(j) ? rayas(i) : COLORES[i % COLORES.length]} />)}
+            </Bar>
           ))}
           <Line isAnimationActive={animar} type="monotone" dataKey={linea.clave} name={linea.nombre} stroke={COLORES[barras.length % COLORES.length]}
-            strokeWidth={2} dot={false} connectNulls />
+            strokeWidth={2} dot={parciales.size ? puntoParcial(COLORES[barras.length % COLORES.length]) : false} connectNulls />
         </ComposedChart>
       </ResponsiveContainer>
     )
@@ -549,7 +617,7 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
   const horizontal = def.grafico === "barras_horizontales"
   const apiladas = def.grafico === "barras_apiladas"
   const unaSerie = series.length === 1
-  return (
+  return conNota(
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={filasGrafico} layout={horizontal ? "vertical" : "horizontal"}
         margin={{ top: 8, right: 8, left: horizontal ? 0 : -12, bottom: 0 }}>
@@ -574,7 +642,7 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
             {filasGrafico.map((f, j) => (
               <Cell key={j} fillOpacity={opacidad(f)}
                 // Una sola serie: las bajas (negativas) en rojo
-                fill={unaSerie && Number(f[s.clave] ?? 0) < 0 ? COLOR_NEGATIVO : COLORES[i % COLORES.length]} />
+                fill={parciales.has(j) ? rayas(i) : unaSerie && Number(f[s.clave] ?? 0) < 0 ? COLOR_NEGATIVO : COLORES[i % COLORES.length]} />
             ))}
           </Bar>
         ))}
@@ -583,6 +651,30 @@ function Contenido({ tarjeta, estId, resultados, comparados, etiquetaComp, unida
         ))}
       </BarChart>
     </ResponsiveContainer>
+  )
+}
+
+// Minilínea de la tarjeta de número: los últimos 12 meses, el mes en curso con un punto punteado. Lo que dice va
+// también en texto para el lector de pantalla (no solo en el tooltip).
+function MiniLinea({ filas, unidad, animar }: { filas: FilaTablero[]; unidad: Unidad; animar: boolean }) {
+  const datos = filas.filter(f => f.clave === null).map(f => ({ x: rotuloPeriodo(f.periodo), v: f.valor, parcial: enCurso(f.periodo) }))
+  const conValor = datos.filter(d => d.v !== null)
+  if (conValor.length < 2) return null
+  const primero = conValor[0], ultimo = conValor[conValor.length - 1]
+  const resumen = `Últimos 12 meses: de ${formato(primero.v, unidad)} en ${primero.x} a ${formato(ultimo.v, unidad)} en ${ultimo.x}${ultimo.parcial ? " (mes en curso)" : ""}`
+  return (
+    <div role="img" aria-label={resumen} className="mb-1 ml-auto h-9 w-2/5 max-w-40 min-w-16">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={datos} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+          <YAxis hide domain={["dataMin", "dataMax"]} />
+          <Tooltip formatter={v => [formato(Number(v), unidad), ""]} separator="" contentStyle={{ fontSize: 11, borderRadius: 6, padding: "2px 6px" }} />
+          <Line isAnimationActive={animar} type="monotone" dataKey="v" stroke="var(--chart-1)" strokeWidth={1.5} connectNulls
+            dot={p => p.index !== undefined && datos[p.index]?.parcial
+              ? <circle key="parcial" cx={p.cx} cy={p.cy} r={3} fill="var(--card)" stroke="var(--chart-1)" strokeWidth={1.5} strokeDasharray="2 1.5" />
+              : <g key={`d${p.index}`} />} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
 

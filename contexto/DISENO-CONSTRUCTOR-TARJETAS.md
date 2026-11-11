@@ -128,7 +128,12 @@ la base no cambia en este rediseño.
   la definición); descripciones, sinónimos y glosario en el catálogo; Vitest (`npm test`).
 - **R2:** el diálogo del constructor con buscador, opciones visuales, avisos con Deshacer y Más opciones.
 - **R3:** el diálogo del indicador calculado y el de borrar.
-- **R4:** las tarjetas del tablero (número, avisos, parcial, torta, ranking, menú rápido).
+- **R4:** las tarjetas del tablero, en dos partes:
+  - **R4a:** tarjeta de número (minilínea al costado del valor, para que entre en el tamaño de siempre; detalle en
+    palabras de `detalle.ts`), avisos ⚠ en un popover (en la impresión, la lista) y período en curso rayado o
+    punteado, con una línea que lo dice. La minilínea es un pedido más a la base por tarjeta de número, solo si la
+    medida se ve mes a mes; si falla, la tarjeta se muestra sin ella.
+  - **R4b:** torta (6 porciones y "Otros"), ranking ordenado, formato y unidad en ejes y tooltips, menú rápido.
 
 Pruebas (Vitest 4, `frontend/components/tablero/*.test.ts`; `npm test` en `frontend/`, desde PowerShell o cmd: en
 Git Bash, Node ve la carpeta como `c:\…` en minúscula y Vitest falla con "Cannot read properties of undefined (reading
