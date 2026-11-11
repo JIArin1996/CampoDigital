@@ -18,6 +18,9 @@ export interface DefinicionTarjeta {
   filtros?: FiltrosIds
   // Parámetros de la medida: min_dias = mínimo de días entre pesadas (ganancia diaria y kg producidos; por defecto 21)
   opciones?: { min_dias?: number }
+  // Meta (etapa 7b): en el número, verde si cumple y ámbar si no; en barras y líneas, una línea punteada. "mejor":
+  // "sube" cumple con valor >= meta, "baja" con valor <= meta. Sin cálculo en la base.
+  meta?: { valor: number; mejor: 'sube' | 'baja' }
 }
 
 export interface FiltrosIds {

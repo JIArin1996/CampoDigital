@@ -43,6 +43,8 @@ export async function exportarExcel(archivo: string, encabezado: [string, string
       }
       agregar(d.resultados, "")
       if (d.comparados) agregar(d.comparados, ` (${d.etiquetaComparada ?? "año anterior"})`)
+      const meta = t.definicion.meta
+      if (meta) filas.push(["", meta.mejor === "baja" ? "Meta (cumple si queda en la meta o abajo)" : "Meta (cumple si llega o pasa)", "", meta.valor, d.unidad, null, null])
     }
     const hoja = XLSX.utils.aoa_to_sheet(filas)
     hoja["!cols"] = [{ wch: 12 }, { wch: 24 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }]

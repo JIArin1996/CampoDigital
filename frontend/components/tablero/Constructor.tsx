@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
 import {
-  ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, USAN_TRAMOS, abrirDe, formula, medidaDe, propiaDe,
+  ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, USAN_TRAMOS, abrirDe, comparacionDe, formula, medidaDe, propiaDe,
 } from "@/components/tablero/catalogo"
 import { EditorMedida } from "@/components/tablero/EditorMedida"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
@@ -80,6 +80,9 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const [minDias, setMinDias] = useState(String(d0?.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO))
   const [titulo, setTitulo] = useState(inicial?.titulo ?? "")
   const [tituloTocado, setTituloTocado] = useState(!!inicial)
+  // Meta (opcional): el valor y si cumple subiendo o bajando (por defecto, lo de la medida)
+  const [meta, setMeta] = useState(d0?.meta ? String(d0.meta.valor).replace(".", ",") : "")
+  const [metaMejor, setMetaMejor] = useState<"sube" | "baja" | null>(d0?.meta?.mejor ?? null)
   // Editor de medida propia abierto: la medida a cambiar, o null para una nueva
   const [editorMedida, setEditorMedida] = useState<{ medida: MedidaPropia | null } | null>(null)
 
@@ -97,6 +100,13 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const extrasValidos = extras.filter(e => extrasPosibles.some(x => x.m === e))
   const tituloFinal = tituloTocado ? titulo : tituloSugerido(fuente, medida, abrir, tiempo)
   const usaTramos = fuente === "pesadas" && [medida, ...extras].some(m => USAN_TRAMOS.includes(m))
+  // La meta va en el número y en los gráficos de barras y líneas (no en la torta ni en la tabla)
+  const conMeta = grafico === "numero" || grafico === "barras" || grafico === "barras_horizontales" || grafico === "lineas"
+  // "1.250,5" (con coma decimal, los puntos son de miles) o "2.5"
+  const metaNum = Number(meta.includes(",") ? meta.trim().replace(/\./g, "").replace(",", ".") : meta.trim())
+  const metaValida = meta.trim() === "" || Number.isFinite(metaNum)
+  const mejorMedida = comparacionDe(fuente, medida)
+  const metaMejorFinal = metaMejor ?? mejorMedida ?? "sube"
   const minDiasNum = Number(minDias)
   const minDiasValido = Number.isInteger(minDiasNum) && minDiasNum >= 1 && minDiasNum <= 365
 
@@ -128,6 +138,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
     tiempo,
     grafico,
     ...(periodo !== "tablero" ? { periodo: { ejercicios: Number(periodo) } } : {}),
+    ...(conMeta && meta.trim() !== "" && metaValida ? { meta: { valor: metaNum, mejor: metaMejorFinal } } : {}),
     ...(usaTramos && minDiasValido && minDiasNum !== MIN_DIAS_POR_DEFECTO ? { opciones: { min_dias: minDiasNum } } : {}),
     ...(((especie && filtran.includes("especie")) || (categoria && filtran.includes("categoria")) || (lote && filtran.includes("lote"))) ? {
       filtros: {
@@ -280,6 +291,24 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
         </div>
       </fieldset>
 
+      {conMeta && (
+        <div className="grid grid-cols-2 gap-3">
+          <label className={etiqueta}>Meta (opcional){info?.unidad ? ` en ${info.unidad}` : ""}
+            <Input inputMode="decimal" value={meta} placeholder="Sin meta" aria-invalid={!metaValida} onChange={e => setMeta(e.target.value)} />
+          </label>
+          <label className={etiqueta}>Cumple si
+            <select className={SELECT_NATIVO} value={metaMejorFinal} disabled={meta.trim() === ""}
+              onChange={e => setMetaMejor(e.target.value as "sube" | "baja")}>
+              <option value="sube">Llega o pasa la meta</option>
+              <option value="baja">Queda en la meta o abajo</option>
+            </select>
+          </label>
+          {meta.trim() !== "" && mejorMedida === null && metaMejor === null && (
+            <p className="col-span-2 -mt-2 text-xs text-muted-foreground">Esta medida no tiene un sentido bueno o malo: elegí cuándo cumple.</p>
+          )}
+        </div>
+      )}
+
       <fieldset className="space-y-2">
         <legend className="mb-1.5 text-sm text-muted-foreground">Filtro propio (opcional)</legend>
         <div className="grid grid-cols-2 gap-2">
@@ -318,7 +347,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       </div>
 
       <div className="mt-auto flex gap-2">
-        <Button className="flex-1" disabled={!tituloFinal.trim() || (usaTramos && !minDiasValido)} onClick={aceptar}>{inicial ? "Aplicar cambios" : "Agregar al tablero"}</Button>
+        <Button className="flex-1" disabled={!tituloFinal.trim() || (usaTramos && !minDiasValido) || !metaValida} onClick={aceptar}>{inicial ? "Aplicar cambios" : "Agregar al tablero"}</Button>
         <Button variant="outline" onClick={onCancelar}>Cancelar</Button>
       </div>
       </>)}

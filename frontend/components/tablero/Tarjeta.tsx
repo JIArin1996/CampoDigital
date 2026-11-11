@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { AlertTriangle, GripVertical, Pencil, X } from "lucide-react"
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts"
 
 import { getDatosTablero } from "@/lib/queries/tablero"
@@ -335,9 +335,17 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
     if (!f) return <p className="text-sm text-muted-foreground">Sin datos en el período.</p>
     const filasC = comparados?.[0]?.filas ?? []
     const c = filasC[filasC.length - 1]
+    const meta = def.meta
+    const cumple = meta && f.valor !== null ? (meta.mejor === "baja" ? f.valor <= meta.valor : f.valor >= meta.valor) : null
     return (
       <div>
-        <p className="text-3xl font-bold tabular-nums">{formato(f.valor, unidad)}</p>
+        <p className={cn("text-3xl font-bold tabular-nums", cumple === true && "text-emerald-700 dark:text-emerald-400",
+          cumple === false && "text-amber-700 dark:text-amber-400")}>{formato(f.valor, unidad)}</p>
+        {meta && (
+          <p className={cn("text-xs font-medium", cumple === true ? "text-emerald-700 dark:text-emerald-400" : cumple === false ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground")}>
+            Meta {formato(meta.valor, unidad)}{cumple === true ? " · cumple" : cumple === false ? (meta.mejor === "baja" ? " · se pasa" : " · no llega") : ""}
+          </p>
+        )}
         {comparados && <Variacion actual={f.valor} anterior={c?.valor ?? null} unidad={unidad} etiqueta={etiquetaComp ?? ""}
           mejorSiBaja={comparacionDe(fuente, def.medidas[0]) === "baja"} sinColor={comparacionDe(fuente, def.medidas[0]) === null} />}
         {fuente === "combinada" && f.numerador !== null && f.denominador !== null && <DetalleDivision medida={def.medidas[0]} a={f.numerador} b={f.denominador} />}
@@ -394,6 +402,12 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
   }
 
   if (filasGrafico.length === 0) return <p className="text-sm text-muted-foreground">Sin datos en el período.</p>
+
+  // Meta: línea punteada horizontal (en las barras acostadas, vertical). Agranda el eje si queda afuera.
+  const lineaMeta = (eje: "x" | "y") => def.meta ? (
+    <ReferenceLine {...{ [eje]: def.meta.valor }} ifOverflow="extendDomain" stroke="var(--foreground)" strokeOpacity={0.6} strokeDasharray="6 4"
+      label={{ value: `Meta ${formato(def.meta.valor, unidad)}`, position: eje === "y" ? "insideTopRight" : "insideTopLeft", fontSize: 11, fill: "var(--muted-foreground)" }} />
+  ) : null
 
   // Comparación con el año anterior: una serie más por medida (no en las abiertas en el tiempo ni en la torta)
   const conComparacion = !!comparados && def.grafico !== "torta" && !(def.abrir_por !== null && !porGrupo)
@@ -487,6 +501,7 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
           <YAxis tick={{ fontSize: 11 }} width={48} />
           {tooltip}
           {leyenda}
+          {lineaMeta("y")}
           {series.map((s, i) => (
             <Line key={s.clave} isAnimationActive={animar} type="monotone" dataKey={s.clave} name={s.nombre} stroke={COLORES[i % COLORES.length]} strokeWidth={2} dot={false} connectNulls />
           ))}
@@ -519,6 +534,7 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
         )}
         {tooltip}
         {leyenda}
+        {lineaMeta(horizontal ? "x" : "y")}
         {series.map((s, i) => (
           <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2}
             onClick={(_, j) => tocar(j)} style={{ cursor: clickeable ? "pointer" : undefined }}>

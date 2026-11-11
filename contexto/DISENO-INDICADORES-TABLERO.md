@@ -405,7 +405,15 @@ Dos tablas nuevas (migración), por establecimiento:
       flecha de la comparación con el año anterior.
     - **Unidad libre** (20 letras): se propone sola y se puede cambiar. Nombre único en el establecimiento.
     - La medida se guarda en el momento (no con el tablero), así queda para otras tarjetas.
-  - **7b**: la meta de cada tarjeta.
+  - **7b** (hecho): la meta de cada tarjeta (sin cambios en la base: va en la definición de la tarjeta). Reglas
+    fijadas al hacerla:
+    - **Cumple si**: "llega o pasa la meta" (`sube`, valor ≥ meta) o "queda en la meta o abajo" (`baja`). Por
+      defecto, lo de la medida (`MEJOR_SI_BAJA`, o lo que eligió el administrador en una medida propia); en las sin
+      color (días de ocupación y descanso) propone "llega o pasa" y pide elegir.
+    - **Número**: el valor en verde si cumple y en ámbar si no, con "Meta 85 % · cumple / no llega / se pasa".
+    - **Barras y líneas**: línea punteada en la meta (vertical en las barras acostadas); el eje se agranda si la meta
+      queda afuera. Torta y tabla: sin meta (el constructor no la ofrece).
+    - **Excel**: una fila "Meta" en la hoja de la tarjeta.
 - **8 — Tableros por defecto**: las cuatro páginas (Resumen, Economía, Producción, Potreros) en la plantilla; la
   tarjeta de mapa (gráfico nuevo, solo potreros abierto por potrero). Una tarjeta cuya medida todavía no exista se
   muestra con "Disponible en la etapa X".
