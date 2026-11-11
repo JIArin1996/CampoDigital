@@ -19,7 +19,7 @@ import { ListaPotreros } from "@/components/potreros/ListaPotreros"
 import { VistaMapa } from "@/components/potreros/VistaMapa"
 import { CambiarPotreroDialog } from "@/components/potreros/CambiarPotreroDialog"
 import { HistorialPotrero } from "@/components/potreros/HistorialPotrero"
-import { armarOcupacion, numero, type AccionesPotrero, type LoteEnPotrero } from "@/components/potreros/ocupacion"
+import { armarOcupacion, numero, ugTotal, type AccionesPotrero, type LoteEnPotrero } from "@/components/potreros/ocupacion"
 import { cn } from "@/lib/utils"
 import type { Estadia, Potrero } from "@/types/database"
 import type { Lote } from "@/types/lotes"
@@ -35,6 +35,7 @@ interface Datos {
   ocupacion: Map<string, LoteEnPotrero[]>
   formas: Map<string, FormaPotrero>
   salidas: Map<string, string>                 // última salida de cada potrero (desde cuándo descansa)
+  ugTotal: { ug: number; sinUg: string[] }     // todos los animales, estén o no en un potrero (carga global)
 }
 
 function vistaGuardada(): Vista | null {
@@ -80,6 +81,7 @@ export default function PotrerosPage() {
         setDatos({
           estId, potreros, lotes, estadias,
           ocupacion: armarOcupacion(lotes, stock, estadias, especies, categorias),
+          ugTotal: ugTotal(stock, categorias),
           formas: new Map(formas.map(f => [f.id, f])),
           salidas,
         })
@@ -184,6 +186,7 @@ export default function PotrerosPage() {
 
       {vistaActual === "mapa" ? (
         <VistaMapa establecimientoId={establecimientoActivo.id} potreros={activos} formas={listos.formas} ocupacion={listos.ocupacion}
+          ugTotal={listos.ugTotal}
           salidas={listos.salidas} puedeOperar={puedeOperar} acciones={acciones} onCambio={recargar} />
       ) : (
         <ListaPotreros potreros={listos.potreros} ocupacion={listos.ocupacion} puedeOperar={puedeOperar} acciones={acciones} />

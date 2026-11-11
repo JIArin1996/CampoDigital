@@ -1,5 +1,5 @@
 import {
-  Baby, ClipboardPen, HeartCrack, HeartHandshake, MilkOff, Scale, Scissors, ShoppingCart, Stethoscope, Syringe, Tag,
+  Baby, ClipboardPen, HeartCrack, HeartHandshake, MilkOff, Scale, Scissors, ShoppingCart, Stethoscope, Syringe, Tag, UtensilsCrossed,
   type LucideIcon,
 } from "lucide-react"
 import type { CSSProperties } from "react"
@@ -45,6 +45,7 @@ export const ACTIVIDAD: Record<TipoActividad, Apariencia> = {
   compra:                { icono: ShoppingCart,   familia: "comercio",     etiqueta: "Compra",                   etiquetaCorta: "Compra" },
   venta:                 { icono: Tag,            familia: "comercio",     etiqueta: "Venta",                    etiquetaCorta: "Venta" },
   mortandad:             { icono: HeartCrack,     familia: "bajas",        etiqueta: "Mortandad",                etiquetaCorta: "Mortandad" },
+  consumo:               { icono: UtensilsCrossed, familia: "bajas",       etiqueta: "Consumo",                  etiquetaCorta: "Consumo" },
   personalizada:         { icono: ClipboardPen,   familia: "otra",         etiqueta: "Otra actividad",           etiquetaCorta: "Otra" },
 }
 

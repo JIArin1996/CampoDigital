@@ -68,11 +68,12 @@ function guardar(clave: string, valor: string) {
  * la computadora). Los potreros sin forma se listan aparte. Administrador y operador dibujan, editan,
  * borran e importan formas; se avisa (sin bloquear) si dos potreros se superponen.
  */
-export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, salidas, puedeOperar, acciones, onCambio }: {
+export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, ugTotal, salidas, puedeOperar, acciones, onCambio }: {
   establecimientoId: string
   potreros: Potrero[]                       // los activos
   formas: Map<string, FormaPotrero>
   ocupacion: Map<string, LoteEnPotrero[]>
+  ugTotal: { ug: number; sinUg: string[] }  // todos los animales (carga global)
   salidas: Map<string, string>              // última salida de cada potrero (desde cuándo descansa)
   puedeOperar: boolean
   acciones: AccionesPotrero
@@ -327,7 +328,7 @@ export function VistaMapa({ establecimientoId, potreros, formas, ocupacion, sali
 
   // Sin potrero elegido: el resumen de todo el establecimiento
   const resumen = (
-    <ResumenEstablecimiento potreros={potreros} formas={formas} ocupacion={ocupacion} salidas={salidas}
+    <ResumenEstablecimiento potreros={potreros} formas={formas} ocupacion={ocupacion} ugTotal={ugTotal} salidas={salidas}
       onSeleccionar={id => { if (!editandoAlgo) setSeleccionado(id) }} />
   )
 

@@ -60,7 +60,7 @@ export function CerrarReabrirLote({ lote, cabezas, abierto, onCerrar, onHecho }:
           <div className="space-y-4">
             <p className="text-sm">
               El lote todavía tiene {cabezas} {cabezas === 1 ? "animal" : "animales"}. Para cerrarlo, el stock tiene que quedar en cero:
-              con una venta, mortandad, división, unión o un ajuste.
+              con una venta, mortandad, consumo, división, unión o un ajuste.
             </p>
             <Button type="button" variant="outline" className={BOTON} onClick={onCerrar}>Entendido</Button>
           </div>

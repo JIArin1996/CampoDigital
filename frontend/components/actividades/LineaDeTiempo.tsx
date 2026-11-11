@@ -56,6 +56,8 @@ export function destacado(a: ActividadResumen): { valor: string; etiqueta: strin
         : cab ? { valor: `${numero(cab)} cab.`, etiqueta: "sin precio" } : null
     case "mortandad":
       return cab ? { valor: `−${numero(cab)} cab.`, etiqueta: a.causa ?? "", negativo: true } : null
+    case "consumo":
+      return cab ? { valor: `−${numero(cab)} cab.`, etiqueta: a.peso_vivo_total_kg ? kg(a.peso_vivo_total_kg) : "", negativo: true } : null
     case "personalizada": {
       const c = a.campos?.[0]
       return c ? { valor: c.valor, etiqueta: c.campo } : null
@@ -174,7 +176,7 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
   const responsables = (a.responsables ?? []).length > 0 ? textoResponsables(a.responsables ?? [], nombrePersona) : null
   const dato = destacado(a)
   // Las cabezas van en la segunda línea, salvo cuando ya son el dato destacado
-  const cabezasEnLinea = a.cabezas && !["paricion", "destete", "mortandad"].includes(a.tipo) && !(dato?.valor.endsWith("cab."))
+  const cabezasEnLinea = a.cabezas && !["paricion", "destete", "mortandad", "consumo"].includes(a.tipo) && !(dato?.valor.endsWith("cab."))
   const linea2 = [
     cabezasEnLinea ? `${numero(a.cabezas!)} cab.` : null,
     responsables,
@@ -226,7 +228,7 @@ function Fila({ actividad: a, primera, ultima, nombresLote, nombrePersona }: {
             </>}
             {a.cabezas ? <>
               <dt className="text-muted-foreground">Cabezas</dt>
-              <dd className={cn("tabular-nums", a.tipo === "mortandad" && "text-destructive")}>{a.tipo === "mortandad" ? "−" : ""}{numero(a.cabezas)}</dd>
+              <dd className={cn("tabular-nums", (a.tipo === "mortandad" || a.tipo === "consumo") && "text-destructive")}>{a.tipo === "mortandad" || a.tipo === "consumo" ? "−" : ""}{numero(a.cabezas)}</dd>
             </> : null}
             {dato && <>
               <dt className="text-muted-foreground">Dato</dt>

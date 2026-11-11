@@ -1,6 +1,5 @@
 import type { Estadia, Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, Lote, StockLote } from "@/types/lotes"
-import { ugPorCabeza } from "@/components/potreros/ug"
 import { hoyLocal } from "@/components/lotes/formato"
 
 // Un lote adentro de un potrero, con su especie y sus cabezas por categoría
@@ -26,7 +25,7 @@ export function armarOcupacion(
       .filter(s => s.lote_id === lote.id && s.cabezas > 0)
       .map(s => ({ cat: categorias.find(c => c.id === s.categoria_id), cabezas: s.cabezas }))
       .sort((a, b) => (a.cat?.orden ?? 0) - (b.cat?.orden ?? 0))
-      .map(f => ({ nombre: f.cat?.nombre ?? "Categoría", cabezas: f.cabezas, ug: f.cat ? ugPorCabeza(f.cat.nombre) : null }))
+      .map(f => ({ nombre: f.cat?.nombre ?? "Categoría", cabezas: f.cabezas, ug: f.cat?.ug ?? null }))   // UG de la categoría (la base)
     porPotrero.set(potreroId, [...(porPotrero.get(potreroId) ?? []), {
       lote,
       especie: especies.find(e => e.id === lote.especie_id)?.nombre ?? "",
@@ -49,6 +48,19 @@ export interface AccionesPotrero {
 }
 
 export const numero = (n: number, decimales = 1) => n.toLocaleString("es-UY", { maximumFractionDigits: decimales })
+
+// UG de todos los animales del establecimiento (estén o no en un potrero): para la carga global
+export function ugTotal(stock: StockLote[], categorias: CategoriaAnimal[]) {
+  const sinUg = new Set<string>()
+  let ug = 0
+  for (const s of stock) {
+    if (s.cabezas <= 0) continue
+    const c = categorias.find(x => x.id === s.categoria_id)
+    if (c?.ug == null) { if (c) sinUg.add(c.nombre); continue }
+    ug += s.cabezas * Number(c.ug)
+  }
+  return { ug, sinUg: [...sinUg] }
+}
 
 // Cabezas y UG de varios lotes, y las categorías que no tienen equivalencia en UG
 export function totales(lotes: LoteEnPotrero[]) {

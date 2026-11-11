@@ -101,8 +101,8 @@ order by 1, 2;
 --
 --   nivel   | grantee       | tabla               | permiso | columnas
 --   --------+---------------+---------------------+---------+------------------------------------------------
---   columna | authenticated | categorias_animales | INSERT  | activo, cria_al_pie, especie_id, establecimiento_id, nombre, orden, sexo
---   columna | authenticated | categorias_animales | UPDATE  | activo, cria_al_pie, nombre, orden, sexo
+--   columna | authenticated | categorias_animales | INSERT  | activo, cria_al_pie, especie_id, establecimiento_id, nombre, orden, sexo, ug
+--   columna | authenticated | categorias_animales | UPDATE  | activo, cria_al_pie, nombre, orden, sexo, ug
 --   columna | authenticated | especies            | INSERT  | activo, color, establecimiento_id, grupo, nombre, rubro_id
 --   columna | authenticated | especies            | UPDATE  | activo, color, grupo, nombre, rubro_id
 --   columna | authenticated | establecimientos    | UPDATE  | departamento, dicose, estado, fecha_alta, localidad, nombre,
@@ -143,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261110000100, área efectiva): 153 filas, todas con ok = true.
+-- ESPERADO (después de 20261113000100, medidas combinadas del tablero): 169 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -160,8 +160,16 @@ order by 1 desc, 2, 3, 4;
 -- y restaurar_entrada_bitacora;
 -- +2 de 20261106000100: el trigger calcular_superficie_potrero y la columna calculada superficie_total
 -- (guardar_forma_potrero y crear_establecimiento se recrean con menos parámetros: siguen siendo una cada una);
+-- +3 de 20261109000100 y 20261109000200: guardar_tablero, tablero_stock y tablero_reproductivos (las internas
+-- _tablero_periodos y _tablero_uuids de la 0100 se borran en la 0200);
+-- +1 de 20261109000300: tablero_pesadas;
+-- +4 de 20261109000500: tablero_economia, tablero_potreros, la interna _ug_por_nombre y el trigger completar_ug_categoria;
 -- +5 de 20261110000100: guardar_zona_potrero, borrar_zona_potrero, superficie_efectiva_total y las internas
--- _cargar_zona_tipos y _geometria_de_geojson.)
+-- _cargar_zona_tipos y _geometria_de_geojson;
+-- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo;
+-- +1 de 20261112000200: tablero_produccion;
+-- +1 de 20261112000600: tablero_gestion;
+-- +3 de 20261113000100: guardar_medida, eliminar_medida y tablero_combinada.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -180,6 +188,7 @@ order by 1 desc, 2, 3, 4;
 --   _cargar_catalogos_base      | false            | false         | false | false
 --   _cargar_compraventa         | false            | false         | false | false
 --   _cargar_conceptos_base      | false            | false         | false | false
+--   _cargar_consumo             | false            | false         | false | false
 --   _cargar_destete             | false            | false         | false | false
 --   _cargar_diagnostico         | false            | false         | false | false
 --   _cargar_esquila             | false            | false         | false | false
@@ -217,6 +226,7 @@ order by 1 desc, 2, 3, 4;
 --   _sincronizar_potrero_lote   | false            | false         | false | false
 --   _stock_categoria_al         | false            | false         | false | false
 --   _terminar_edicion           | false            | false         | false | false
+--   _ug_por_nombre              | false            | false         | false | false
 --   _validar_datos_tarea        | false            | false         | false | false
 --   _validar_entrada_bitacora   | false            | false         | false | false
 --   _validar_fecha_operacion    | false            | false         | false | false
@@ -242,6 +252,7 @@ order by 1 desc, 2, 3, 4;
 --   cambiar_potrero_lote        | true             | true          | false | false
 --   cargar_precio_actividad     | true             | true          | false | false
 --   cerrar_lote                 | true             | true          | false | false
+--   completar_ug_categoria      | false            | false         | false | false
 --   crear_entrada_bitacora      | true             | true          | false | false
 --   crear_establecimiento       | true             | true          | false | false
 --   crear_lote                  | true             | true          | false | false
@@ -250,6 +261,7 @@ order by 1 desc, 2, 3, 4;
 --   deshacer_cambio_potrero     | true             | true          | false | false
 --   dividir_lote                | true             | true          | false | false
 --   editar_compra               | true             | true          | false | false
+--   editar_consumo              | true             | true          | false | false
 --   editar_destete              | true             | true          | false | false
 --   editar_diagnostico          | true             | true          | false | false
 --   editar_entrada_bitacora     | true             | true          | false | false
@@ -264,12 +276,15 @@ order by 1 desc, 2, 3, 4;
 --   editar_venta                | true             | true          | false | false
 --   eliminar_actividad          | true             | true          | false | false
 --   eliminar_entrada_bitacora   | true             | true          | false | false
+--   eliminar_medida             | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
 --   estadia_alta_lote           | true             | false         | false | false
 --   estadia_cambio_estado_lote  | true             | false         | false | false
 --   fecha_hoy                   | false            | true          | false | false
 --   guardar_forma_potrero       | true             | true          | false | false
+--   guardar_medida              | true             | true          | false | false
+--   guardar_tablero             | true             | true          | false | false
 --   guardar_zona_potrero        | true             | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
 --   marcar_cierre_entrada       | false            | false         | false | false
@@ -295,6 +310,7 @@ order by 1 desc, 2, 3, 4;
 --   recategorizar_lote          | true             | true          | false | false
 --   registrar_ajuste            | true             | true          | false | false
 --   registrar_compra            | true             | true          | false | false
+--   registrar_consumo           | true             | true          | false | false
 --   registrar_destete           | true             | true          | false | false
 --   registrar_diagnostico       | true             | true          | false | false
 --   registrar_esquila           | true             | true          | false | false
@@ -314,6 +330,14 @@ order by 1 desc, 2, 3, 4;
 --   stock_al                    | false            | true          | false | false
 --   superficie_efectiva_total   | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
+--   tablero_combinada           | false            | true          | false | false
+--   tablero_economia            | false            | true          | false | false
+--   tablero_gestion             | false            | true          | false | false
+--   tablero_pesadas             | false            | true          | false | false
+--   tablero_potreros            | false            | true          | false | false
+--   tablero_produccion          | false            | true          | false | false
+--   tablero_reproductivos       | false            | true          | false | false
+--   tablero_stock               | false            | true          | false | false
 --   unir_lotes                  | true             | true          | false | false
 --   validar_anios_nacimiento    | false            | false         | false | false
 --   validar_baja_categoria      | true             | false         | false | false
@@ -351,7 +375,8 @@ select
                                                                            'proteger_movimiento_archivo', 'proteger_nombre_persona',
                                                                            'sincronizar_nombre_persona', 'proteger_actividad_archivo',
                                                                            'proteger_dato_de_actividad', 'marcar_cierre_entrada',
-                                                                           'proteger_vinculo_de_actividad', 'calcular_superficie_potrero'))
+                                                                           'proteger_vinculo_de_actividad', 'calcular_superficie_potrero',
+                                                                           'completar_ug_categoria'))
     -- security definer solo en helpers y funciones de escritura
     and f.security_definer = (f.funcion in ('es_admin', 'es_miembro', 'puede_operar', 'mi_rol',
                                             'crear_establecimiento', 'crear_lote', 'registrar_ajuste',
@@ -376,7 +401,9 @@ select
                                             'adjuntar_archivo_actividad', 'quitar_archivo_actividad', 'eliminar_actividad',
                                             'editar_compra', 'editar_venta', 'editar_pesada', 'editar_mortandad', 'editar_paricion',
                                             'editar_sanidad', 'editar_servicio', 'editar_diagnostico', 'editar_esquila',
-                                            'editar_personalizada', 'editar_destete',
+                                            'editar_personalizada', 'editar_destete', 'guardar_tablero',
+                                            'guardar_medida', 'eliminar_medida',
+                                            'registrar_consumo', 'editar_consumo',
                                             'guardar_zona_potrero', 'borrar_zona_potrero'))
   ) as ok
 from f

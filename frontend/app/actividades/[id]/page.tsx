@@ -140,7 +140,15 @@ export default function ActividadPage() {
                   <div key={rol}>
                     {fila(rol === "origen" ? "Destetados de" : "Lotes nuevos", (
                       <span className="flex flex-wrap justify-end gap-x-2">
-                        {delRol.map(l => <Link key={l.id} href={`/lotes/${l.id}`} className="font-medium text-primary">{l.nombre}</Link>)}
+                        {delRol.map(l => {
+                          const kg = rol === "origen" ? ficha.roles.find(r => r.lote_id === l.id && r.rol === "origen")?.peso_vivo_total_kg : null
+                          return (
+                            <span key={l.id}>
+                              <Link href={`/lotes/${l.id}`} className="font-medium text-primary">{l.nombre}</Link>
+                              {kg != null && <span className="text-muted-foreground"> ({Number(kg).toLocaleString("es-UY")} kg)</span>}
+                            </span>
+                          )
+                        })}
                       </span>
                     ))}
                   </div>
@@ -270,7 +278,7 @@ export default function ActividadPage() {
           <DialogHeader>
             <DialogTitle>Eliminar {titulo.toLowerCase()}</DialogTitle>
             <DialogDescription>
-              {["compra", "venta", "mortandad", "paricion", "destete"].includes(a.tipo)
+              {["compra", "venta", "mortandad", "consumo", "paricion", "destete"].includes(a.tipo)
                 ? "Deja de verse en toda la app y el stock vuelve a como estaba. Si tiene precio, el movimiento de Economía se anula."
                 : "Deja de verse en toda la app. No cambia el stock."}
             </DialogDescription>

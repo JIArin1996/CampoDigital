@@ -17,6 +17,7 @@ export const ETIQUETA_EVENTO: Record<TipoEventoLote, string> = {
   union: "Unión",
   ajuste: "Ajuste",
   destete: "Destete",
+  consumo: "Consumo",
 }
 
 // Clases compartidas de tamaño táctil

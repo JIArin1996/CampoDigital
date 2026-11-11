@@ -107,9 +107,10 @@ export async function getCarencias(lote_ids: string[], al: string) {
 
 // Lotes de una actividad con su rol (principal, cria, origen, destino)
 export async function getLotesConRol(actividad_id: string) {
-  const { data, error } = await createClient().from('actividad_lotes').select('lote_id, rol').eq('actividad_id', actividad_id)
+  const { data, error } = await createClient().from('actividad_lotes').select('lote_id, rol, peso_vivo_total_kg').eq('actividad_id', actividad_id)
   if (error) throw error
-  return (data ?? []) as { lote_id: string; rol: 'principal' | 'cria' | 'origen' | 'destino' }[]
+  // peso_vivo_total_kg: en el destete, el peso de las crías que salieron de ese origen (opcional)
+  return (data ?? []) as { lote_id: string; rol: 'principal' | 'cria' | 'origen' | 'destino'; peso_vivo_total_kg: number | null }[]
 }
 
 // Historial de cría del establecimiento, para el destete: pariciones vigentes (fecha y lote donde
@@ -202,6 +203,20 @@ export async function registrarMortandad(p: Comunes & { lote_id: string; causa?:
     p_lineas: p.lineas,
     p_causa: p.causa ?? undefined,
     p_observaciones: p.observaciones ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+// Consumo (faena propia): baja de stock; peso vivo total opcional por categoría
+export async function registrarConsumo(p: Comunes & { lote_id: string }) {
+  const { data, error } = await createClient().rpc('registrar_consumo', {
+    p_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
     p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })
@@ -423,6 +438,19 @@ export async function editarMortandad(p: Comunes & { lote_id: string; causa?: st
     p_lineas: p.lineas,
     p_causa: p.causa ?? undefined,
     p_observaciones: p.observaciones ?? undefined,
+    p_responsables: p.responsables ?? undefined,
+    p_notas: p.notas ?? undefined,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function editarConsumo(p: Comunes & { lote_id: string }) {
+  const { data, error } = await createClient().rpc('editar_consumo', {
+    p_actividad_id: p.id,
+    p_lote_id: p.lote_id,
+    p_fecha: p.fecha,
+    p_lineas: p.lineas,
     p_responsables: p.responsables ?? undefined,
     p_notas: p.notas ?? undefined,
   })

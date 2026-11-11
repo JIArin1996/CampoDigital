@@ -19,7 +19,7 @@ export function PageContainer({ children, className, title, ancho = false }: Pag
   return (
     <main
       className={cn(
-        "min-h-screen pt-14 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pt-0 md:pb-12 md:ml-56",
+        "min-h-screen pt-14 pb-[calc(9rem+env(safe-area-inset-bottom))] md:pt-0 md:pb-12 md:ml-56 print:m-0 print:p-0 print:min-h-0",
         className
       )}
     >

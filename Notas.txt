@@ -13,3 +13,4 @@ OTRAS IDAS a FUTURO:
 4. Notificaciones. Recordatorios etc
 5. Vinculacion con Whatsapp
 6. Registros de lluvias: Poder registrar los mm que llueva verlos en elcalendario. y acumulados por fecha etc.
+7. Hacer un cuadro de "Evolucion de Stock"

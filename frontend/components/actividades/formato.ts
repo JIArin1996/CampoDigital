@@ -3,6 +3,7 @@ import type { Modalidad, TipoActividad, TipoActividad6a, TipoActividad6b1, TipoC
 export const ETIQUETA_ACTIVIDAD: Record<TipoActividad, string> = {
   pesada: "Pesada",
   mortandad: "Mortandad",
+  consumo: "Consumo",
   compra: "Compra",
   venta: "Venta",
   paricion: "Parición",
@@ -16,7 +17,7 @@ export const ETIQUETA_ACTIVIDAD: Record<TipoActividad, string> = {
 }
 
 // Las que mueven stock (6a) y las que no (6b-1), en el orden del selector
-export const TIPOS_6A: TipoActividad6a[] = ["pesada", "venta", "compra", "mortandad", "paricion"]
+export const TIPOS_6A: TipoActividad6a[] = ["pesada", "venta", "compra", "mortandad", "consumo", "paricion"]
 export const TIPOS_6B1: TipoActividad6b1[] = ["sanidad", "servicio", "diagnostico_gestacion", "esquila", "personalizada"]
 // En "Nueva actividad", compra y venta van aparte, en "Económicas"
 export const TIPOS_ECONOMICOS: TipoActividad6a[] = ["compra", "venta"]
@@ -27,6 +28,7 @@ export const DESCRIPCION_ACTIVIDAD: Record<TipoCargable, string> = {
   venta: "Baja de animales, con precio y kg al gancho opcionales",
   compra: "Alta de animales en un lote existente o nuevo",
   mortandad: "Baja de animales, con su causa",
+  consumo: "Animales faenados para consumo del establecimiento, con su peso (opcional)",
   paricion: "Crías vivas al lote de cría",
   destete: "Separa las crías al pie de las madres, hacia lotes nuevos",
   sanidad: "Vacunas, antiparasitarios y tratamientos, a uno o más lotes",

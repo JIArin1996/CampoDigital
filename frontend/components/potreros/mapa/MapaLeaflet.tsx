@@ -39,6 +39,7 @@ interface Props {
   // Los potreros que a este zoom quedaron como círculo numerado (no entró ni el nombre), para listarlos
   onNumerados?: (numerados: { id: string; numero: number }[]) => void
   onMapa?: (m: L.Map | null) => void   // solo para la página de prueba de desarrollo
+  sinRueda?: boolean           // la rueda del mouse no hace zoom (tablero: la rueda baja la página)
 }
 
 // Polígonos que se dibujan: sin cruces, y pegándose a los vértices y bordes cercanos (alambrados compartidos)
@@ -180,7 +181,7 @@ function mostrar(e: Etiqueta, c: Colocacion) {
 // Centro de Uruguay, para cuando no hay nada dibujado
 const INICIO: L.LatLngExpression = [-32.6, -56.0]
 
-export default function MapaLeaflet({ capa, poligonos, seleccionado, onSeleccionar, encuadre, edicion, onFormaEditada, onNumerados, onMapa }: Props) {
+export default function MapaLeaflet({ capa, poligonos, seleccionado, onSeleccionar, encuadre, edicion, onFormaEditada, onNumerados, onMapa, sinRueda = false }: Props) {
   const contenedor = useRef<HTMLDivElement>(null)
   const mapa = useRef<L.Map | null>(null)
   const base = useRef<L.TileLayer | null>(null)
@@ -192,6 +193,7 @@ export default function MapaLeaflet({ capa, poligonos, seleccionado, onSeleccion
   const alNumerar = useRef(onNumerados)
   const alCrearMapa = useRef(onMapa)
   const ultimosNumerados = useRef("")
+  const rueda = useRef(!sinRueda)          // se lee una vez, al crear el mapa
 
   useEffect(() => { alSeleccionar.current = onSeleccionar }, [onSeleccionar])
   useEffect(() => { alEditar.current = onFormaEditada }, [onFormaEditada])
@@ -231,7 +233,7 @@ export default function MapaLeaflet({ capa, poligonos, seleccionado, onSeleccion
   // El mapa se crea una vez
   useEffect(() => {
     if (!contenedor.current) return
-    const m = L.map(contenedor.current, { center: INICIO, zoom: 7, maxZoom: 20 })
+    const m = L.map(contenedor.current, { center: INICIO, zoom: 7, maxZoom: 20, scrollWheelZoom: rueda.current })
     m.attributionControl.setPrefix(false)
     capaPotreros.current = L.layerGroup().addTo(m)
     mapa.current = m

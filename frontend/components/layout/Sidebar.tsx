@@ -34,7 +34,7 @@ export function Sidebar() {
   return (
     <>
       {/* ── Escritorio: menú lateral ──────────────────────────────────────── */}
-      <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-sidebar-border bg-sidebar z-30">
+      <aside className="hidden md:flex md:flex-col md:w-56 md:fixed md:inset-y-0 md:left-0 border-r border-sidebar-border bg-sidebar z-30 print:!hidden">
         <Link href="/inicio" className="flex items-center gap-2 px-4 h-14 border-b border-sidebar-border shrink-0">
           <Image src="/isotipo.png" alt="" width={32} height={32} className="h-8 w-8" />
           <span className="text-lg font-bold text-primary tracking-tight">Campo Digital</span>
@@ -78,7 +78,7 @@ export function Sidebar() {
       </aside>
 
       {/* ── Celular: encabezado ───────────────────────────────────────────── */}
-      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center gap-2 px-3 bg-background border-b border-border">
+      <header className="md:hidden fixed top-0 inset-x-0 z-30 h-14 flex items-center gap-2 px-3 bg-background border-b border-border print:hidden">
         <Link href="/inicio" aria-label="Inicio" className="shrink-0">
           <Image src="/isotipo.png" alt="" width={32} height={32} className="h-8 w-8" />
         </Link>
@@ -93,7 +93,7 @@ export function Sidebar() {
       </header>
 
       {/* ── Celular: barra inferior ───────────────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-background border-t border-border pb-[env(safe-area-inset-bottom)] print:hidden">
         <ul className="flex items-stretch h-16">
           {NAV_MOVIL.map(item => {
             const Icono = item.icon
