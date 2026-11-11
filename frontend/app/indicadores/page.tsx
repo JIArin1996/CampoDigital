@@ -486,6 +486,7 @@ function Indicadores() {
         </div>
         {editando && constructor && (
           <Constructor key={constructor.tarjeta?.id ?? "nueva"} inicial={constructor.tarjeta} estId={listos.estId} rango={rango}
+            etiquetaPeriodo={etiquetaPeriodo} generales={generales}
             especies={listos.especies} categorias={listos.categorias} lotes={listos.lotes} nombre={nombre}
             propias={listos.propias} onPropiasCambiaron={recargarPropias} propiaEnUso={propiaEnUso}
             onAceptar={aceptarTarjeta} onCancelar={() => setConstructor(null)} />
