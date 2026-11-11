@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
 import {
-  ADITIVAS, ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, USAN_TRAMOS, abrirDe, comparacionDe, esFabrica, formula,
+  ADITIVAS, ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, NOMBRE_PERIODO, USAN_TRAMOS, abrirDe, comparacionDe, esFabrica, formula,
   medidaDe, propiaDe,
 } from "@/components/tablero/catalogo"
 import { EditorMedida } from "@/components/tablero/EditorMedida"
@@ -21,13 +21,10 @@ import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { DefinicionTarjeta, Dimension, Fuente, Grafico, MedidaPropia, TarjetaTablero, Tiempo } from "@/types/tablero"
 
-const NOMBRE_TIEMPO: Record<Tiempo, string> = {
-  total: "Total del período", mes: "Por mes", ejercicio: "Por ejercicio", temporada: "Por temporada",
-}
 const GRAFICOS: { id: Grafico; nombre: string }[] = [
   { id: "numero", nombre: "Número" },
   { id: "barras", nombre: "Barras" },
-  { id: "barras_horizontales", nombre: "Barras acostadas" },
+  { id: "barras_horizontales", nombre: "Ranking" },
   { id: "barras_apiladas", nombre: "Barras apiladas" },
   { id: "barras_linea", nombre: "Barras y línea" },
   { id: "lineas", nombre: "Líneas" },
@@ -47,7 +44,7 @@ function graficoValido(g: Grafico, abrir: Dimension | null, tiempo: Tiempo) {
 
 function tituloSugerido(fuente: Fuente, medida: string, abrir: Dimension | null, tiempo: Tiempo) {
   const m = medidaDe(fuente, medida)?.etiqueta ?? medida
-  const t = tiempo === "total" ? "" : ` ${NOMBRE_TIEMPO[tiempo].toLowerCase()}`
+  const t = tiempo === "total" ? "" : ` ${NOMBRE_PERIODO[tiempo].toLowerCase()}`
   return `${m}${abrir ? ` por ${ETIQUETA_DIMENSION[abrir]}` : ""}${t}`
 }
 
@@ -184,14 +181,14 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
     if (propiaEnUso(p.id)) {
       return toast.error(`"${p.nombre}" la usa una tarjeta del tablero: cambiá o sacá esa tarjeta primero`)
     }
-    if (!window.confirm(`¿Borrar la medida "${p.nombre}"? No se puede deshacer.`)) return
+    if (!window.confirm(`¿Borrar el indicador "${p.nombre}"? No se puede deshacer.`)) return
     try {
       await eliminarMedida(p.id)
       await onPropiasCambiaron()
       elegirMedida("stock:stock")
-      toast.success("Medida borrada")
+      toast.success("Indicador borrado")
     } catch (err) {
-      toast.error(mensajeDeError(err, "No se pudo borrar la medida"))
+      toast.error(mensajeDeError(err, "No se pudo borrar el indicador"))
     }
   }
 
@@ -219,7 +216,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
             </optgroup>
           ))}
           {/* Medidas combinadas: las de fábrica (iguales para todos) y las propias del establecimiento */}
-          {[{ nombre: "Medidas de fábrica", fab: true }, { nombre: NOMBRE_FUENTE.combinada, fab: false }].map(g => {
+          {[{ nombre: "Indicadores calculados de fábrica", fab: true }, { nombre: NOMBRE_FUENTE.combinada, fab: false }].map(g => {
             const lista = Object.entries(MEDIDAS.combinada ?? {}).filter(([m]) => esFabrica(m) === g.fab)
             return lista.length > 0 && (
               <optgroup key={g.nombre} label={g.nombre}>
@@ -227,15 +224,15 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
               </optgroup>
             )
           })}
-          <option value="nueva">+ Nueva medida (A ÷ B, A × B…)</option>
+          <option value="nueva">+ Nuevo indicador calculado (A ÷ B, A × B…)</option>
         </select>
       </label>
       {fuente === "combinada" && !editorMedida && propiaDe(medida) && (
         <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <span className="text-muted-foreground">= {formula(propiaDe(medida)!.definicion)}</span>
           {esFabrica(medida) ? <span className="text-muted-foreground">(de fábrica: no se cambia)</span> : <>
-            <button type="button" className="font-medium text-primary hover:underline" onClick={() => setEditorMedida({ medida: propiaDe(medida)! })}>Editar medida</button>
-            <button type="button" className="font-medium text-destructive hover:underline" onClick={borrarMedida}>Borrar medida</button>
+            <button type="button" className="font-medium text-primary hover:underline" onClick={() => setEditorMedida({ medida: propiaDe(medida)! })}>Editar indicador</button>
+            <button type="button" className="font-medium text-destructive hover:underline" onClick={borrarMedida}>Borrar indicador</button>
           </>}
         </div>
       )}
@@ -247,7 +244,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
             await onPropiasCambiaron()
             setEditorMedida(null)
             if (medidaDe("combinada", id)) elegirMedida(`combinada:${id}`)
-            toast.success("Medida guardada")
+            toast.success("Indicador guardado")
           }} />
       ) : (<>
       {extrasPosibles.length > 0 && (
@@ -276,22 +273,22 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <label className={etiqueta}>2 · Abrir por
+        <label className={etiqueta}>2 · Separar por
           <select className={SELECT_NATIVO} value={abrir ?? ""} onChange={e => elegirAbrir((e.target.value || null) as Dimension | null)}>
-            {!abrirObligatorio && <option value="">Nada</option>}
+            {!abrirObligatorio && <option value="">Sin separar</option>}
             {opcionesAbrir.map(d => <option key={d} value={d}>{ETIQUETA_DIMENSION[d][0].toUpperCase() + ETIQUETA_DIMENSION[d].slice(1)}</option>)}
           </select>
         </label>
-        <label className={etiqueta}>En el tiempo
+        <label className={etiqueta}>Período
           <select className={SELECT_NATIVO} value={tiempo} onChange={e => elegirTiempo(e.target.value as Tiempo)}>
-            {tiempos.map(t => <option key={t} value={t}>{NOMBRE_TIEMPO[t]}</option>)}
+            {tiempos.map(t => <option key={t} value={t}>{NOMBRE_PERIODO[t]}</option>)}
           </select>
         </label>
       </div>
       <p className="-mt-2 text-xs text-muted-foreground">
         {opcionesAbrir.length > 0
-          ? `${info?.etiqueta ?? NOMBRE_FUENTE[fuente]} se abre por ${opcionesAbrir.map(d => ETIQUETA_DIMENSION[d]).join(", ")}.`
-          : `${info?.etiqueta ?? NOMBRE_FUENTE[fuente]} no se abre.`}
+          ? `${info?.etiqueta ?? NOMBRE_FUENTE[fuente]} se puede separar por ${opcionesAbrir.map(d => ETIQUETA_DIMENSION[d]).join(", ")}.`
+          : `${info?.etiqueta ?? NOMBRE_FUENTE[fuente]} no se puede separar.`}
         {filtran.length < 3 && ` Le aplican los filtros de ${filtran.length ? filtran.map(d => ETIQUETA_DIMENSION[d]).join(" y ") : "nada (no se filtra)"}.`}
       </p>
 
@@ -302,8 +299,8 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
             const valido = graficoValido(g.id, abrir, tiempo)
             return (
               <button key={g.id} type="button" disabled={!valido} aria-pressed={grafico === g.id} onClick={() => setGrafico(g.id)}
-                title={valido ? undefined : g.id === "lineas" || g.id === "barras_linea" ? "Necesita tiempo (por mes, ejercicio o temporada)"
-                  : g.id === "mapa" ? "Necesita abrir por potrero, en el total del período" : "Necesita abrir por algo, en el total del período"}
+                title={valido ? undefined : g.id === "lineas" || g.id === "barras_linea" ? "Necesita un período en el tiempo (mes a mes, por ejercicio o por temporada)"
+                  : g.id === "mapa" ? "Necesita separar por potrero, todo junto" : "Necesita separar por algo, todo junto"}
                 className={cn("h-9 rounded-md border text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40",
                   grafico === g.id ? "border-primary bg-primary font-semibold text-primary-foreground" : "hover:bg-muted")}>
                 {g.nombre}
@@ -345,26 +342,26 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       )}
 
       <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm text-muted-foreground">Filtro propio (opcional)</legend>
+        <legend className="mb-1.5 text-sm text-muted-foreground">Mostrar solo (opcional)</legend>
         <div className="grid grid-cols-2 gap-2">
-          {filtran.includes("especie") && <select aria-label="Especie fija" className={SELECT_NATIVO} value={especie} onChange={e => { setEspecie(e.target.value); setCategoria("") }}>
-            <option value="">Especie: la del tablero</option>
+          {filtran.includes("especie") && <select aria-label="Mostrar solo la especie" className={SELECT_NATIVO} value={especie} onChange={e => { setEspecie(e.target.value); setCategoria("") }}>
+            <option value="">Especie: todas (o la del tablero)</option>
             {especies.filter(e => e.activo).map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
           </select>}
           {filtran.includes("categoria") && (
-            <select aria-label="Categoría fija" className={SELECT_NATIVO} value={categoria} onChange={e => setCategoria(e.target.value)}>
-              <option value="">Categoría: la del tablero</option>
+            <select aria-label="Mostrar solo la categoría" className={SELECT_NATIVO} value={categoria} onChange={e => setCategoria(e.target.value)}>
+              <option value="">Categoría: todas (o la del tablero)</option>
               {categoriasVisibles.map(c => (
                 <option key={c.id} value={c.id}>{especie ? c.nombre : `${nombre("especie", c.especie_id)} · ${c.nombre}`}</option>
               ))}
             </select>
           )}
-          {filtran.includes("lote") && <select aria-label="Lote fijo" className={SELECT_NATIVO} value={lote} onChange={e => setLote(e.target.value)}>
-            <option value="">Lote: el del tablero</option>
+          {filtran.includes("lote") && <select aria-label="Mostrar solo el lote" className={SELECT_NATIVO} value={lote} onChange={e => setLote(e.target.value)}>
+            <option value="">Lote: todos (o el del tablero)</option>
             {lotes.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
           </select>}
           <select aria-label="Período" className={SELECT_NATIVO} value={periodo} onChange={e => setPeriodo(e.target.value)}>
-            <option value="tablero">Período: el del tablero</option>
+            <option value="tablero">Período de la tarjeta: el del tablero</option>
             <option value="3">Últimos 3 ejercicios</option>
             <option value="5">Últimos 5 ejercicios</option>
           </select>

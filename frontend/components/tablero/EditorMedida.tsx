@@ -84,7 +84,7 @@ export function EditorMedida({ estId, inicial, propias, onGuardada, onCancelar }
       })
       await onGuardada(id)
     } catch (err) {
-      setError(mensajeDeError(err, "No se pudo guardar la medida"))
+      setError(mensajeDeError(err, "No se pudo guardar el indicador"))
     } finally {
       setGuardando(false)
     }
@@ -99,7 +99,7 @@ export function EditorMedida({ estId, inicial, propias, onGuardada, onCancelar }
         </optgroup>
       ))}
       {propiasUsables.length > 0 && (
-        <optgroup label="Medidas propias">
+        <optgroup label="Indicadores calculados">
           {propiasUsables.map(p => <option key={p.id} value={`p:${p.id}`}>{p.nombre}</option>)}
         </optgroup>
       )}
@@ -108,8 +108,8 @@ export function EditorMedida({ estId, inicial, propias, onGuardada, onCancelar }
   )
 
   return (
-    <section aria-label={inicial ? "Editar medida propia" : "Nueva medida propia"} className="space-y-3 rounded-md border bg-muted/30 p-3">
-      <h3 className="text-sm font-semibold">{inicial ? "Editar medida propia" : "Nueva medida propia"}</h3>
+    <section aria-label={inicial ? "Editar indicador calculado" : "Nuevo indicador calculado"} className="space-y-3 rounded-md border bg-muted/30 p-3">
+      <h3 className="text-sm font-semibold">{inicial ? "Editar indicador calculado" : "Nuevo indicador calculado"}</h3>
 
       <label className={etiqueta}>Nombre
         <Input value={nombre} maxLength={60} placeholder="Ej.: Gasto por UG" onChange={e => setNombre(e.target.value)} />
@@ -136,14 +136,14 @@ export function EditorMedida({ estId, inicial, propias, onGuardada, onCancelar }
 
       {definicion && <p className="text-sm font-medium">{nombre.trim() || "La medida"} = {formula(definicion, propias)}</p>}
       {ob && esBEntero(ob) && !("constante" in ob) && (
-        <p className="text-xs text-muted-foreground">B es del establecimiento entero: si abrís la tarjeta, cada grupo se divide por el total.</p>
+        <p className="text-xs text-muted-foreground">B es del establecimiento entero: si separás la tarjeta, cada grupo se divide por el total.</p>
       )}
       {cierre && <p className="text-xs text-amber-800 dark:text-amber-300">Para dividir conviene la versión promedio ({cierre}): la de al cierre es la de un solo día.</p>}
       {sinTiempo && <p role="alert" className="text-xs text-destructive">A y B no tienen ningún tiempo en común (total, por mes, por ejercicio o temporada): no se pueden combinar.</p>}
       {divPorCero && <p role="alert" className="text-xs text-destructive">No se puede dividir por cero.</p>}
       {rasgos && !sinTiempo && (
         <p className="text-xs text-muted-foreground">
-          {rasgos.abrir.length > 0 ? `Se abre por ${rasgos.abrir.map(x => ETIQUETA_DIMENSION[x]).join(", ")}.` : "No se abre."}
+          {rasgos.abrir.length > 0 ? `Se puede separar por ${rasgos.abrir.map(x => ETIQUETA_DIMENSION[x]).join(", ")}.` : "No se puede separar."}
           {" "}Le aplican los filtros que tienen A y B: {rasgos.filtran.length ? rasgos.filtran.map(x => ETIQUETA_DIMENSION[x]).join(" y ") : "ninguno"}.
         </p>
       )}
@@ -163,10 +163,10 @@ export function EditorMedida({ estId, inicial, propias, onGuardada, onCancelar }
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
-        <Button size="sm" disabled={!valido || guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar medida"}</Button>
+        <Button size="sm" disabled={!valido || guardando} onClick={guardar}>{guardando ? "Guardando…" : "Guardar indicador"}</Button>
         <Button size="sm" variant="outline" disabled={guardando} onClick={onCancelar}>Cancelar</Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">La medida se guarda ya (no hace falta guardar el tablero) y queda para usar en otras tarjetas.</p>
+      <p className="text-[11px] text-muted-foreground">Queda disponible para todas las tarjetas del campo (no hace falta guardar el tablero).</p>
     </section>
   )
 }

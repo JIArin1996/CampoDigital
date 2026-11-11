@@ -26,9 +26,14 @@ export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pen
 // Medidas que al comparar van sin color: subir o bajar no es bueno ni malo en sí
 export const SIN_COLOR = ["dias_ocupacion", "dias_descanso"]
 
+// Período de una tarjeta, en palabras (contexto/DISENO-CONSTRUCTOR-TARJETAS.md, sección 6)
+export const NOMBRE_PERIODO: Record<Tiempo, string> = {
+  total: "Todo junto", mes: "Mes a mes", ejercicio: "Por ejercicio", temporada: "Por temporada",
+}
+
 export const NOMBRE_FUENTE: Record<Fuente, string> = {
   stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos", economia: "Economía", potreros: "Potreros",
-  produccion: "Kilos y lana", gestion: "Gestión", combinada: "Medidas propias",
+  produccion: "Kilos y lana", gestion: "Gestión", combinada: "Indicadores calculados",
 }
 
 export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {

@@ -25,7 +25,6 @@ const COLOR_NEGATIVO = "var(--destructive)"
 type DimFiltro = "especie" | "categoria" | "lote"
 const DIMS_FILTRO: DimFiltro[] = ["especie", "categoria", "lote"]
 const CLAVE_IDS: Record<DimFiltro, keyof FiltrosIds> = { especie: "especie_ids", categoria: "categoria_ids", lote: "lote_ids" }
-const NOMBRE_DIM: Record<DimFiltro, string> = { especie: "Especie", categoria: "Categoría", lote: "Lote" }
 
 const mismos = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
 
@@ -184,7 +183,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
           ))}
           {fijos.map(f => (
             <span key={f.dim} className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-950 dark:text-sky-300">
-              {NOMBRE_DIM[f.dim]} fija: {f.ids.map(id => nombre(f.dim, id)).join(", ")}
+              Mostrar solo: {f.ids.map(id => nombre(f.dim, id)).join(", ")}
             </span>
           ))}
           {edicion && onEditar && (
@@ -208,7 +207,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
             Disponible {pendiente}
           </p>
         ) : borrada ? (
-          <p role="alert" className="text-sm text-destructive">La medida propia de esta tarjeta ya no existe: editala o sacala.</p>
+          <p role="alert" className="text-sm text-destructive">El indicador calculado de esta tarjeta ya no existe: editala o sacala.</p>
         ) : fallo ? (
           <p role="alert" className="text-sm text-destructive">{fallo}</p>
         ) : !listos ? (
