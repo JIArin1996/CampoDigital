@@ -1,6 +1,6 @@
 // Tablero de Indicadores (diseño: contexto/DISENO-INDICADORES-TABLERO.md)
 
-export type Fuente = 'stock' | 'reproductivos' | 'pesadas' | 'economia' | 'potreros' | 'produccion' | 'gestion'
+export type Fuente = 'stock' | 'reproductivos' | 'pesadas' | 'economia' | 'potreros' | 'produccion' | 'gestion' | 'combinada'
 export type Dimension = 'especie' | 'categoria' | 'lote' | 'motivo' | 'rubro' | 'concepto' | 'grupo' | 'titular' | 'potrero' | 'pagador' | 'par'
 export type Tiempo = 'total' | 'mes' | 'ejercicio' | 'temporada'
 export type Grafico = 'numero' | 'barras' | 'barras_horizontales' | 'lineas' | 'torta' | 'tabla'
@@ -68,4 +68,24 @@ export interface FiltrosTablero {
   categoria: string
   lote: string
   comparar: boolean      // comparar con las mismas fechas del año anterior
+}
+
+// Medida propia (etapa 7a): A op B, guardada en tablero_medidas. En una tarjeta va como fuente 'combinada' con el id
+// en medidas.
+export type FuenteSimple = Exclude<Fuente, 'combinada'>
+export type Operando = { fuente: FuenteSimple; medida: string } | { propia: string } | { constante: number }
+export type Operacion = 'div' | 'mul' | 'sum' | 'res'
+
+export interface DefinicionMedida {
+  a: Operando
+  op: Operacion
+  b: Operando
+}
+
+export interface MedidaPropia {
+  id: string
+  nombre: string
+  unidad: string | null
+  mejor: 'sube' | 'baja' | null       // color de la comparación con el año anterior (null: sin color)
+  definicion: DefinicionMedida
 }

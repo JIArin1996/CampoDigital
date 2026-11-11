@@ -1,4 +1,6 @@
-import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTablero, Tiempo } from "@/types/tablero"
+import type {
+  DefinicionMedida, DefinicionTarjeta, Dimension, Fuente, MedidaPropia, Operacion, Operando, PaginaTablero, TarjetaTablero, Tiempo,
+} from "@/types/tablero"
 
 /**
  * Catálogo del tablero: qué mide cada fuente, por qué se puede abrir y qué filtros le aplican. La base hace cumplir
@@ -6,7 +8,8 @@ import type { DefinicionTarjeta, Dimension, Fuente, PaginaTablero, TarjetaTabler
  * marcar los filtros que no aplican.
  */
 
-export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "USD/kg" | "UG" | "UG/ha" | "UG-día/ha" | "ha" | "días" | "razón" | "potreros" | "tareas" | "lotes" | "dosis"
+// Las medidas propias tienen una unidad libre ("USD/ha", "kg/ha"...) o ninguna ("")
+export type Unidad = "cab" | "%" | "kg" | "kg/día" | "kg/vaca" | "kg/cab" | "USD" | "USD/kg" | "UG" | "UG/ha" | "UG-día/ha" | "ha" | "días" | "razón" | "potreros" | "tareas" | "lotes" | "dosis" | (string & {})
 
 export interface Medida {
   etiqueta: string
@@ -15,12 +18,18 @@ export interface Medida {
   filtran?: Dimension[]     // qué filtros le aplican, si no son todos los de su fuente (ver FILTRAN)
   abrirObligatorio?: boolean // solo tiene sentido abierta (ej. días de descanso, por potrero)
   abrir?: Dimension[]        // por qué se puede abrir, si no son todas las de su fuente (ver DIMENSIONES)
+  mejor?: "sube" | "baja" | null // medidas propias: lo que eligió el administrador (si no, ver comparacionDe)
 }
 
 // Medidas donde bajar es bueno (la flecha de la comparación va en verde si baja)
 export const MEJOR_SI_BAJA = ["mortandad_pct", "nacidos_muertos", "gastos", "pendiente_pago", "pct_perdidas", "gastos_operativos", "tareas_vencidas"]
 // Medidas que al comparar van sin color: subir o bajar no es bueno ni malo en sí
 export const SIN_COLOR = ["dias_ocupacion", "dias_descanso"]
+
+export const NOMBRE_FUENTE: Record<Fuente, string> = {
+  stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos", economia: "Economía", potreros: "Potreros",
+  produccion: "Kilos y lana", gestion: "Gestión", combinada: "Medidas propias",
+}
 
 export const MEDIDAS: Partial<Record<Fuente, Record<string, Medida>>> = {
   stock: {
@@ -161,6 +170,14 @@ export const ETIQUETA_DIMENSION: Record<Dimension, string> = {
 
 export const medidaDe = (fuente: Fuente, medida: string): Medida | undefined => MEDIDAS[fuente]?.[medida]
 
+// Qué es mejor al comparar con el año anterior: "baja" (mortandad, gastos...), "sube" o null (sin color)
+export function comparacionDe(fuente: Fuente, medida: string): "sube" | "baja" | null {
+  const m = medidaDe(fuente, medida)
+  if (m?.mejor !== undefined) return m.mejor
+  if (SIN_COLOR.includes(medida)) return null
+  return MEJOR_SI_BAJA.includes(medida) ? "baja" : "sube"
+}
+
 // Por qué se puede abrir una medida: las de su fuente (o las suyas, si las define) y, en altas y bajas, el motivo
 export const abrirDe = (fuente: Fuente, medida: string): Dimension[] =>
   [...(medidaDe(fuente, medida)?.abrir ?? DIMENSIONES[fuente] ?? []), ...(medida === "movimientos" ? ["motivo" as const] : [])]
@@ -169,6 +186,81 @@ export const abrirDe = (fuente: Fuente, medida: string): Dimension[] =>
 export function filtrosQueNoAplican(def: DefinicionTarjeta, activos: Dimension[]): Dimension[] {
   const tiene = filtranEn(def)
   return activos.filter(d => !tiene.includes(d))
+}
+
+// ── Medidas propias (etapa 7a): A op B ──────────────────────────────────────────────────────────────────────────
+// La base las calcula (tablero_combinada); acá se arma lo que admite cada una, para el constructor y la tarjeta.
+
+export const NOMBRE_OP: Record<Operacion, string> = { div: "÷", mul: "×", sum: "+", res: "−" }
+
+// B del establecimiento entero: se usa su total en cualquier apertura y tiempo (igual que en la base)
+const B_ENTERO = ["ha_spg", "ha_forestadas"]
+export const esBEntero = (b: Operando) => "constante" in b || ("fuente" in b && b.fuente === "potreros" && B_ENTERO.includes(b.medida))
+
+let PROPIAS: MedidaPropia[] = []
+export const propiaDe = (id: string) => PROPIAS.find(p => p.id === id)
+
+export interface Rasgos { etiqueta: string; unidad: Unidad; tiempos: Tiempo[]; abrir: Dimension[]; filtran: Dimension[]; abrirObligatorio: boolean }
+
+// Lo que admite un operando (null: una constante, o una medida que ya no existe)
+export function rasgosDe(o: Operando, lista: MedidaPropia[] = PROPIAS, nivel = 0): Rasgos | null {
+  if ("constante" in o) return null
+  if ("propia" in o) {
+    const p = lista.find(x => x.id === o.propia)
+    return p && nivel < 3 ? rasgosDeDefinicion(p.definicion, p.nombre, p.unidad ?? "", lista, nivel + 1) : null
+  }
+  const m = medidaDe(o.fuente, o.medida)
+  if (!m) return null
+  return { etiqueta: m.etiqueta, unidad: m.unidad, tiempos: m.tiempos, abrir: abrirDe(o.fuente, o.medida),
+           filtran: m.filtran ?? FILTRAN[o.fuente] ?? [], abrirObligatorio: !!m.abrirObligatorio }
+}
+
+// A op B admite lo que admiten las dos (los tiempos, las aperturas y los filtros en común); si B es del establecimiento
+// entero, lo de A. null si A o B no existen.
+export function rasgosDeDefinicion(d: DefinicionMedida, nombre: string, unidad: Unidad, lista: MedidaPropia[] = PROPIAS, nivel = 1): Rasgos | null {
+  const a = rasgosDe(d.a, lista, nivel)
+  if (!a) return null
+  const entero = esBEntero(d.b)
+  const b = entero ? null : rasgosDe(d.b, lista, nivel)
+  if (!entero && !b) return null
+  const comun = <T,>(xs: T[], ys?: T[]) => (ys ? xs.filter(x => ys.includes(x)) : xs)
+  return {
+    etiqueta: nombre, unidad,
+    tiempos: comun(a.tiempos, b?.tiempos), abrir: comun(a.abrir, b?.abrir), filtran: comun(a.filtran, b?.filtran),
+    abrirObligatorio: a.abrirObligatorio || !!b?.abrirObligatorio,
+  }
+}
+
+// Cómo se lee un operando: "Gastos operativos", "Gasto por UG" o "85"
+export function nombreOperando(o: Operando, lista: MedidaPropia[] = PROPIAS): string {
+  if ("constante" in o) return o.constante.toLocaleString("es-UY")
+  if ("propia" in o) return lista.find(x => x.id === o.propia)?.nombre ?? "(medida borrada)"
+  return medidaDe(o.fuente, o.medida)?.etiqueta ?? o.medida
+}
+
+export const formula = (d: DefinicionMedida, lista: MedidaPropia[] = PROPIAS) =>
+  `${nombreOperando(d.a, lista)} ${NOMBRE_OP[d.op]} ${nombreOperando(d.b, lista)}`
+
+// Unidad que se propone: USD ÷ ha → USD/ha; kg ÷ kg → sin unidad; con una constante, la de A
+export function unidadSugerida(d: DefinicionMedida, lista: MedidaPropia[] = PROPIAS): string {
+  const ua = rasgosDe(d.a, lista)?.unidad ?? ""
+  if ("constante" in d.b) return ua
+  const ub = rasgosDe(d.b, lista)?.unidad ?? ""
+  if (d.op === "div") return ua === ub ? "" : ua && ub ? `${ua}/${ub}` : ua
+  if (d.op === "mul") return ua && ub ? `${ua}×${ub}` : ua || ub
+  return ua
+}
+
+// Las medidas propias del establecimiento pasan al catálogo como la fuente "combinada" (una por id)
+export function registrarPropias(lista: MedidaPropia[]) {
+  PROPIAS = lista
+  MEDIDAS.combinada = Object.fromEntries(lista.flatMap(p => {
+    const r = rasgosDeDefinicion(p.definicion, p.nombre, p.unidad ?? "", lista)
+    return r && r.tiempos.length > 0
+      ? [[p.id, { etiqueta: p.nombre, unidad: r.unidad, tiempos: r.tiempos, abrir: r.abrir, filtran: r.filtran,
+                  abrirObligatorio: r.abrirObligatorio, mejor: p.mejor } satisfies Medida]]
+      : []
+  }))
 }
 
 // ── Plantilla: la página "Resumen" que se ve mientras el establecimiento no guardó su tablero ───────────────────

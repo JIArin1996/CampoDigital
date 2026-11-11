@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/types/supabase'
-import type { DefinicionTarjeta, FilaTablero, PaginaTablero } from '@/types/tablero'
+import type { DefinicionMedida, DefinicionTarjeta, FilaTablero, MedidaPropia, PaginaTablero } from '@/types/tablero'
 
 // El tablero guardado del establecimiento (páginas en orden, con sus tarjetas). null si nunca se guardó: la app
 // muestra la plantilla.
@@ -34,6 +34,37 @@ export async function guardarTablero(establecimiento_id: string, paginas: Pagina
   if (error) throw error
 }
 
+// Medidas propias del establecimiento (A op B), por nombre
+export async function getMedidasPropias(establecimiento_id: string): Promise<MedidaPropia[]> {
+  const { data, error } = await createClient().from('tablero_medidas').select('id, nombre, unidad, mejor, definicion')
+    .eq('establecimiento_id', establecimiento_id).order('nombre')
+  if (error) throw error
+  return (data ?? []).map(m => ({
+    id: m.id, nombre: m.nombre, unidad: m.unidad, mejor: m.mejor as MedidaPropia['mejor'],
+    definicion: m.definicion as unknown as DefinicionMedida,
+  }))
+}
+
+// Crea (id null) o cambia una medida propia (solo administrador); devuelve su id. La base valida la definición.
+export async function guardarMedida(establecimiento_id: string, id: string | null, m: Omit<MedidaPropia, 'id'>): Promise<string> {
+  const { data, error } = await createClient().rpc('guardar_medida', {
+    p_establecimiento_id: establecimiento_id,
+    p_id: id as string,                 // null = nueva (el tipo generado no admite null)
+    p_nombre: m.nombre,
+    p_unidad: m.unidad as string,
+    p_mejor: m.mejor as string,
+    p_definicion: m.definicion as unknown as Json,
+  })
+  if (error) throw error
+  return data
+}
+
+// Borra una medida propia que no use ninguna tarjeta guardada ni otra medida (solo administrador)
+export async function eliminarMedida(id: string) {
+  const { error } = await createClient().rpc('eliminar_medida', { p_id: id })
+  if (error) throw error
+}
+
 export interface ConsultaTablero {
   establecimiento_id: string
   definicion: DefinicionTarjeta
@@ -52,6 +83,7 @@ export async function getDatosTablero(c: ConsultaTablero): Promise<FilaTablero[]
     : c.definicion.fuente === 'potreros' ? 'tablero_potreros'
     : c.definicion.fuente === 'produccion' ? 'tablero_produccion'
     : c.definicion.fuente === 'gestion' ? 'tablero_gestion'
+    : c.definicion.fuente === 'combinada' ? 'tablero_combinada'
     : null
   if (!funcion) throw new Error('Esta fuente de datos todavía no está disponible')
   const { data, error } = await createClient().rpc(funcion, {

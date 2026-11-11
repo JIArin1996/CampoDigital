@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, FileSpreadsheet, Plus, Printer, SlidersHoriz
 import { toast } from "sonner"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { getTablero, guardarTablero } from "@/lib/queries/tablero"
+import { getMedidasPropias, getTablero, guardarTablero } from "@/lib/queries/tablero"
 import { getCategorias, getEspecies, getLotes } from "@/lib/queries/lotes"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
@@ -15,7 +15,7 @@ import { Cargando } from "@/components/shared/Cargando"
 import { Button } from "@/components/ui/button"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
-import { TARJETAS_LISTAS, plantilla } from "@/components/tablero/catalogo"
+import { TARJETAS_LISTAS, plantilla, registrarPropias } from "@/components/tablero/catalogo"
 import { etiquetaComparada, opcionesPeriodo, periodoPorDefecto, rangoDe } from "@/components/tablero/periodos"
 import { Grilla } from "@/components/tablero/Grilla"
 import { Tarjeta, type DatosTarjeta } from "@/components/tablero/Tarjeta"
@@ -23,7 +23,7 @@ import { exportarExcel } from "@/components/tablero/exportar"
 import { Constructor } from "@/components/tablero/Constructor"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
-import type { FiltroCruzado, FiltrosIds, FiltrosTablero, PaginaTablero, TarjetaTablero } from "@/types/tablero"
+import type { FiltroCruzado, FiltrosIds, FiltrosTablero, MedidaPropia, PaginaTablero, TarjetaTablero } from "@/types/tablero"
 
 export default function IndicadoresPage() {
   return (
@@ -39,6 +39,7 @@ interface Datos {
   especies: Especie[]
   categorias: CategoriaAnimal[]
   lotes: { id: string; nombre: string }[]
+  propias: MedidaPropia[]               // medidas propias (A op B), ya registradas en el catálogo
 }
 
 // Pantalla de computadora (≥ 1024 px): ahí se edita el tablero
@@ -109,9 +110,11 @@ function Indicadores() {
   useEffect(() => {
     if (!estId) return
     let vigente = true
-    Promise.all([getTablero(estId), getEspecies(estId), getCategorias(estId), getLotes(estId, "activo")])
-      .then(([guardado, especies, categorias, lotes]) => {
-        if (vigente) setDatos({ estId, guardado, especies, categorias, lotes: lotes.map(l => ({ id: l.id, nombre: l.nombre })) })
+    Promise.all([getTablero(estId), getEspecies(estId), getCategorias(estId), getLotes(estId, "activo"), getMedidasPropias(estId)])
+      .then(([guardado, especies, categorias, lotes, propias]) => {
+        if (!vigente) return
+        registrarPropias(propias)
+        setDatos({ estId, guardado, especies, categorias, lotes: lotes.map(l => ({ id: l.id, nombre: l.nombre })), propias })
       })
       .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar el tablero")) })
     return () => { vigente = false }
@@ -221,6 +224,16 @@ function Indicadores() {
       setGuardando(false)
     }
   }
+
+  // Después de crear, cambiar o borrar una medida propia en el constructor
+  const recargarPropias = async () => {
+    const propias = await getMedidasPropias(listos.estId)
+    registrarPropias(propias)
+    setDatos(d => (d && d.estId === listos.estId ? { ...d, propias } : d))
+  }
+  // Una medida propia que usa alguna tarjeta (la del tablero guardado o la del que se está editando) no se borra
+  const propiaEnUso = (id: string) => [...paginas, ...(listos.guardado ?? [])].some(p =>
+    p.tarjetas.some(t => t.definicion.fuente === "combinada" && t.definicion.medidas.includes(id)))
 
   const aceptarTarjeta = (t: TarjetaTablero) => {
     const existe = actual.tarjetas.some(x => x.id === t.id)
@@ -473,6 +486,7 @@ function Indicadores() {
         {editando && constructor && (
           <Constructor key={constructor.tarjeta?.id ?? "nueva"} inicial={constructor.tarjeta} estId={listos.estId} rango={rango}
             especies={listos.especies} categorias={listos.categorias} lotes={listos.lotes} nombre={nombre}
+            propias={listos.propias} onPropiasCambiaron={recargarPropias} propiaEnUso={propiaEnUso}
             onAceptar={aceptarTarjeta} onCancelar={() => setConstructor(null)} />
         )}
       </div>

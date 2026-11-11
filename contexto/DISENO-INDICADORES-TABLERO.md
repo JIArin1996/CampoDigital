@@ -389,7 +389,23 @@ Dos tablas nuevas (migración), por establecimiento:
     - **Por lote**: una tarea con varios lotes cuenta en cada uno; sin lote, "Sin lote". Con filtro de especie o
       lote, lo que no tiene lote queda afuera.
 - **7 — Medidas combinadas y metas** (sección 11): `tablero_medidas`, `guardar_medida`, `tablero_combinada`, el
-  paso "Nueva medida" del constructor y la meta de cada tarjeta.
+  paso "Nueva medida" del constructor y la meta de cada tarjeta. En dos partes:
+  - **7a** (hecho): medidas propias (`tablero_medidas`, `guardar_medida`, `eliminar_medida`, `tablero_combinada`,
+    fuente "Medidas propias" en las tarjetas y "+ Nueva medida" en el constructor). Reglas fijadas al hacerla:
+    - **B del establecimiento entero**: Ha SPG, ha forestadas y una constante. Se piden sin abrir y en el total, y
+      valen lo mismo en todos los grupos y períodos (aviso `b_total` si la tarjeta está abierta y B no es constante).
+    - **Otra B se abre como A**: la medida propia admite los tiempos, aperturas y filtros que tienen A y B (con B del
+      establecimiento entero, los de A). El constructor solo ofrece eso; la base da error si se pide otra cosa.
+    - **Sin valor**: A o B sin fila en ese período o grupo, o B = 0 al dividir (avisos `a_sin_datos` y
+      `b_sin_datos`). La constante es solo B y no puede ser 0 si se divide.
+    - **Hasta 2 niveles y sin ciclos**: una propia que se usa adentro de otra no puede usar otra propia; si una propia
+      ya la usa otra, no puede pasar a usar una propia.
+    - **Borrar**: solo si no la usa ninguna tarjeta (guardada o en edición) ni otra medida propia.
+    - **Mejor si sube, baja o sin color**: lo elige el administrador en cada medida propia (propone el de A), para la
+      flecha de la comparación con el año anterior.
+    - **Unidad libre** (20 letras): se propone sola y se puede cambiar. Nombre único en el establecimiento.
+    - La medida se guarda en el momento (no con el tablero), así queda para otras tarjetas.
+  - **7b**: la meta de cada tarjeta.
 - **8 — Tableros por defecto**: las cuatro páginas (Resumen, Economía, Producción, Potreros) en la plantilla; la
   tarjeta de mapa (gráfico nuevo, solo potreros abierto por potrero). Una tarjeta cuya medida todavía no exista se
   muestra con "Disponible en la etapa X".

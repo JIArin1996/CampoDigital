@@ -8,7 +8,9 @@ import {
 
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
-import { ETIQUETA_DIMENSION, MEJOR_SI_BAJA, MIN_DIAS_POR_DEFECTO, SIN_COLOR, filtranEn, medidaDe, type Unidad } from "@/components/tablero/catalogo"
+import {
+  ETIQUETA_DIMENSION, MIN_DIAS_POR_DEFECTO, comparacionDe, filtranEn, medidaDe, nombreOperando, propiaDe, rasgosDe, type Unidad,
+} from "@/components/tablero/catalogo"
 import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { Dimension, FilaTablero, FiltroCruzado, FiltrosIds, TarjetaTablero } from "@/types/tablero"
@@ -42,7 +44,9 @@ function formato(n: number | null, unidad: Unidad) {
     case "UG": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} UG`
     case "ha": return `${n.toLocaleString("es-UY", { maximumFractionDigits: 1 })} ha`
     case "días": return `${n.toLocaleString("es-UY")} ${n === 1 ? "día" : "días"}`
-    default: return n.toLocaleString("es-UY", { maximumFractionDigits: 1 })
+    case "cab": return n.toLocaleString("es-UY", { maximumFractionDigits: 1 })
+    // Medidas propias: la unidad que eligió el administrador ("USD/ha"), o ninguna
+    default: return `${n.toLocaleString("es-UY", { maximumFractionDigits: 2 })}${unidad ? ` ${unidad}` : ""}`
   }
 }
 
@@ -158,7 +162,9 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   const listos = datos?.clave === clave ? datos.resultados : null
   const comparados = datos?.clave === clave ? datos.comparados : null
   const fallo = error?.clave === clave ? error.texto : null
-  const avisos = listos?.flatMap(x => x.filas).find(f => f.avisos)?.avisos ?? null
+  const filasListas = listos?.flatMap(x => x.filas) ?? []
+  const avisos = def.fuente === "combinada" ? avisosCombinada(filasListas) : filasListas.find(f => f.avisos)?.avisos ?? null
+  const propia = def.fuente === "combinada" ? propiaDe(def.medidas[0]) : undefined
   const unidad = medidaDe(def.fuente, def.medidas[0])?.unidad ?? "cab"
 
   // Avisa a la página lo que muestra (para exportar a Excel)
@@ -229,7 +235,8 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
       {elegir && listos && !elegido && def.grafico !== "numero" && (
         <p className="text-[11px] text-muted-foreground">Tocá una {def.grafico === "tabla" ? "fila" : def.grafico === "torta" ? "porción" : "barra"} para filtrar el resto del tablero.</p>
       )}
-      {avisos && <Avisos avisos={avisos} minDias={def.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO} />}
+      {avisos && <Avisos avisos={avisos} minDias={def.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO}
+        operandos={propia ? { a: nombreOperando(propia.definicion.a), b: nombreOperando(propia.definicion.b) } : undefined} />}
     </section>
   )
 }
@@ -240,8 +247,30 @@ const MOTIVO_DESCARTE: Record<string, string> = {
   esquila: "esquila", consumo: "consumo",
 }
 
-function Avisos({ avisos, minDias }: { avisos: Record<string, unknown>; minDias: number }) {
+// Medida propia: los avisos de A y de B (los de cada fuente), y cuántas filas quedaron sin valor por A o por B
+function avisosCombinada(filas: FilaTablero[]): Record<string, unknown> | null {
+  const con = filas.filter(f => f.avisos)
+  if (con.length === 0) return null
+  return {
+    ...Object.assign({}, ...con.map(f => f.avisos)),
+    a_sin_datos: filas.filter(f => f.avisos?.a_sin_datos).length,
+    b_sin_datos: filas.filter(f => f.avisos?.b_sin_datos).length,
+    b_total: con.some(f => f.avisos?.b_total),
+    filas: filas.length,
+  }
+}
+
+function Avisos({ avisos, minDias, operandos }: { avisos: Record<string, unknown>; minDias: number; operandos?: { a: string; b: string } }) {
   const textos: string[] = []
+  if (operandos) {
+    const filas = Number(avisos.filas ?? 1)
+    const cuantas = (n: number) => (filas > 1 ? ` en ${n} de ${filas} filas` : "")
+    const sinA = Number(avisos.a_sin_datos ?? 0)
+    const sinB = Number(avisos.b_sin_datos ?? 0)
+    if (sinA > 0) textos.push(`${operandos.a}: sin datos${cuantas(sinA)}, queda sin valor`)
+    if (sinB > 0) textos.push(`${operandos.b}: sin datos o en cero${cuantas(sinB)}, queda sin valor`)
+    if (avisos.b_total) textos.push(`${operandos.b}: total del establecimiento, la misma para todos los grupos`)
+  }
   const descartes = (avisos.tramos_descartados ?? null) as Record<string, number> | null
   if (descartes) {
     const total = Object.values(descartes).reduce((s, n) => s + n, 0)
@@ -310,7 +339,8 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
       <div>
         <p className="text-3xl font-bold tabular-nums">{formato(f.valor, unidad)}</p>
         {comparados && <Variacion actual={f.valor} anterior={c?.valor ?? null} unidad={unidad} etiqueta={etiquetaComp ?? ""}
-          mejorSiBaja={MEJOR_SI_BAJA.includes(def.medidas[0])} sinColor={SIN_COLOR.includes(def.medidas[0])} />}
+          mejorSiBaja={comparacionDe(fuente, def.medidas[0]) === "baja"} sinColor={comparacionDe(fuente, def.medidas[0]) === null} />}
+        {fuente === "combinada" && f.numerador !== null && f.denominador !== null && <DetalleDivision medida={def.medidas[0]} a={f.numerador} b={f.denominador} />}
         {unidad === "%" && f.denominador !== null && (
           <p className="text-xs text-muted-foreground tabular-nums">
             {f.numerador?.toLocaleString("es-UY")} de {f.denominador.toLocaleString("es-UY")}
@@ -504,6 +534,17 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
         ))}
       </BarChart>
     </ResponsiveContainer>
+  )
+}
+
+// Medida propia que divide: "USD 8.000 ÷ 213,1 UG", con la unidad de A y de B
+function DetalleDivision({ medida, a, b }: { medida: string; a: number; b: number }) {
+  const p = propiaDe(medida)
+  if (!p) return null
+  return (
+    <p className="text-xs text-muted-foreground tabular-nums">
+      {formato(a, rasgosDe(p.definicion.a)?.unidad ?? "")} ÷ {formato(b, rasgosDe(p.definicion.b)?.unidad ?? "")}
+    </p>
   )
 }
 

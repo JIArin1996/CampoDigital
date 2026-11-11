@@ -2,21 +2,24 @@
 
 import { useState } from "react"
 import { X } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
-import { ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, USAN_TRAMOS, abrirDe, medidaDe } from "@/components/tablero/catalogo"
+import {
+  ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, USAN_TRAMOS, abrirDe, formula, medidaDe, propiaDe,
+} from "@/components/tablero/catalogo"
+import { EditorMedida } from "@/components/tablero/EditorMedida"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
+import { eliminarMedida } from "@/lib/queries/tablero"
+import { mensajeDeError } from "@/lib/supabase/errores"
 import type { Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
-import type { DefinicionTarjeta, Dimension, Fuente, Grafico, TarjetaTablero, Tiempo } from "@/types/tablero"
+import type { DefinicionTarjeta, Dimension, Fuente, Grafico, MedidaPropia, TarjetaTablero, Tiempo } from "@/types/tablero"
 
-const NOMBRE_FUENTE: Partial<Record<Fuente, string>> = {
-  stock: "Stock", reproductivos: "Reproductivos", pesadas: "Producción y pesos", economia: "Economía", potreros: "Potreros", produccion: "Kilos y lana", gestion: "Gestión",
-}
 const NOMBRE_TIEMPO: Record<Tiempo, string> = {
   total: "Total del período", mes: "Por mes", ejercicio: "Por ejercicio", temporada: "Por temporada",
 }
@@ -46,9 +49,10 @@ function tituloSugerido(fuente: Fuente, medida: string, abrir: Dimension | null,
 /**
  * Constructor de tarjetas (panel lateral, solo en la computadora): qué medir → cómo abrirlo (y en el tiempo) → tipo
  * de gráfico, con filtro propio, período y vista previa con datos reales. Solo ofrece lo que la base acepta (el
- * catálogo); los gráficos que no sirven para lo elegido quedan deshabilitados.
+ * catálogo); los gráficos que no sirven para lo elegido quedan deshabilitados. En "Qué medir" también se crean,
+ * cambian y borran las medidas propias (A op B), que se guardan en el momento.
  */
-export function Constructor({ inicial, estId, rango, especies, categorias, lotes, nombre, onAceptar, onCancelar }: {
+export function Constructor({ inicial, estId, rango, especies, categorias, lotes, nombre, propias, onPropiasCambiaron, propiaEnUso, onAceptar, onCancelar }: {
   inicial: TarjetaTablero | null               // null: tarjeta nueva
   estId: string
   rango: Rango
@@ -56,6 +60,9 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   categorias: CategoriaAnimal[]
   lotes: { id: string; nombre: string }[]
   nombre: (dim: "especie" | "categoria" | "lote", id: string) => string
+  propias: MedidaPropia[]
+  onPropiasCambiaron: () => Promise<void>       // vuelve a leerlas y las registra en el catálogo
+  propiaEnUso: (id: string) => boolean          // la usa una tarjeta del tablero (guardado o en edición)
   onAceptar: (t: TarjetaTablero) => void
   onCancelar: () => void
 }) {
@@ -73,6 +80,8 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const [minDias, setMinDias] = useState(String(d0?.opciones?.min_dias ?? MIN_DIAS_POR_DEFECTO))
   const [titulo, setTitulo] = useState(inicial?.titulo ?? "")
   const [tituloTocado, setTituloTocado] = useState(!!inicial)
+  // Editor de medida propia abierto: la medida a cambiar, o null para una nueva
+  const [editorMedida, setEditorMedida] = useState<{ medida: MedidaPropia | null } | null>(null)
 
   const info = medidaDe(fuente, medida)
   const filtran = info?.filtran ?? FILTRAN[fuente] ?? []
@@ -148,6 +157,23 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
     })
   }
 
+  const borrarMedida = async () => {
+    const p = propiaDe(medida)
+    if (!p) return
+    if (propiaEnUso(p.id)) {
+      return toast.error(`"${p.nombre}" la usa una tarjeta del tablero: cambiá o sacá esa tarjeta primero`)
+    }
+    if (!window.confirm(`¿Borrar la medida "${p.nombre}"? No se puede deshacer.`)) return
+    try {
+      await eliminarMedida(p.id)
+      await onPropiasCambiaron()
+      elegirMedida("stock:stock")
+      toast.success("Medida borrada")
+    } catch (err) {
+      toast.error(mensajeDeError(err, "No se pudo borrar la medida"))
+    }
+  }
+
   const categoriasVisibles = categorias.filter(c => c.activo && (!especie || c.especie_id === especie))
   const etiqueta = "flex flex-col gap-1 text-sm text-muted-foreground"
 
@@ -164,14 +190,34 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       </label>
 
       <label className={etiqueta}>1 · Qué medir
-        <select className={SELECT_NATIVO} value={`${fuente}:${medida}`} onChange={e => elegirMedida(e.target.value)}>
-          {(Object.keys(MEDIDAS) as Fuente[]).map(f => (
-            <optgroup key={f} label={NOMBRE_FUENTE[f] ?? f}>
+        <select className={SELECT_NATIVO} value={`${fuente}:${medida}`} disabled={!!editorMedida}
+          onChange={e => (e.target.value === "nueva" ? setEditorMedida({ medida: null }) : elegirMedida(e.target.value))}>
+          {(Object.keys(MEDIDAS) as Fuente[]).filter(f => Object.keys(MEDIDAS[f] ?? {}).length > 0).map(f => (
+            <optgroup key={f} label={NOMBRE_FUENTE[f]}>
               {Object.entries(MEDIDAS[f] ?? {}).map(([m, x]) => <option key={m} value={`${f}:${m}`}>{x.etiqueta}</option>)}
             </optgroup>
           ))}
+          <option value="nueva">+ Nueva medida (A ÷ B, A × B…)</option>
         </select>
       </label>
+      {fuente === "combinada" && !editorMedida && propiaDe(medida) && (
+        <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <span className="text-muted-foreground">= {formula(propiaDe(medida)!.definicion)}</span>
+          <button type="button" className="font-medium text-primary hover:underline" onClick={() => setEditorMedida({ medida: propiaDe(medida)! })}>Editar medida</button>
+          <button type="button" className="font-medium text-destructive hover:underline" onClick={borrarMedida}>Borrar medida</button>
+        </div>
+      )}
+
+      {editorMedida ? (
+        <EditorMedida key={editorMedida.medida?.id ?? "nueva"} estId={estId} inicial={editorMedida.medida} propias={propias}
+          onCancelar={() => setEditorMedida(null)}
+          onGuardada={async id => {
+            await onPropiasCambiaron()
+            setEditorMedida(null)
+            if (medidaDe("combinada", id)) elegirMedida(`combinada:${id}`)
+            toast.success("Medida guardada")
+          }} />
+      ) : (<>
       {extrasPosibles.length > 0 && (
         <fieldset className="-mt-2 space-y-1">
           <legend className="mb-1 text-xs text-muted-foreground">Sumar otras medidas como series del mismo gráfico</legend>
@@ -275,6 +321,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
         <Button className="flex-1" disabled={!tituloFinal.trim() || (usaTramos && !minDiasValido)} onClick={aceptar}>{inicial ? "Aplicar cambios" : "Agregar al tablero"}</Button>
         <Button variant="outline" onClick={onCancelar}>Cancelar</Button>
       </div>
+      </>)}
     </aside>
   )
 }

@@ -2689,6 +2689,50 @@ export type Database = {
         }
         Relationships: []
       }
+      tablero_medidas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          definicion: Json
+          establecimiento_id: string
+          id: string
+          mejor: string | null
+          nombre: string
+          unidad: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          definicion: Json
+          establecimiento_id: string
+          id?: string
+          mejor?: string | null
+          nombre: string
+          unidad?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          definicion?: Json
+          establecimiento_id?: string
+          id?: string
+          mejor?: string | null
+          nombre?: string
+          unidad?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tablero_medidas_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tablero_paginas: {
         Row: {
           created_at: string
@@ -3915,6 +3959,18 @@ export type Database = {
         Args: { p_id: string }
         Returns: undefined
       }
+      eliminar_medida: { Args: { p_id: string }; Returns: undefined }
+      guardar_medida: {
+        Args: {
+          p_definicion: Json
+          p_establecimiento_id: string
+          p_id: string
+          p_mejor: string
+          p_nombre: string
+          p_unidad: string
+        }
+        Returns: string
+      }
       guardar_forma_potrero: {
         Args: {
           p_forma: Json
@@ -4190,6 +4246,27 @@ export type Database = {
       superficie_efectiva_total: {
         Args: { e: Database["public"]["Tables"]["establecimientos"]["Row"] }
         Returns: number
+      }
+      tablero_combinada: {
+        Args: {
+          p_abrir_por: string
+          p_desde: string
+          p_establecimiento_id: string
+          p_filtros?: Json
+          p_hasta: string
+          p_medida: string
+          p_opciones?: Json
+          p_tiempo: string
+        }
+        Returns: {
+          avisos: Json
+          clave: string
+          denominador: number
+          etiqueta: string
+          numerador: number
+          periodo: string
+          valor: number
+        }[]
       }
       tablero_economia: {
         Args: {

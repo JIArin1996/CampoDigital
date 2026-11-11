@@ -143,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261112000600, fuente Gestión del tablero): 166 filas, todas con ok = true.
+-- ESPERADO (después de 20261113000100, medidas combinadas del tablero): 169 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -168,7 +168,8 @@ order by 1 desc, 2, 3, 4;
 -- _cargar_zona_tipos y _geometria_de_geojson;
 -- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo;
 -- +1 de 20261112000200: tablero_produccion;
--- +1 de 20261112000600: tablero_gestion.)
+-- +1 de 20261112000600: tablero_gestion;
+-- +3 de 20261113000100: guardar_medida, eliminar_medida y tablero_combinada.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -275,12 +276,14 @@ order by 1 desc, 2, 3, 4;
 --   editar_venta                | true             | true          | false | false
 --   eliminar_actividad          | true             | true          | false | false
 --   eliminar_entrada_bitacora   | true             | true          | false | false
+--   eliminar_medida             | true             | true          | false | false
 --   es_admin                    | true             | true          | false | false
 --   es_miembro                  | true             | true          | false | false
 --   estadia_alta_lote           | true             | false         | false | false
 --   estadia_cambio_estado_lote  | true             | false         | false | false
 --   fecha_hoy                   | false            | true          | false | false
 --   guardar_forma_potrero       | true             | true          | false | false
+--   guardar_medida              | true             | true          | false | false
 --   guardar_tablero             | true             | true          | false | false
 --   guardar_zona_potrero        | true             | true          | false | false
 --   linaje_lote                 | false            | true          | false | false
@@ -327,6 +330,7 @@ order by 1 desc, 2, 3, 4;
 --   stock_al                    | false            | true          | false | false
 --   superficie_efectiva_total   | false            | true          | false | false
 --   superficie_total            | false            | true          | false | false
+--   tablero_combinada           | false            | true          | false | false
 --   tablero_economia            | false            | true          | false | false
 --   tablero_gestion             | false            | true          | false | false
 --   tablero_pesadas             | false            | true          | false | false
@@ -398,6 +402,7 @@ select
                                             'editar_compra', 'editar_venta', 'editar_pesada', 'editar_mortandad', 'editar_paricion',
                                             'editar_sanidad', 'editar_servicio', 'editar_diagnostico', 'editar_esquila',
                                             'editar_personalizada', 'editar_destete', 'guardar_tablero',
+                                            'guardar_medida', 'eliminar_medida',
                                             'registrar_consumo', 'editar_consumo',
                                             'guardar_zona_potrero', 'borrar_zona_potrero'))
   ) as ok
