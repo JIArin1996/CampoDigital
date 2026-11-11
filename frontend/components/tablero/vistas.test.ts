@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest"
 import { MEDIDAS, PENDIENTES, abrirDe, medidaDe, plantilla } from "@/components/tablero/catalogo"
 import {
   CONFIG_NUEVA, ORDEN_VISTAS, aplicarVista, cambiarMedida, cambiarPeriodo, cambiarSeparar, conConfig, configDe, disponibilidad,
-  esValida, vistaDe, type Config,
+  CON_META, esValida, tituloSugerido, verComo, vistaDe, type Config,
 } from "@/components/tablero/vistas"
+import { corto } from "@/components/tablero/formato"
 import type { DefinicionTarjeta, Dimension, Fuente, Grafico, Tiempo } from "@/types/tablero"
 
 // Pruebas del rediseño del constructor (contexto/DISENO-CONSTRUCTOR-TARJETAS.md, sección 10), sobre todo el catálogo
@@ -148,5 +149,44 @@ describe("3 · una tarjeta existente se abre y se guarda sin cambios", () => {
     const nueva = conConfig(d, r.config)
     expect(nueva.medidas).toEqual(["stock"])
     expect(nueva.meta).toEqual(d.meta)
+  })
+})
+
+describe("4 · Ver como (menú rápido de la tarjeta)", () => {
+  it("cada opción posible, desde cualquier combinación válida, da una válida y solo con lo que se puede ver así", () => {
+    for (const c of VALIDAS) {
+      const d: DefinicionTarjeta = {
+        fuente: c.fuente, medidas: [c.medida], abrir_por: c.abrir, tiempo: c.tiempo, grafico: c.grafico, meta: { valor: 1, mejor: "sube" },
+      }
+      for (const v of ORDEN_VISTAS) {
+        if (!disponibilidad(v, c.fuente, c.medida).posible) continue
+        const r = verComo(d, v)
+        expect(esValida(configDe(r.definicion)), `${c.fuente}:${c.medida} → ${v}`).toBe(true)
+        expect(vistaDe(configDe(r.definicion))).toBe(v)
+        expect(!!r.definicion.meta).toBe(CON_META.includes(r.definicion.grafico))
+        if (!CON_META.includes(r.definicion.grafico)) expect(r.aviso).toContain("la meta")
+      }
+    }
+  })
+  it("saca las series y el acumulado que ya no se ven, y lo avisa", () => {
+    const d: DefinicionTarjeta = {
+      fuente: "economia", medidas: ["ingresos", "gastos"], abrir_por: null, tiempo: "mes", grafico: "barras", acumuladas: ["ingresos"],
+    }
+    const r = verComo(d, "numero")
+    expect(r.definicion.medidas).toEqual(["ingresos"])
+    expect(r.definicion.acumuladas).toBeUndefined()
+    expect(r.aviso).toContain("Saqué la otra serie y el acumulado")
+    // Evolución las conserva
+    expect(verComo(d, "evolucion").definicion.medidas).toEqual(["ingresos", "gastos"])
+  })
+  it("el título automático sigue a la configuración", () => {
+    expect(tituloSugerido({ fuente: "stock", medida: "stock", abrir: "categoria", tiempo: "mes", grafico: "lineas" }))
+      .toBe("Stock al cierre por categoría mes a mes")
+  })
+  it("los ejes usan números cortos en formato uruguayo", () => {
+    expect(corto(1234)).toBe("1.234")
+    expect(corto(12500)).toBe("12,5 mil")
+    expect(corto(-1_250_000)).toBe("-1,3 M")
+    expect(corto(2.345)).toBe("2,35")
   })
 })

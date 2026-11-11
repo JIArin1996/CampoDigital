@@ -21,6 +21,7 @@ import { Grilla } from "@/components/tablero/Grilla"
 import { Tarjeta, type DatosTarjeta } from "@/components/tablero/Tarjeta"
 import { exportarExcel } from "@/components/tablero/exportar"
 import { Constructor } from "@/components/tablero/Constructor"
+import { VISTAS, configDe, tituloSugerido, verComo, type Vista } from "@/components/tablero/vistas"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { FiltroCruzado, FiltrosIds, FiltrosTablero, MedidaPropia, PaginaTablero, TarjetaTablero } from "@/types/tablero"
@@ -240,6 +241,31 @@ function Indicadores() {
     const enEdicion = usan(paginas)
     const guardadas = usan(listos.guardado ?? []).filter(t => !enEdicion.includes(t)).map(t => `${t}, en el tablero guardado`)
     return [...enEdicion, ...guardadas]
+  }
+
+  // Menú rápido de la tarjeta. Los cambios van a la página donde se hicieron (aunque después se cambie de página).
+  const reemplazarEn = (pagina: number, id: string, t: TarjetaTablero) =>
+    setBorrador(b => b && b.map((p, i) => (i === pagina ? { ...p, tarjetas: p.tarjetas.map(x => (x.id === id ? t : x)) } : p)))
+  // Ver como: las mismas reglas que el constructor; el título automático acompaña; siempre con Deshacer
+  const verComoTarjeta = (t: TarjetaTablero, v: Vista) => {
+    const r = verComo(t.definicion, v)
+    const auto = t.titulo === tituloSugerido(configDe(t.definicion))
+    const cambioDeTipo = (t.definicion.grafico === "numero") !== (r.definicion.grafico === "numero")
+    const nueva: TarjetaTablero = {
+      ...t, definicion: r.definicion, titulo: auto ? tituloSugerido(configDe(r.definicion)) : t.titulo,
+      ...(cambioDeTipo ? (r.definicion.grafico === "numero" ? { w: 3, h: 3 } : { w: 6, h: 7 }) : {}),
+    }
+    const pagina = idx
+    reemplazarEn(pagina, t.id, nueva)
+    toast(`"${t.titulo}" ahora se ve como ${VISTAS[v].nombre}.`, {
+      description: r.aviso ?? undefined, duration: 8000,
+      action: { label: "Deshacer", onClick: () => reemplazarEn(pagina, t.id, t) },
+    })
+  }
+  const duplicarTarjeta = (t: TarjetaTablero) => {
+    const abajo = actual.tarjetas.reduce((m, x) => Math.max(m, x.y + x.h), 0)
+    cambiarPagina(p => ({ ...p, tarjetas: [...p.tarjetas, { ...t, id: nuevoId(), titulo: `${t.titulo} (copia)`, x: 0, y: abajo }] }))
+    toast.success("Tarjeta duplicada: quedó al final de la página")
   }
 
   const aceptarTarjeta = (t: TarjetaTablero) => {
@@ -486,6 +512,7 @@ function Indicadores() {
                 <Tarjeta tarjeta={t} estId={listos.estId} rango={rango} generales={generales} cruzado={cruzado} nombre={nombre}
                   comparar={comparadoCon} onDatos={(id, d) => { datosTarjetas.current.set(id, d) }} impresion={imprimiendo}
                   edicion={editando} onElegir={elegir(t.id)} onEditar={() => setConstructor({ tarjeta: t })}
+                  onDuplicar={() => duplicarTarjeta(t)} onVerComo={v => verComoTarjeta(t, v)}
                   onQuitar={() => cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.filter(x => x.id !== t.id) }))} />
               )} />
           )}

@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChartColumn, ChartPie, ChevronRight, Hash, Info, ListOrdered, Map as IconoMapa, RotateCcw, Table2, TrendingUp, X } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { ChevronRight, Info, RotateCcw, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -15,11 +14,12 @@ import {
   medidaDe, propiaDe,
 } from "@/components/tablero/catalogo"
 import { BuscadorMedidas } from "@/components/tablero/BuscadorMedidas"
+import { ICONO_VISTA } from "@/components/tablero/iconos"
 import { BorrarIndicador, IndicadorCalculado } from "@/components/tablero/IndicadorCalculado"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
 import {
-  CONFIG_NUEVA, ORDEN_VISTAS, VISTAS, aplicarVista, cambiarMedida, cambiarPeriodo, cambiarSeparar, configDe, disponibilidad, graficosDe,
-  vistaDe, type Ajuste, type Config, type Vista,
+  CON_META, CONFIG_NUEVA, ORDEN_VISTAS, VISTAS, tituloSugerido, aplicarVista, cambiarMedida, cambiarPeriodo, cambiarSeparar, configDe, disponibilidad, graficosDe,
+  vistaDe, type Ajuste, type Config,
 } from "@/components/tablero/vistas"
 import { eliminarMedida } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
@@ -28,20 +28,11 @@ import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { DefinicionTarjeta, Dimension, FiltrosIds, Fuente, Grafico, MedidaPropia, TarjetaTablero, Tiempo } from "@/types/tablero"
 
-const ICONO_VISTA: Record<Vista, LucideIcon> = {
-  numero: Hash, evolucion: TrendingUp, comparar: ChartColumn, ranking: ListOrdered, composicion: ChartPie, mapa: IconoMapa, tabla: Table2,
-}
 const NOMBRE_GRAFICO: Record<Grafico, string> = {
   numero: "Número", barras: "Barras", barras_horizontales: "Ranking", barras_apiladas: "Barras apiladas", barras_linea: "Barras y línea",
   lineas: "Líneas", torta: "Torta", tabla: "Tabla", mapa: "Mapa",
 }
 const mayuscula = (s: string) => s[0].toUpperCase() + s.slice(1)
-
-function tituloSugerido(c: Config) {
-  const m = medidaDe(c.fuente, c.medida)?.etiqueta ?? c.medida
-  const t = c.tiempo === "total" ? "" : ` ${NOMBRE_PERIODO[c.tiempo].toLowerCase()}`
-  return `${m}${c.abrir ? ` por ${ETIQUETA_DIMENSION[c.abrir]}` : ""}${t}`
-}
 
 // Una subsección de "Más opciones": siempre visible; si no aplica, deshabilitada con la razón en texto
 function Subseccion({ titulo, noAplica, children }: { titulo: string; noAplica?: string | null; children: React.ReactNode }) {
@@ -114,7 +105,7 @@ export function Constructor({ inicial, estId, rango, etiquetaPeriodo, generales,
       .map(([m, x]) => ({ m, etiqueta: x.etiqueta }))
   const extrasValidos = extras.filter(e => extrasPosibles.some(x => x.m === e))
   const usaTramos = fuente === "pesadas" && [medida, ...extrasValidos].some(m => USAN_TRAMOS.includes(m))
-  const conMeta = ["numero", "barras", "barras_horizontales", "barras_apiladas", "barras_linea", "lineas", "mapa"].includes(grafico)
+  const conMeta = CON_META.includes(grafico)
   // "1.250,5" (con coma decimal, los puntos son de miles) o "2.5"
   const metaNum = Number(meta.includes(",") ? meta.trim().replace(/\./g, "").replace(",", ".") : meta.trim())
   const metaValida = meta.trim() === "" || Number.isFinite(metaNum)

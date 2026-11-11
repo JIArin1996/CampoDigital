@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useId, useState } from "react"
-import { AlertTriangle, GripVertical, Pencil, X } from "lucide-react"
+import { AlertTriangle, Copy, Ellipsis, GripVertical, Pencil, Trash2 } from "lucide-react"
 import {
   Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis,
   YAxis,
 } from "recharts"
 
+import { Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
@@ -14,7 +15,9 @@ import {
   ETIQUETA_DIMENSION, GRAFICOS_PENDIENTES, MIN_DIAS_POR_DEFECTO, PENDIENTES, comparacionDe, filtranEn, medidaDe, nombreOperando, propiaDe, rasgosDe, type Unidad,
 } from "@/components/tablero/catalogo"
 import { detalleDe, doceMeses, enCurso } from "@/components/tablero/detalle"
-import { formato } from "@/components/tablero/formato"
+import { corto, formato, unidadEje } from "@/components/tablero/formato"
+import { ICONO_VISTA } from "@/components/tablero/iconos"
+import { ORDEN_VISTAS, VISTAS, configDe, disponibilidad, vistaDe, type Vista } from "@/components/tablero/vistas"
 import { MapaTarjeta } from "@/components/tablero/MapaTarjeta"
 import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
@@ -85,7 +88,7 @@ const calculado = (clave: string) => {
   return c && Date.now() - c.hora < 60_000 ? c : null
 }
 
-export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edicion, onQuitar, onEditar, onElegir, comparar = null, onDatos, impresion = false }: {
+export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edicion, onQuitar, onEditar, onDuplicar, onVerComo, onElegir, comparar = null, onDatos, impresion = false }: {
   tarjeta: TarjetaTablero
   estId: string
   rango: Rango                                   // el período de arriba
@@ -95,6 +98,8 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   edicion: boolean
   onQuitar?: () => void
   onEditar?: () => void
+  onDuplicar?: () => void
+  onVerComo?: (v: Vista) => void                 // menú rápido: otra opción de "¿Cómo lo querés ver?"
   onElegir?: (c: Omit<FiltroCruzado, "origen">) => void
   comparar?: string | null                       // con qué se compara ("Ejercicio 2024/25"): las mismas fechas, un año antes
   onDatos?: (id: string, datos: DatosTarjeta) => void
@@ -199,17 +204,10 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
             </span>
           ))}
           {textosAviso.length > 0 && !impresion && <AvisosCompactos textos={textosAviso} titulo={tarjeta.titulo} />}
-          {edicion && onEditar && (
-            <button type="button" onClick={onEditar} aria-label={`Editar la tarjeta ${tarjeta.titulo}`} title="Editar"
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
-              <Pencil className="h-4 w-4" aria-hidden />
-            </button>
-          )}
-          {edicion && onQuitar && (
-            <button type="button" onClick={onQuitar} aria-label={`Sacar la tarjeta ${tarjeta.titulo}`} title="Sacar del tablero"
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive">
-              <X className="h-4 w-4" aria-hidden />
-            </button>
+          {edicion && (onEditar || onQuitar) && (
+            <MenuRapido titulo={tarjeta.titulo} vistaActual={vistaDe(configDe(def))}
+              disponible={borrada || pendiente ? null : (v: Vista) => disponibilidad(v, def.fuente, def.medidas[0])}
+              onVerComo={onVerComo} onEditar={onEditar} onDuplicar={onDuplicar} onQuitar={onQuitar} />
           )}
         </div>
       </div>
@@ -346,6 +344,52 @@ function AvisosCompactos({ textos, titulo }: { textos: string[]; titulo: string 
   )
 }
 
+// Menú rápido (⋯) de la tarjeta en modo edición: ver como (las mismas reglas que el constructor), editar, duplicar y
+// quitar. Las opciones que la medida no admite se ven deshabilitadas con la razón escrita.
+function MenuRapido({ titulo, vistaActual, disponible, onVerComo, onEditar, onDuplicar, onQuitar }: {
+  titulo: string
+  vistaActual: Vista
+  disponible: ((v: Vista) => { posible: boolean; razon?: string }) | null
+  onVerComo?: (v: Vista) => void
+  onEditar?: () => void
+  onDuplicar?: () => void
+  onQuitar?: () => void
+}) {
+  return (
+    <Menu>
+      <MenuTrigger render={<button type="button" aria-label={`Opciones de la tarjeta ${titulo}`} />}
+        className="rounded p-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted">
+        <Ellipsis className="h-4 w-4" aria-hidden />
+      </MenuTrigger>
+      <MenuContent className="w-72">
+        {onVerComo && disponible && <>
+          <MenuGroup>
+            <MenuGroupLabel>Ver como</MenuGroupLabel>
+            {ORDEN_VISTAS.map(v => {
+              const d = disponible(v)
+              const Icono = ICONO_VISTA[v]
+              const actual = v === vistaActual
+              return (
+                <MenuItem key={v} disabled={!d.posible || actual} onClick={() => onVerComo(v)}>
+                  <Icono aria-hidden />
+                  <span className="flex min-w-0 flex-col">
+                    <span className={cn(actual && "font-semibold text-foreground")}>{VISTAS[v].nombre}{actual ? " (como se ve ahora)" : ""}</span>
+                    {!d.posible && <span className="text-xs">{d.razon}</span>}
+                  </span>
+                </MenuItem>
+              )
+            })}
+          </MenuGroup>
+          <MenuSeparator />
+        </>}
+        {onEditar && <MenuItem onClick={onEditar}><Pencil aria-hidden />Editar…</MenuItem>}
+        {onDuplicar && <MenuItem onClick={onDuplicar}><Copy aria-hidden />Duplicar</MenuItem>}
+        {onQuitar && <MenuItem onClick={onQuitar} className="text-destructive data-highlighted:text-destructive"><Trash2 aria-hidden />Quitar del tablero</MenuItem>}
+      </MenuContent>
+    </Menu>
+  )
+}
+
 type FilaGrafico = Record<string, string | number | null>
 
 function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp, unidad, animar, elegir, elegido }: {
@@ -446,6 +490,13 @@ function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp
 
   if (filasGrafico.length === 0) return <p className="text-sm text-muted-foreground">Sin datos en el período.</p>
 
+  // Ranking: de mayor a menor (los grupos sin valor, al final)
+  if (def.grafico === "barras_horizontales" && porGrupo) {
+    const k = series[0].clave
+    const valor = (f: FilaGrafico) => (typeof f[k] === "number" ? (f[k] as number) : -Infinity)
+    filasGrafico.sort((a, b) => valor(b) - valor(a))
+  }
+
   // Período en curso (en el tiempo): la barra rayada y el punto punteado, con una línea que lo dice
   const parciales = new Set(porGrupo ? [] : filasGrafico.flatMap((f, i) => (enCurso((f._periodo as string | null) ?? null) ? [i] : [])))
   const rayas = (i: number) => `url(#rayas-${uid}-${i % COLORES.length})`
@@ -461,15 +512,21 @@ function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp
       </defs>
     </svg>
   ) : null
-  const conNota = (grafico: React.ReactNode) => parciales.size === 0 ? grafico : (
+  // El gráfico con la unidad del eje arriba y, si hay un período en curso, la nota abajo
+  const eje = unidadEje(unidad)
+  const conNota = (grafico: React.ReactNode) => (
     <div className="flex h-full flex-col">
       {defsRayas}
+      {eje && <p className="text-[11px] text-muted-foreground">En {eje}</p>}
       <div className="min-h-0 flex-1">{grafico}</div>
-      <p className="text-[11px] text-muted-foreground">
-        {[...parciales].map(i => String(filasGrafico[i].x)).join(", ")}: todavía no terminó (rayado o punteado), el valor puede cambiar.
-      </p>
+      {parciales.size > 0 && (
+        <p className="text-[11px] text-muted-foreground">
+          {[...parciales].map(i => String(filasGrafico[i].x)).join(", ")}: todavía no terminó (rayado o punteado), el valor puede cambiar.
+        </p>
+      )}
     </div>
   )
+  const tickCorto = (v: unknown) => corto(Number(v))
   const puntoParcial = (color: string) => function PuntoParcial(p: { cx?: number; cy?: number; index?: number }) {
     return p.index !== undefined && parciales.has(p.index) && p.cx !== undefined && p.cy !== undefined
       ? <circle key={`p${p.index}`} cx={p.cx} cy={p.cy} r={4} fill="var(--card)" stroke={color} strokeWidth={2} strokeDasharray="2 2" />
@@ -547,19 +604,33 @@ function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp
     )
   }
 
+  // Torta: hasta 6 porciones, de mayor a menor; el resto junto en "Otros" (que dice qué grupos tiene y no filtra)
   if (def.grafico === "torta") {
     const s = series[0]
-    const datos = filasGrafico
-      .map((f, i) => ({ nombre: String(f.x), valor: Number(f[s.clave] ?? 0), i, f }))
+    const todas = filasGrafico
+      .map((f, i) => ({ nombre: String(f.x), valor: Number(f[s.clave] ?? 0), i, f, detalle: "" }))
       .filter(d => d.valor > 0)
+      .sort((a, b) => b.valor - a.valor)
+    const resto = todas.slice(6)
+    const datos = resto.length > 0
+      ? [...todas.slice(0, 6), {
+          nombre: `Otros (${resto.length})`, valor: resto.reduce((t, d) => t + d.valor, 0), i: -1, f: { x: "Otros", _clave: "" } as FilaGrafico,
+          detalle: resto.map(d => d.nombre).join(", "),
+        }]
+      : todas
     return (
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie isAnimationActive={animar} data={datos} dataKey="valor" nameKey="nombre" innerRadius="45%" outerRadius="80%" paddingAngle={1}
-            onClick={(_, j) => tocar(datos[j].i)} style={{ cursor: clickeable ? "pointer" : undefined }}>
-            {datos.map((d, j) => <Cell key={d.nombre} fill={COLORES[j % COLORES.length]} fillOpacity={opacidad(d.f)} />)}
+            onClick={(_, j) => { if (datos[j].i >= 0) tocar(datos[j].i) }} style={{ cursor: clickeable ? "pointer" : undefined }}>
+            {datos.map((d, j) => <Cell key={d.nombre} fill={d.i < 0 ? "var(--muted-foreground)" : COLORES[j % COLORES.length]}
+              fillOpacity={d.i < 0 ? 0.45 : opacidad(d.f)} />)}
           </Pie>
-          {tooltip}
+          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, maxWidth: 260, whiteSpace: "normal" }}
+            formatter={(v, nombre, item) => {
+              const detalle = (item?.payload as { detalle?: string } | undefined)?.detalle
+              return [detalle ? `${fmt(v)} (${detalle})` : fmt(v), nombre]
+            }} />
           <Legend wrapperStyle={{ fontSize: 12 }} />
         </PieChart>
       </ResponsiveContainer>
@@ -572,7 +643,7 @@ function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp
         <LineChart data={filasGrafico} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="x" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} width={48} />
+          <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={tickCorto} />
           {tooltip}
           {leyenda}
           {lineaMeta("y")}
@@ -598,7 +669,7 @@ function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp
         <ComposedChart data={filasGrafico} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="x" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} width={48} />
+          <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={tickCorto} />
           {tooltip}
           {leyenda}
           {lineaMeta("y")}
@@ -624,13 +695,13 @@ function Contenido({ tarjeta, estId, resultados, comparados, linea, etiquetaComp
         <CartesianGrid strokeDasharray="3 3" horizontal={!horizontal} vertical={horizontal} />
         {horizontal ? (
           <>
-            <XAxis type="number" tick={{ fontSize: 11 }} />
+            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={tickCorto} />
             <YAxis type="category" dataKey="x" tick={{ fontSize: 11 }} width={120} interval={0} />
           </>
         ) : (
           <>
             <XAxis dataKey="x" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} width={48} />
+            <YAxis tick={{ fontSize: 11 }} width={48} tickFormatter={tickCorto} />
           </>
         )}
         {tooltip}

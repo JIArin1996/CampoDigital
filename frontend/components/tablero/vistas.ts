@@ -220,3 +220,45 @@ export function conConfig(d: DefinicionTarjeta, c: Config): DefinicionTarjeta {
 
 // Tarjeta nueva: Stock al cierre, un número, todo junto, sin separar (lo que habilita más opciones)
 export const CONFIG_NUEVA: Config = { fuente: "stock", medida: "stock", abrir: null, tiempo: "total", grafico: "numero" }
+
+// ── El título automático y "Ver como" del menú rápido de la tarjeta (sección 8) ───────────────────────────────
+
+// El título que se sugiere: "Stock al cierre por categoría mes a mes"
+export function tituloSugerido(c: Config) {
+  const m = medidaDe(c.fuente, c.medida)?.etiqueta ?? c.medida
+  const t = c.tiempo === "total" ? "" : ` ${NOMBRE_PERIODO[c.tiempo].toLowerCase()}`
+  return `${m}${c.abrir ? ` por ${ETIQUETA_DIMENSION[c.abrir]}` : ""}${t}`
+}
+
+// Gráficos que admiten meta (número, barras, líneas y mapa)
+export const CON_META: Grafico[] = ["numero", "barras", "barras_horizontales", "barras_apiladas", "barras_linea", "lineas", "mapa"]
+
+/**
+ * "Ver como" desde el tablero: la misma regla que tocar la opción en el constructor (aplicarVista), y lo que deja de
+ * aplicar con el gráfico nuevo se saca y se avisa: las otras series (en número, torta y mapa, o separada en el
+ * tiempo, o si la serie no tiene ese período), el acumulado (todo junto) y la meta (torta y tabla).
+ */
+export function verComo(d: DefinicionTarjeta, v: Vista): { definicion: DefinicionTarjeta; aviso: string | null } {
+  const r = aplicarVista(configDe(d), v)
+  const c = r.config
+  const def = conConfig(d, c)
+  const sacado: string[] = []
+  const sinSeries = c.grafico === "numero" || c.grafico === "torta" || c.grafico === "mapa" || (c.abrir !== null && c.tiempo !== "total")
+  const series = sinSeries ? [] : def.medidas.slice(1).filter(m => medidaDe(c.fuente, m)?.tiempos.includes(c.tiempo))
+  if (series.length < def.medidas.length - 1) sacado.push(def.medidas.length - 1 - series.length === 1 ? "la otra serie" : "las otras series")
+  def.medidas = [def.medidas[0], ...series]
+  if (def.acumuladas) {
+    const acumuladas = c.tiempo === "total" ? [] : def.acumuladas.filter(m => def.medidas.includes(m))
+    if (acumuladas.length < def.acumuladas.length) sacado.push("el acumulado")
+    if (acumuladas.length) def.acumuladas = acumuladas
+    else delete def.acumuladas
+  }
+  if (def.meta && !CON_META.includes(c.grafico)) {
+    sacado.push("la meta")
+    delete def.meta
+  }
+  const extra = sacado.length
+    ? `Saqué ${sacado.length === 1 ? sacado[0] : `${sacado.slice(0, -1).join(", ")} y ${sacado[sacado.length - 1]}`}: no se ${sacado.length === 1 ? "ve" : "ven"} como ${VISTAS[v].nombre}.`
+    : null
+  return { definicion: def, aviso: [r.aviso, extra].filter(Boolean).join(" ") || null }
+}

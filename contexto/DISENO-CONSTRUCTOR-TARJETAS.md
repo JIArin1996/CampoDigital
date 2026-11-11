@@ -133,7 +133,12 @@ la base no cambia en este rediseño.
     palabras de `detalle.ts`), avisos ⚠ en un popover (en la impresión, la lista) y período en curso rayado o
     punteado, con una línea que lo dice. La minilínea es un pedido más a la base por tarjeta de número, solo si la
     medida se ve mes a mes; si falla, la tarjeta se muestra sin ella.
-  - **R4b:** torta (6 porciones y "Otros"), ranking ordenado, formato y unidad en ejes y tooltips, menú rápido.
+  - **R4b:** torta (las 6 porciones más grandes y el resto en "Otros (n)", que dice qué grupos tiene y no filtra),
+    ranking de mayor a menor, ejes con números cortos ("12,5 mil", "1,2 M") y la unidad una vez arriba del gráfico
+    ("En USD"), y el menú rápido ⋯ (reemplaza al lápiz y la X). "Ver como" usa `verComo` (`vistas.ts`): la misma
+    regla que el constructor y además saca lo que no se ve con el gráfico nuevo (otras series, acumulado, meta),
+    con un aviso y Deshacer; el título automático lo acompaña y número ↔ gráfico cambia el tamaño, como en el
+    constructor.
 
 Pruebas (Vitest 4, `frontend/components/tablero/*.test.ts`; `npm test` en `frontend/`, desde PowerShell o cmd: en
 Git Bash, Node ve la carpeta como `c:\…` en minúscula y Vitest falla con "Cannot read properties of undefined (reading
