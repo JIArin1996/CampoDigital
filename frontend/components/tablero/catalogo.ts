@@ -124,6 +124,18 @@ MEDIDAS.gestion = {
   proximas_dosis:  { etiqueta: "Próximas dosis (15 días)",          unidad: "dosis",  tiempos: ["total"] },
 }
 
+// Medidas que se suman entre períodos: por mes se pueden mostrar acumuladas en el período (etapa 8a)
+export const ADITIVAS = ["movimientos", "kg_producidos", "resultado", "ingresos", "gastos", "gastos_operativos", "flujo_caja",
+                         "kg_vendidos", "kg_comprados"]
+
+// Tarjetas de la plantilla cuya medida todavía no existe: se muestran con este texto (no se ocultan)
+export const PENDIENTES: Record<string, string> = {
+  renta_forestal_ha: "más adelante: necesita filtrar los ingresos por rubro (Forestación)",
+  pct_senalada: "más adelante, con la actividad Señalada",
+}
+// Gráficos que todavía no existen
+export const GRAFICOS_PENDIENTES: Partial<Record<string, string>> = { mapa: "en la etapa 8b" }
+
 // Medidas de pesadas que usan tramos entre pesadas (y el mínimo de días)
 export const USAN_TRAMOS = ["ganancia_diaria", "kg_producidos"]
 export const MIN_DIAS_POR_DEFECTO = 21
@@ -251,8 +263,27 @@ export function unidadSugerida(d: DefinicionMedida, lista: MedidaPropia[] = PROP
   return ua
 }
 
-// Las medidas propias del establecimiento pasan al catálogo como la fuente "combinada" (una por id)
-export function registrarPropias(lista: MedidaPropia[]) {
+// Medidas de fábrica (etapa 8a): las mismas para todos los establecimientos; las usa la plantilla. La base tiene la
+// misma lista (tablero_combinada, 'fab:...'). No se editan ni se borran.
+export const FABRICA: MedidaPropia[] = [
+  { id: "fab:resultado_ha_spg", nombre: "Resultado por ha SPG", unidad: "USD/ha", mejor: "sube",
+    definicion: { a: { fuente: "economia", medida: "resultado" }, op: "div", b: { fuente: "potreros", medida: "ha_spg" } } },
+  { id: "fab:produccion_carne_ha", nombre: "Producción de carne por ha", unidad: "kg/ha", mejor: "sube",
+    definicion: { a: { fuente: "produccion", medida: "produccion_carne" }, op: "div", b: { fuente: "potreros", medida: "ha_spg" } } },
+  { id: "fab:carne_equivalente_ha", nombre: "Carne equivalente por ha", unidad: "kg/ha", mejor: "sube",
+    definicion: { a: { fuente: "produccion", medida: "carne_equivalente" }, op: "div", b: { fuente: "potreros", medida: "ha_spg" } } },
+  { id: "fab:costo_kg", nombre: "Costo por kg producido", unidad: "USD/kg", mejor: "baja",
+    definicion: { a: { fuente: "economia", medida: "gastos_operativos" }, op: "div", b: { fuente: "produccion", medida: "produccion_carne" } } },
+  { id: "fab:margen_kg", nombre: "Margen por kg", unidad: "USD/kg", mejor: "sube",
+    definicion: { a: { fuente: "economia", medida: "precio_venta" }, op: "res", b: { propia: "fab:costo_kg" } } },
+  { id: "fab:gasto_ug", nombre: "Gasto por UG", unidad: "USD/UG", mejor: "baja",
+    definicion: { a: { fuente: "economia", medida: "gastos_operativos" }, op: "div", b: { fuente: "stock", medida: "ug_promedio" } } },
+]
+export const esFabrica = (id: string) => id.startsWith("fab:")
+
+// Las medidas de fábrica y las propias del establecimiento pasan al catálogo como la fuente "combinada" (una por id)
+export function registrarPropias(propias: MedidaPropia[]) {
+  const lista = [...FABRICA, ...propias]
   PROPIAS = lista
   MEDIDAS.combinada = Object.fromEntries(lista.flatMap(p => {
     const r = rasgosDeDefinicion(p.definicion, p.nombre, p.unidad ?? "", lista)
@@ -263,58 +294,99 @@ export function registrarPropias(lista: MedidaPropia[]) {
   }))
 }
 
-// ── Plantilla: la página "Resumen" que se ve mientras el establecimiento no guardó su tablero ───────────────────
+registrarPropias([])
 
-const def = (d: Omit<DefinicionTarjeta, "periodo"> & Pick<DefinicionTarjeta, "periodo">): DefinicionTarjeta => d
+// ── Plantilla: las cuatro páginas que se ven mientras el establecimiento no guardó su tablero ─────────────────────
+// (contexto/INDICADORES-CATALOGO.md, sección 4). Las tarjetas se acomodan solas en la grilla de 12 columnas.
 
-// Tarjetas listas (también son las que se pueden agregar desde "Agregar tarjeta" hasta que esté el constructor)
-export const TARJETAS_LISTAS: Omit<TarjetaTablero, "id" | "x" | "y">[] = [
-  { titulo: "Stock al cierre", w: 3, h: 3,
-    definicion: def({ fuente: "stock", medidas: ["stock"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "Mortandad", w: 3, h: 3,
-    definicion: def({ fuente: "stock", medidas: ["mortandad_pct"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "% Preñez", w: 3, h: 3,
-    definicion: def({ fuente: "reproductivos", medidas: ["pct_prenez"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "% Destete", w: 3, h: 3,
-    definicion: def({ fuente: "reproductivos", medidas: ["pct_destete"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "Evolución del stock", w: 8, h: 7,
-    definicion: def({ fuente: "stock", medidas: ["stock"], abrir_por: null, tiempo: "mes", grafico: "barras" }) },
-  { titulo: "Stock por categoría", w: 4, h: 7,
-    definicion: def({ fuente: "stock", medidas: ["stock"], abrir_por: "categoria", tiempo: "total", grafico: "barras_horizontales" }) },
-  { titulo: "Reproductivos por temporada", w: 6, h: 7,
-    definicion: def({ fuente: "reproductivos", medidas: ["pct_prenez", "pct_paricion", "pct_destete"], abrir_por: null,
-                      tiempo: "temporada", grafico: "barras", periodo: { ejercicios: 3 } }) },
-  { titulo: "Altas y bajas por motivo", w: 6, h: 7,
-    definicion: def({ fuente: "stock", medidas: ["movimientos"], abrir_por: "motivo", tiempo: "total", grafico: "barras_horizontales" }) },
-  // Producción y pesos (no están en la plantilla)
-  { titulo: "Ganancia diaria", w: 3, h: 3,
-    definicion: def({ fuente: "pesadas", medidas: ["ganancia_diaria"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "Kg producidos por mes", w: 6, h: 7,
-    definicion: def({ fuente: "pesadas", medidas: ["kg_producidos"], abrir_por: null, tiempo: "mes", grafico: "barras" }) },
-  { titulo: "Peso promedio por lote", w: 6, h: 7,
-    definicion: def({ fuente: "pesadas", medidas: ["peso_promedio"], abrir_por: "lote", tiempo: "total", grafico: "barras_horizontales" }) },
-  // Economía y potreros
-  { titulo: "Resultado", w: 3, h: 3,
-    definicion: def({ fuente: "economia", medidas: ["resultado"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "Ingresos y gastos por mes", w: 8, h: 7,
-    definicion: def({ fuente: "economia", medidas: ["ingresos", "gastos"], abrir_por: null, tiempo: "mes", grafico: "barras" }) },
-  { titulo: "Resultado por titular", w: 4, h: 7,
-    definicion: def({ fuente: "economia", medidas: ["resultado"], abrir_por: "titular", tiempo: "total", grafico: "barras_horizontales" }) },
-  { titulo: "Carga global", w: 3, h: 3,
-    definicion: def({ fuente: "potreros", medidas: ["carga"], abrir_por: null, tiempo: "total", grafico: "numero" }) },
-  { titulo: "Carga por potrero", w: 6, h: 7,
-    definicion: def({ fuente: "potreros", medidas: ["carga"], abrir_por: "potrero", tiempo: "total", grafico: "barras_horizontales" }) },
-  { titulo: "Días de descanso por potrero", w: 6, h: 7,
-    definicion: def({ fuente: "potreros", medidas: ["dias_descanso"], abrir_por: "potrero", tiempo: "total", grafico: "barras_horizontales" }) },
+type Lista = Omit<TarjetaTablero, "id" | "x" | "y">
+type Def = Pick<DefinicionTarjeta, "fuente" | "medidas"> & Partial<DefinicionTarjeta>
+
+const tarjeta = (titulo: string, w: number, h: number, d: Def): Lista =>
+  ({ titulo, w, h, definicion: { abrir_por: null, tiempo: "total", grafico: "numero", ...d } })
+const numero = (titulo: string, fuente: Fuente, medida: string) => tarjeta(titulo, 3, 3, { fuente, medidas: [medida] })
+const grafico = (titulo: string, w: number, d: Def) => tarjeta(titulo, w, 7, d)
+
+const PAGINAS: { nombre: string; tarjetas: Lista[] }[] = [
+  { nombre: "Resumen", tarjetas: [
+    numero("Stock al cierre", "stock", "stock"),
+    numero("UG al cierre", "stock", "ug"),
+    numero("Carga global (UG/ha SPG)", "potreros", "carga_promedio"),
+    numero("Resultado del ejercicio", "economia", "resultado"),
+    numero("Resultado por ha SPG", "combinada", "fab:resultado_ha_spg"),
+    numero("Producción de carne por ha", "combinada", "fab:produccion_carne_ha"),
+    numero("% Preñez", "reproductivos", "pct_prenez"),
+    numero("% Parición", "reproductivos", "pct_paricion"),
+    numero("% Destete", "reproductivos", "pct_destete"),
+    numero("Mortandad", "stock", "mortandad_pct"),
+    numero("Pendiente de cobro", "economia", "pendiente_cobro"),
+    numero("Pendiente de pago", "economia", "pendiente_pago"),
+    grafico("Stock por especie", 4, { fuente: "stock", medidas: ["stock"], abrir_por: "especie", grafico: "tabla" }),
+    grafico("Tareas vencidas y próximas (15 días)", 4, { fuente: "gestion", medidas: ["tareas_vencidas", "tareas_proximas"], abrir_por: "lote", grafico: "tabla" }),
+    grafico("Resultado acumulado por mes", 4, { fuente: "economia", medidas: ["resultado"], tiempo: "mes", grafico: "lineas", acumuladas: ["resultado"] }),
+  ] },
+  { nombre: "Economía", tarjetas: [
+    grafico("Resultado por rubro", 6, { fuente: "economia", medidas: ["resultado"], abrir_por: "rubro", grafico: "barras" }),
+    grafico("Ingresos y gastos por mes", 6, { fuente: "economia", medidas: ["ingresos", "gastos", "resultado"], tiempo: "mes", grafico: "barras_linea", acumuladas: ["resultado"] }),
+    numero("Resultado por ha SPG", "combinada", "fab:resultado_ha_spg"),
+    numero("Renta forestal por ha", "economia", "renta_forestal_ha"),
+    numero("Gasto por UG", "combinada", "fab:gasto_ug"),
+    numero("Costo por kg producido", "combinada", "fab:costo_kg"),
+    numero("Precio promedio de venta", "economia", "precio_venta"),
+    numero("Margen por kg", "combinada", "fab:margen_kg"),
+    grafico("Gastos por concepto (%)", 6, { fuente: "economia", medidas: ["pct_gasto"], abrir_por: "concepto", grafico: "barras_horizontales" }),
+    grafico("Flujo de caja por mes", 6, { fuente: "economia", medidas: ["flujo_caja"], tiempo: "mes", grafico: "lineas" }),
+    grafico("Resultado por titular", 4, { fuente: "economia", medidas: ["resultado"], abrir_por: "titular", grafico: "barras" }),
+    grafico("Saldos entre titulares y pagadores", 4, { fuente: "economia", medidas: ["saldos"], abrir_por: "par", grafico: "tabla" }),
+    grafico("Pendientes de cobro y pago", 4, { fuente: "economia", medidas: ["pendiente_cobro", "pendiente_pago"], grafico: "tabla" }),
+  ] },
+  { nombre: "Producción", tarjetas: [
+    grafico("Stock por categoría por mes", 6, { fuente: "stock", medidas: ["stock"], abrir_por: "categoria", tiempo: "mes", grafico: "barras_apiladas" }),
+    grafico("UG promedio por mes", 6, { fuente: "stock", medidas: ["ug_promedio"], tiempo: "mes", grafico: "lineas" }),
+    grafico("Reproductivos por temporada", 6, { fuente: "reproductivos", medidas: ["pct_prenez", "pct_paricion", "pct_destete"],
+                                                tiempo: "temporada", grafico: "barras", periodo: { ejercicios: 3 } }),
+    grafico("% Preñez por categoría de entore", 6, { fuente: "reproductivos", medidas: ["pct_prenez"], abrir_por: "categoria", grafico: "barras" }),
+    numero("Kg destetados por vaca entorada", "reproductivos", "kg_destetados_vaca"),
+    numero("Peso promedio al destete", "reproductivos", "peso_destete"),
+    numero("Producción de carne por ha", "combinada", "fab:produccion_carne_ha"),
+    numero("Carne equivalente por ha", "combinada", "fab:carne_equivalente_ha"),
+    numero("Tasa de extracción", "stock", "pct_extraccion"),
+    numero("Lana por animal esquilado", "produccion", "lana_por_animal"),
+    numero("Reproductivos ovinos (con señalada)", "reproductivos", "pct_senalada"),
+    numero("Ganancia diaria", "pesadas", "ganancia_diaria"),
+    grafico("Ganancia diaria por lote", 6, { fuente: "pesadas", medidas: ["ganancia_diaria"], abrir_por: "lote", grafico: "barras_horizontales" }),
+    grafico("Kg producidos por mes", 6, { fuente: "pesadas", medidas: ["kg_producidos"], tiempo: "mes", grafico: "barras" }),
+    grafico("Lana por lote", 6, { fuente: "produccion", medidas: ["lana"], abrir_por: "lote", grafico: "barras_horizontales" }),
+    grafico("Mortandad por categoría", 6, { fuente: "stock", medidas: ["mortandad_pct"], abrir_por: "categoria", grafico: "barras_horizontales" }),
+  ] },
+  { nombre: "Potreros", tarjetas: [
+    grafico("Mapa de carga por potrero", 6, { fuente: "potreros", medidas: ["carga_promedio"], abrir_por: "potrero", grafico: "mapa" }),
+    grafico("Carga por potrero (UG/ha)", 6, { fuente: "potreros", medidas: ["carga_promedio"], abrir_por: "potrero", grafico: "barras_horizontales" }),
+    grafico("Carga global por mes", 6, { fuente: "potreros", medidas: ["carga_promedio"], tiempo: "mes", grafico: "lineas" }),
+    grafico("Ocupación y descanso por potrero", 6, { fuente: "potreros", medidas: ["dias_ocupacion", "dias_descanso"], abrir_por: "potrero", grafico: "barras_apiladas" }),
+    grafico("Días desde la última salida", 4, { fuente: "potreros", medidas: ["dias_desde_salida"], abrir_por: "potrero", grafico: "tabla" }),
+    grafico("Presión acumulada por potrero", 4, { fuente: "potreros", medidas: ["presion"], abrir_por: "potrero", grafico: "barras_horizontales" }),
+    tarjeta("Potreros sin animales", 4, 3, { fuente: "potreros", medidas: ["potreros_sin_animales"] }),
+  ] },
 ]
 
-// Posiciones de la plantilla, en el orden de TARJETAS_LISTAS
-const LUGARES: [number, number][] = [[0, 0], [3, 0], [6, 0], [9, 0], [0, 3], [8, 3], [0, 10], [6, 10]]
+// Acomoda las tarjetas en filas de 12 columnas, en orden
+function acomodar(tarjetas: Lista[], prefijo: string): TarjetaTablero[] {
+  let x = 0, y = 0, alto = 0
+  return tarjetas.map((t, i) => {
+    if (x + t.w > 12) { x = 0; y += alto; alto = 0 }
+    const r = { ...t, id: `${prefijo}-${i}`, x, y }
+    x += t.w
+    alto = Math.max(alto, t.h)
+    return r
+  })
+}
 
 export function plantilla(): PaginaTablero[] {
-  return [{
-    id: "plantilla-resumen",
-    nombre: "Resumen",
-    tarjetas: TARJETAS_LISTAS.slice(0, LUGARES.length).map((t, i) => ({ ...t, id: `plantilla-${i}`, x: LUGARES[i][0], y: LUGARES[i][1] })),
-  }]
+  return PAGINAS.map((p, i) => ({ id: `plantilla-${i}`, nombre: p.nombre, tarjetas: acomodar(p.tarjetas, `plantilla-${i}`) }))
 }
+
+// Tarjetas listas para agregar desde "Agregar tarjeta": las de la plantilla (sin repetir título ni las pendientes)
+export const TARJETAS_LISTAS: Lista[] = PAGINAS.flatMap(p => p.tarjetas)
+  .filter((t, i, todas) => todas.findIndex(o => o.titulo === t.titulo) === i)
+  .filter(t => !PENDIENTES[t.definicion.medidas[0]] && !GRAFICOS_PENDIENTES[t.definicion.grafico])

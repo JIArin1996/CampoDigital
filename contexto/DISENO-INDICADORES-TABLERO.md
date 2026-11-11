@@ -416,7 +416,24 @@ Dos tablas nuevas (migración), por establecimiento:
     - **Excel**: una fila "Meta" en la hoja de la tarjeta.
 - **8 — Tableros por defecto**: las cuatro páginas (Resumen, Economía, Producción, Potreros) en la plantilla; la
   tarjeta de mapa (gráfico nuevo, solo potreros abierto por potrero). Una tarjeta cuya medida todavía no exista se
-  muestra con "Disponible en la etapa X".
+  muestra con "Disponible en la etapa X". En dos partes:
+  - **8a** (hecho): las cuatro páginas, medidas de fábrica y gráficos nuevos. Reglas fijadas al hacerla:
+    - **Medidas de fábrica** (`fab:...`, lista fija en `tablero_combinada` y en la app): resultado por ha SPG,
+      producción de carne y carne equivalente por ha, costo por kg producido, margen por kg (2 niveles) y gasto por
+      UG. Sirven para cualquier establecimiento sin crear nada; no se editan ni se borran, y una medida propia no
+      puede usarlas. La carga global UG/ha SPG no hace falta: es la carga promedio de Potreros.
+    - **Gráficos nuevos**: barras apiladas, barras y línea (la última medida va como línea) y "acumulado en el
+      período" para las medidas que se suman (resultado, ingresos, gastos, flujo de caja, kg). El acumulado se arma
+      en la app sobre las filas de la base, así el Excel exporta lo mismo. Las apiladas y las de barras y línea no
+      comparan con el año anterior.
+    - **Pendientes**: el mapa ("en la etapa 8b"), la renta forestal por ha (necesita filtrar los ingresos por rubro)
+      y la señalada ovina (falta la actividad) se muestran con "Disponible …", no se ocultan. Cuando exista lo que
+      falta, las tarjetas guardadas empiezan a calcular solas.
+    - **Sin metas** en la plantilla (cada campo pone las suyas). Lo que pide un id (vacunos y ovinos por separado)
+      va abierto por especie.
+    - **Comparar con el ejercicio anterior**, prendido por defecto.
+    - "Agregar tarjeta lista" ofrece las tarjetas de las cuatro páginas.
+  - **8b**: la tarjeta de mapa.
 - **Más adelante**: actividad "Señalada" y su indicador para ovinos; superficies con historial; precio de
   referencia por categoría y producto bruto; **diagnóstico con preñadas por categoría** (opcional), para no perder
   la preñez de las vaquillonas cuando se entoran junto con las vacas.

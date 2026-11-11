@@ -3,7 +3,8 @@
 export type Fuente = 'stock' | 'reproductivos' | 'pesadas' | 'economia' | 'potreros' | 'produccion' | 'gestion' | 'combinada'
 export type Dimension = 'especie' | 'categoria' | 'lote' | 'motivo' | 'rubro' | 'concepto' | 'grupo' | 'titular' | 'potrero' | 'pagador' | 'par'
 export type Tiempo = 'total' | 'mes' | 'ejercicio' | 'temporada'
-export type Grafico = 'numero' | 'barras' | 'barras_horizontales' | 'lineas' | 'torta' | 'tabla'
+// 'mapa': la tarjeta de mapa de potreros (etapa 8b; hasta entonces se muestra como pendiente)
+export type Grafico = 'numero' | 'barras' | 'barras_horizontales' | 'barras_apiladas' | 'barras_linea' | 'lineas' | 'torta' | 'tabla' | 'mapa'
 
 // Lo que se guarda en tablero_tarjetas.definicion
 export interface DefinicionTarjeta {
@@ -21,6 +22,8 @@ export interface DefinicionTarjeta {
   // Meta (etapa 7b): en el número, verde si cumple y ámbar si no; en barras y líneas, una línea punteada. "mejor":
   // "sube" cumple con valor >= meta, "baja" con valor <= meta. Sin cálculo en la base.
   meta?: { valor: number; mejor: 'sube' | 'baja' }
+  // Medidas que se muestran acumuladas en el período (etapa 8a; solo las que se suman, en el tiempo)
+  acumuladas?: string[]
 }
 
 export interface FiltrosIds {

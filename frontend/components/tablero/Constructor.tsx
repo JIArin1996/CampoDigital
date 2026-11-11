@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { SELECT_NATIVO } from "@/components/shared/estilos"
 import { nuevoId } from "@/components/actividades/formato"
 import {
-  ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, USAN_TRAMOS, abrirDe, comparacionDe, formula, medidaDe, propiaDe,
+  ADITIVAS, ETIQUETA_DIMENSION, FILTRAN, MEDIDAS, MIN_DIAS_POR_DEFECTO, NOMBRE_FUENTE, USAN_TRAMOS, abrirDe, comparacionDe, esFabrica, formula,
+  medidaDe, propiaDe,
 } from "@/components/tablero/catalogo"
 import { EditorMedida } from "@/components/tablero/EditorMedida"
 import { Tarjeta } from "@/components/tablero/Tarjeta"
@@ -27,16 +28,18 @@ const GRAFICOS: { id: Grafico; nombre: string }[] = [
   { id: "numero", nombre: "Número" },
   { id: "barras", nombre: "Barras" },
   { id: "barras_horizontales", nombre: "Barras acostadas" },
+  { id: "barras_apiladas", nombre: "Barras apiladas" },
+  { id: "barras_linea", nombre: "Barras y línea" },
   { id: "lineas", nombre: "Líneas" },
   { id: "torta", nombre: "Torta" },
   { id: "tabla", nombre: "Tabla" },
 ]
 
-// Qué gráficos sirven para lo elegido: acostadas y torta, para comparar grupos (abierto y en total); líneas, en el
-// tiempo
+// Qué gráficos sirven para lo elegido: acostadas y torta, para comparar grupos (abierto y en total); líneas y barras
+// con línea, en el tiempo
 function graficoValido(g: Grafico, abrir: Dimension | null, tiempo: Tiempo) {
   if (g === "barras_horizontales" || g === "torta") return abrir !== null && tiempo === "total"
-  if (g === "lineas") return tiempo !== "total"
+  if (g === "lineas" || g === "barras_linea") return tiempo !== "total"
   return true
 }
 
@@ -83,6 +86,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   // Meta (opcional): el valor y si cumple subiendo o bajando (por defecto, lo de la medida)
   const [meta, setMeta] = useState(d0?.meta ? String(d0.meta.valor).replace(".", ",") : "")
   const [metaMejor, setMetaMejor] = useState<"sube" | "baja" | null>(d0?.meta?.mejor ?? null)
+  const [acumuladas, setAcumuladas] = useState<string[]>(d0?.acumuladas ?? [])
   // Editor de medida propia abierto: la medida a cambiar, o null para una nueva
   const [editorMedida, setEditorMedida] = useState<{ medida: MedidaPropia | null } | null>(null)
 
@@ -101,12 +105,15 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
   const tituloFinal = tituloTocado ? titulo : tituloSugerido(fuente, medida, abrir, tiempo)
   const usaTramos = fuente === "pesadas" && [medida, ...extras].some(m => USAN_TRAMOS.includes(m))
   // La meta va en el número y en los gráficos de barras y líneas (no en la torta ni en la tabla)
-  const conMeta = grafico === "numero" || grafico === "barras" || grafico === "barras_horizontales" || grafico === "lineas"
+  const conMeta = ["numero", "barras", "barras_horizontales", "barras_apiladas", "barras_linea", "lineas"].includes(grafico)
   // "1.250,5" (con coma decimal, los puntos son de miles) o "2.5"
   const metaNum = Number(meta.includes(",") ? meta.trim().replace(/\./g, "").replace(",", ".") : meta.trim())
   const metaValida = meta.trim() === "" || Number.isFinite(metaNum)
   const mejorMedida = comparacionDe(fuente, medida)
   const metaMejorFinal = metaMejor ?? mejorMedida ?? "sube"
+  // Acumular en el período: las medidas que se suman, en el tiempo
+  const acumulables = tiempo === "total" || fuente === "combinada" ? [] : [medida, ...extrasValidos].filter(m => ADITIVAS.includes(m))
+  const acumuladasValidas = acumuladas.filter(m => acumulables.includes(m))
   const minDiasNum = Number(minDias)
   const minDiasValido = Number.isInteger(minDiasNum) && minDiasNum >= 1 && minDiasNum <= 365
 
@@ -138,6 +145,7 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
     tiempo,
     grafico,
     ...(periodo !== "tablero" ? { periodo: { ejercicios: Number(periodo) } } : {}),
+    ...(acumuladasValidas.length > 0 ? { acumuladas: acumuladasValidas } : {}),
     ...(conMeta && meta.trim() !== "" && metaValida ? { meta: { valor: metaNum, mejor: metaMejorFinal } } : {}),
     ...(usaTramos && minDiasValido && minDiasNum !== MIN_DIAS_POR_DEFECTO ? { opciones: { min_dias: minDiasNum } } : {}),
     ...(((especie && filtran.includes("especie")) || (categoria && filtran.includes("categoria")) || (lote && filtran.includes("lote"))) ? {
@@ -203,19 +211,30 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
       <label className={etiqueta}>1 · Qué medir
         <select className={SELECT_NATIVO} value={`${fuente}:${medida}`} disabled={!!editorMedida}
           onChange={e => (e.target.value === "nueva" ? setEditorMedida({ medida: null }) : elegirMedida(e.target.value))}>
-          {(Object.keys(MEDIDAS) as Fuente[]).filter(f => Object.keys(MEDIDAS[f] ?? {}).length > 0).map(f => (
+          {(Object.keys(MEDIDAS) as Fuente[]).filter(f => f !== "combinada").map(f => (
             <optgroup key={f} label={NOMBRE_FUENTE[f]}>
               {Object.entries(MEDIDAS[f] ?? {}).map(([m, x]) => <option key={m} value={`${f}:${m}`}>{x.etiqueta}</option>)}
             </optgroup>
           ))}
+          {/* Medidas combinadas: las de fábrica (iguales para todos) y las propias del establecimiento */}
+          {[{ nombre: "Medidas de fábrica", fab: true }, { nombre: NOMBRE_FUENTE.combinada, fab: false }].map(g => {
+            const lista = Object.entries(MEDIDAS.combinada ?? {}).filter(([m]) => esFabrica(m) === g.fab)
+            return lista.length > 0 && (
+              <optgroup key={g.nombre} label={g.nombre}>
+                {lista.map(([m, x]) => <option key={m} value={`combinada:${m}`}>{x.etiqueta}</option>)}
+              </optgroup>
+            )
+          })}
           <option value="nueva">+ Nueva medida (A ÷ B, A × B…)</option>
         </select>
       </label>
       {fuente === "combinada" && !editorMedida && propiaDe(medida) && (
         <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           <span className="text-muted-foreground">= {formula(propiaDe(medida)!.definicion)}</span>
-          <button type="button" className="font-medium text-primary hover:underline" onClick={() => setEditorMedida({ medida: propiaDe(medida)! })}>Editar medida</button>
-          <button type="button" className="font-medium text-destructive hover:underline" onClick={borrarMedida}>Borrar medida</button>
+          {esFabrica(medida) ? <span className="text-muted-foreground">(de fábrica: no se cambia)</span> : <>
+            <button type="button" className="font-medium text-primary hover:underline" onClick={() => setEditorMedida({ medida: propiaDe(medida)! })}>Editar medida</button>
+            <button type="button" className="font-medium text-destructive hover:underline" onClick={borrarMedida}>Borrar medida</button>
+          </>}
         </div>
       )}
 
@@ -290,6 +309,19 @@ export function Constructor({ inicial, estId, rango, especies, categorias, lotes
           })}
         </div>
       </fieldset>
+
+      {acumulables.length > 0 && (
+        <fieldset className="-mt-2 space-y-1">
+          <legend className="mb-1 text-xs text-muted-foreground">Acumulado en el período (cada {tiempo === "mes" ? "mes" : "período"} suma los anteriores)</legend>
+          {acumulables.map(m => (
+            <label key={m} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" className="h-4 w-4 accent-primary" checked={acumuladas.includes(m)}
+                onChange={e => setAcumuladas(v => e.target.checked ? [...v, m] : v.filter(y => y !== m))} />
+              {medidaDe(fuente, m)?.etiqueta ?? m}
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       {conMeta && (
         <div className="grid grid-cols-2 gap-3">

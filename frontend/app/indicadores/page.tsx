@@ -81,7 +81,8 @@ function Indicadores() {
     especie: params.get("especie") ?? "",
     categoria: params.get("categoria") ?? "",
     lote: params.get("lote") ?? "",
-    comparar: params.get("comparar") === "1",
+    // Por defecto se compara con el ejercicio anterior (catálogo, sección 4); "comparar=0" en la URL lo apaga
+    comparar: params.get("comparar") !== "0",
   })
   // Lo que muestra cada tarjeta (para el Excel)
   const datosTarjetas = useRef(new Map<string, DatosTarjeta>())
@@ -128,7 +129,7 @@ function Indicadores() {
     if (filtros.especie) q.set("especie", filtros.especie)
     if (filtros.categoria) q.set("categoria", filtros.categoria)
     if (filtros.lote) q.set("lote", filtros.lote)
-    if (filtros.comparar) q.set("comparar", "1")
+    if (!filtros.comparar) q.set("comparar", "0")
     window.history.replaceState(null, "", `?${q.toString()}`)
   }, [pagina, filtros])
 

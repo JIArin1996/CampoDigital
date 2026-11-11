@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react"
 import { AlertTriangle, GripVertical, Pencil, X } from "lucide-react"
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis,
+  YAxis,
 } from "recharts"
 
 import { getDatosTablero } from "@/lib/queries/tablero"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import {
-  ETIQUETA_DIMENSION, MIN_DIAS_POR_DEFECTO, comparacionDe, filtranEn, medidaDe, nombreOperando, propiaDe, rasgosDe, type Unidad,
+  ETIQUETA_DIMENSION, GRAFICOS_PENDIENTES, MIN_DIAS_POR_DEFECTO, PENDIENTES, comparacionDe, filtranEn, medidaDe, nombreOperando, propiaDe, rasgosDe, type Unidad,
 } from "@/components/tablero/catalogo"
 import { rangoAnioAnterior, rangoEjercicios, rotuloPeriodo, type Rango } from "@/components/tablero/periodos"
 import { cn } from "@/lib/utils"
@@ -127,6 +128,9 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   const r = def.periodo && def.periodo !== "tablero" ? rangoEjercicios(rango, def.periodo.ejercicios) : rango
   const rc = comparar ? rangoAnioAnterior(r) : null
   const clave = JSON.stringify([estId, def, r, efectivos, rc])
+  const existe = !!medidaDe(def.fuente, def.medidas[0])
+  const pendiente = GRAFICOS_PENDIENTES[def.grafico] ?? (existe || def.fuente === "combinada" ? null : PENDIENTES[def.medidas[0]] ?? "más adelante")
+  const borrada = def.fuente === "combinada" && !existe
 
   const [datos, setDatos] = useState<{ clave: string; resultados: Resultado[]; comparados: Resultado[] | null } | null>(() => {
     const c = impresion ? calculado(clave) : null
@@ -135,7 +139,7 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
   const [error, setError] = useState<{ clave: string; texto: string } | null>(null)
 
   useEffect(() => {
-    if (datos?.clave === clave) return
+    if (datos?.clave === clave || pendiente || borrada) return
     let vigente = true
     // Tabla abierta por un grupo (sin el tiempo): también el total, calculado por la base
     const conTotal = def.grafico === "tabla" && def.abrir_por !== null && def.tiempo === "total"
@@ -146,7 +150,8 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
         getDatosTablero({ ...consulta, definicion: def }),
         sumaTotal ? getDatosTablero({ ...consulta, definicion: { ...def, abrir_por: null } }) : Promise.resolve(null),
       ])
-      return { medida, filas, ...(sumaTotal ? { total: total?.[0]?.valor ?? null } : {}) }
+      const acumular = def.tiempo !== "total" && !!def.acumuladas?.includes(medida)
+      return { medida, filas: acumular ? acumulado(filas) : filas, ...(sumaTotal ? { total: total?.[0]?.valor ?? null } : {}) }
     }))
     Promise.all([pedir(r), rc ? pedir(rc) : Promise.resolve(null)])
       .then(([resultados, comparados]) => {
@@ -222,7 +227,13 @@ export function Tarjeta({ tarjeta, estId, rango, generales, cruzado, nombre, edi
       </div>
 
       <div className="min-h-0 flex-1">
-        {fallo ? (
+        {pendiente ? (
+          <p className="flex h-full min-h-12 items-center justify-center rounded-md border border-dashed px-3 text-center text-sm text-muted-foreground">
+            Disponible {pendiente}
+          </p>
+        ) : borrada ? (
+          <p role="alert" className="text-sm text-destructive">La medida propia de esta tarjeta ya no existe: editala o sacala.</p>
+        ) : fallo ? (
           <p role="alert" className="text-sm text-destructive">{fallo}</p>
         ) : !listos ? (
           <div className="h-full min-h-12 rounded-md bg-muted/40 animate-pulse" aria-label="Calculando" />
@@ -245,6 +256,21 @@ const MOTIVO_DESCARTE: Record<string, string> = {
   venta: "venta", compra: "compra", union: "unión", division: "división", destete: "destete", paricion: "parición",
   ajuste: "ajuste de stock", recategorizacion: "recategorización", paricion_madres: "parición de las madres pesadas",
   esquila: "esquila", consumo: "consumo",
+}
+
+// Acumulado en el período: cada fila suma las anteriores del mismo grupo (las filas vienen en orden de período). Se
+// transforma lo que devolvió la base, así el Excel exporta lo mismo que se ve.
+function acumulado(filas: FilaTablero[]): FilaTablero[] {
+  const suma = new Map<string, number>()
+  return filas.map(f => {
+    const k = f.clave ?? ""
+    const previo = suma.get(k)
+    // Un período sin dato repite lo acumulado hasta ahí (sin dato si todavía no hubo ninguno)
+    if (f.valor === null) return { ...f, valor: previo ?? null, numerador: null, denominador: null }
+    const v = (previo ?? 0) + f.valor
+    suma.set(k, v)
+    return { ...f, valor: v, numerador: null, denominador: null }
+  })
 }
 
 // Medida propia: los avisos de A y de B (los de cada fuente), y cuántas filas quedaron sin valor por A o por B
@@ -326,7 +352,8 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
 }) {
   const def = tarjeta.definicion
   const fuente = def.fuente
-  const nombreMedida = (m: string) => medidaDe(fuente, m)?.etiqueta ?? m
+  const nombreMedida = (m: string) =>
+    `${medidaDe(fuente, m)?.etiqueta ?? m}${def.tiempo !== "total" && def.acumuladas?.includes(m) ? " acumulado" : ""}`
 
   // Número: el último período de la primera medida
   if (def.grafico === "numero") {
@@ -410,7 +437,8 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
   ) : null
 
   // Comparación con el año anterior: una serie más por medida (no en las abiertas en el tiempo ni en la torta)
-  const conComparacion = !!comparados && def.grafico !== "torta" && !(def.abrir_por !== null && !porGrupo)
+  // (tampoco en las apiladas ni en barras con línea: la serie de más se confunde con las otras)
+  const conComparacion = !!comparados && !["torta", "barras_apiladas", "barras_linea"].includes(def.grafico) && !(def.abrir_por !== null && !porGrupo)
   const seriesComp = conComparacion
     ? series.map((s, i) => ({ clave: `${s.clave}__comp`, nombre: `${s.nombre} (${etiquetaComp})`, base: i }))
     : []
@@ -514,7 +542,31 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
     )
   }
 
+  // Barras y línea: las primeras medidas en barras y la última como línea (ej. ingresos y gastos, y el resultado acumulado)
+  if (def.grafico === "barras_linea") {
+    const barras = series.slice(0, -1)
+    const linea = series[series.length - 1]
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={filasGrafico} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="x" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} width={48} />
+          {tooltip}
+          {leyenda}
+          {lineaMeta("y")}
+          {barras.map((s, i) => (
+            <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2} />
+          ))}
+          <Line isAnimationActive={animar} type="monotone" dataKey={linea.clave} name={linea.nombre} stroke={COLORES[barras.length % COLORES.length]}
+            strokeWidth={2} dot={false} connectNulls />
+        </ComposedChart>
+      </ResponsiveContainer>
+    )
+  }
+
   const horizontal = def.grafico === "barras_horizontales"
+  const apiladas = def.grafico === "barras_apiladas"
   const unaSerie = series.length === 1
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -536,8 +588,8 @@ function Contenido({ tarjeta, resultados, comparados, etiquetaComp, unidad, anim
         {leyenda}
         {lineaMeta(horizontal ? "x" : "y")}
         {series.map((s, i) => (
-          <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={2}
-            onClick={(_, j) => tocar(j)} style={{ cursor: clickeable ? "pointer" : undefined }}>
+          <Bar key={s.clave} isAnimationActive={animar} dataKey={s.clave} name={s.nombre} fill={COLORES[i % COLORES.length]} radius={apiladas ? 0 : 2}
+            stackId={apiladas ? "pila" : undefined} onClick={(_, j) => tocar(j)} style={{ cursor: clickeable ? "pointer" : undefined }}>
             {filasGrafico.map((f, j) => (
               <Cell key={j} fillOpacity={opacidad(f)}
                 // Una sola serie: las bajas (negativas) en rojo
