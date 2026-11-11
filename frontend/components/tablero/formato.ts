@@ -1,5 +1,17 @@
 import type { Unidad } from "@/components/tablero/catalogo"
 
+// En los ejes: corto y sin unidad (la unidad va una sola vez, arriba del gráfico): 1.234 · 12,5 mil · 1,2 M
+export function corto(n: number) {
+  const a = Math.abs(n)
+  const f = (x: number, d: number) => x.toLocaleString("es-UY", { maximumFractionDigits: d })
+  if (a >= 1e6) return `${f(n / 1e6, 1)} M`
+  if (a >= 1e4) return `${f(n / 1e3, 1)} mil`
+  return f(n, a < 10 ? 2 : a < 100 ? 1 : 0)
+}
+
+// La unidad, en palabras, para poner junto al eje ("" si no tiene)
+export const unidadEje = (u: Unidad) => (u === "cab" ? "cabezas" : u === "razón" ? "" : u)
+
 // Un valor del tablero con su unidad, como se muestra en las tarjetas ("—" si no hay valor)
 export function formato(n: number | null, unidad: Unidad) {
   if (n === null || Number.isNaN(n)) return "—"

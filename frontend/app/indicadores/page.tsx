@@ -21,6 +21,8 @@ import { Grilla } from "@/components/tablero/Grilla"
 import { Tarjeta, type DatosTarjeta } from "@/components/tablero/Tarjeta"
 import { exportarExcel } from "@/components/tablero/exportar"
 import { Constructor } from "@/components/tablero/Constructor"
+import { Confirmar, type Pregunta } from "@/components/tablero/Confirmar"
+import { VISTAS, configDe, tituloSugerido, verComo, type Vista } from "@/components/tablero/vistas"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
 import type { FiltroCruzado, FiltrosIds, FiltrosTablero, MedidaPropia, PaginaTablero, TarjetaTablero } from "@/types/tablero"
@@ -107,6 +109,7 @@ function Indicadores() {
   const [cruzado, setCruzado] = useState<FiltroCruzado | null>(null)
   // Constructor abierto: tarjeta a editar, o null para una nueva
   const [constructor, setConstructor] = useState<{ tarjeta: TarjetaTablero | null } | null>(null)
+  const [pregunta, setPregunta] = useState<Pregunta | null>(null)   // confirmación antes de borrar o reemplazar páginas
 
   useEffect(() => {
     if (!estId) return
@@ -201,9 +204,17 @@ function Indicadores() {
   }
   const borrarPagina = () => {
     if (paginas.length === 1) return toast.error("El tablero necesita al menos una página")
-    if (!window.confirm(`¿Borrar la página "${actual.nombre}" con sus tarjetas?`)) return
-    setBorrador(b => b && b.filter((_, i) => i !== idx))
-    setPagina(Math.max(0, idx - 1))
+    const pagina = idx
+    const n = actual.tarjetas.length
+    setPregunta({
+      titulo: `¿Borrar la página "${actual.nombre}"?`,
+      texto: `Se van ${n === 1 ? "su tarjeta" : `sus ${n} tarjetas`}. Hasta que guardes el tablero, Descartar la recupera.`,
+      boton: "Borrar página",
+      accion: () => {
+        setBorrador(b => b && b.filter((_, i) => i !== pagina))
+        setPagina(Math.max(0, pagina - 1))
+      },
+    })
   }
   const guardar = async () => {
     if (!borrador) return
@@ -232,9 +243,40 @@ function Indicadores() {
     registrarPropias(propias)
     setDatos(d => (d && d.estId === listos.estId ? { ...d, propias } : d))
   }
-  // Una medida propia que usa alguna tarjeta (la del tablero guardado o la del que se está editando) no se borra
-  const propiaEnUso = (id: string) => [...paginas, ...(listos.guardado ?? [])].some(p =>
-    p.tarjetas.some(t => t.definicion.fuente === "combinada" && t.definicion.medidas.includes(id)))
+  // Las tarjetas que usan un indicador calculado (en el tablero que se edita o en el guardado): mientras haya, no se borra
+  const tarjetasQueUsan = (id: string) => {
+    const usan = (ps: PaginaTablero[]) => ps.flatMap(p => p.tarjetas
+      .filter(t => t.definicion.fuente === "combinada" && t.definicion.medidas.includes(id))
+      .map(t => `"${t.titulo}" (página ${p.nombre})`))
+    const enEdicion = usan(paginas)
+    const guardadas = usan(listos.guardado ?? []).filter(t => !enEdicion.includes(t)).map(t => `${t}, en el tablero guardado`)
+    return [...enEdicion, ...guardadas]
+  }
+
+  // Menú rápido de la tarjeta. Los cambios van a la página donde se hicieron (aunque después se cambie de página).
+  const reemplazarEn = (pagina: number, id: string, t: TarjetaTablero) =>
+    setBorrador(b => b && b.map((p, i) => (i === pagina ? { ...p, tarjetas: p.tarjetas.map(x => (x.id === id ? t : x)) } : p)))
+  // Ver como: las mismas reglas que el constructor; el título automático acompaña; siempre con Deshacer
+  const verComoTarjeta = (t: TarjetaTablero, v: Vista) => {
+    const r = verComo(t.definicion, v)
+    const auto = t.titulo === tituloSugerido(configDe(t.definicion))
+    const cambioDeTipo = (t.definicion.grafico === "numero") !== (r.definicion.grafico === "numero")
+    const nueva: TarjetaTablero = {
+      ...t, definicion: r.definicion, titulo: auto ? tituloSugerido(configDe(r.definicion)) : t.titulo,
+      ...(cambioDeTipo ? (r.definicion.grafico === "numero" ? { w: 3, h: 3 } : { w: 6, h: 7 }) : {}),
+    }
+    const pagina = idx
+    reemplazarEn(pagina, t.id, nueva)
+    toast(`"${t.titulo}" ahora se ve como ${VISTAS[v].nombre}.`, {
+      description: r.aviso ?? undefined, duration: 8000,
+      action: { label: "Deshacer", onClick: () => reemplazarEn(pagina, t.id, t) },
+    })
+  }
+  const duplicarTarjeta = (t: TarjetaTablero) => {
+    const abajo = actual.tarjetas.reduce((m, x) => Math.max(m, x.y + x.h), 0)
+    cambiarPagina(p => ({ ...p, tarjetas: [...p.tarjetas, { ...t, id: nuevoId(), titulo: `${t.titulo} (copia)`, x: 0, y: abajo }] }))
+    toast.success("Tarjeta duplicada: quedó al final de la página")
+  }
 
   const aceptarTarjeta = (t: TarjetaTablero) => {
     const existe = actual.tarjetas.some(x => x.id === t.id)
@@ -390,7 +432,12 @@ function Indicadores() {
                 <option value="">Agregar una tarjeta lista…</option>
                 {TARJETAS_LISTAS.map((t, i) => <option key={t.titulo} value={i}>{t.titulo}</option>)}
               </select>
-              <Button variant="outline" onClick={() => { if (window.confirm("¿Volver al tablero de ejemplo? Se reemplazan todas las páginas.")) { setBorrador(plantilla()); setPagina(0) } }}>
+              <Button variant="outline" onClick={() => setPregunta({
+                titulo: "¿Volver al tablero de ejemplo?",
+                texto: "Se reemplazan todas las páginas y tarjetas por las del ejemplo. Hasta que guardes el tablero, Descartar vuelve a las tuyas.",
+                boton: "Volver al ejemplo",
+                accion: () => { setBorrador(plantilla()); setPagina(0) },
+              })}>
                 Volver al ejemplo
               </Button>
               <Button variant="outline" disabled={guardando} onClick={() => { setBorrador(null); setConstructor(null) }}>Descartar</Button>
@@ -480,14 +527,17 @@ function Indicadores() {
                 <Tarjeta tarjeta={t} estId={listos.estId} rango={rango} generales={generales} cruzado={cruzado} nombre={nombre}
                   comparar={comparadoCon} onDatos={(id, d) => { datosTarjetas.current.set(id, d) }} impresion={imprimiendo}
                   edicion={editando} onElegir={elegir(t.id)} onEditar={() => setConstructor({ tarjeta: t })}
+                  onDuplicar={() => duplicarTarjeta(t)} onVerComo={v => verComoTarjeta(t, v)}
                   onQuitar={() => cambiarPagina(p => ({ ...p, tarjetas: p.tarjetas.filter(x => x.id !== t.id) }))} />
               )} />
           )}
         </div>
+        <Confirmar pregunta={pregunta} onCerrar={() => setPregunta(null)} />
         {editando && constructor && (
           <Constructor key={constructor.tarjeta?.id ?? "nueva"} inicial={constructor.tarjeta} estId={listos.estId} rango={rango}
+            etiquetaPeriodo={etiquetaPeriodo} generales={generales}
             especies={listos.especies} categorias={listos.categorias} lotes={listos.lotes} nombre={nombre}
-            propias={listos.propias} onPropiasCambiaron={recargarPropias} propiaEnUso={propiaEnUso}
+            propias={listos.propias} onPropiasCambiaron={recargarPropias} tarjetasQueUsan={tarjetasQueUsan}
             onAceptar={aceptarTarjeta} onCancelar={() => setConstructor(null)} />
         )}
       </div>
