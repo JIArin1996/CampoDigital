@@ -21,6 +21,7 @@ import { Grilla } from "@/components/tablero/Grilla"
 import { Tarjeta, type DatosTarjeta } from "@/components/tablero/Tarjeta"
 import { exportarExcel } from "@/components/tablero/exportar"
 import { Constructor } from "@/components/tablero/Constructor"
+import { Confirmar, type Pregunta } from "@/components/tablero/Confirmar"
 import { VISTAS, configDe, tituloSugerido, verComo, type Vista } from "@/components/tablero/vistas"
 import { cn } from "@/lib/utils"
 import type { CategoriaAnimal, Especie } from "@/types/lotes"
@@ -108,6 +109,7 @@ function Indicadores() {
   const [cruzado, setCruzado] = useState<FiltroCruzado | null>(null)
   // Constructor abierto: tarjeta a editar, o null para una nueva
   const [constructor, setConstructor] = useState<{ tarjeta: TarjetaTablero | null } | null>(null)
+  const [pregunta, setPregunta] = useState<Pregunta | null>(null)   // confirmación antes de borrar o reemplazar páginas
 
   useEffect(() => {
     if (!estId) return
@@ -202,9 +204,17 @@ function Indicadores() {
   }
   const borrarPagina = () => {
     if (paginas.length === 1) return toast.error("El tablero necesita al menos una página")
-    if (!window.confirm(`¿Borrar la página "${actual.nombre}" con sus tarjetas?`)) return
-    setBorrador(b => b && b.filter((_, i) => i !== idx))
-    setPagina(Math.max(0, idx - 1))
+    const pagina = idx
+    const n = actual.tarjetas.length
+    setPregunta({
+      titulo: `¿Borrar la página "${actual.nombre}"?`,
+      texto: `Se van ${n === 1 ? "su tarjeta" : `sus ${n} tarjetas`}. Hasta que guardes el tablero, Descartar la recupera.`,
+      boton: "Borrar página",
+      accion: () => {
+        setBorrador(b => b && b.filter((_, i) => i !== pagina))
+        setPagina(Math.max(0, pagina - 1))
+      },
+    })
   }
   const guardar = async () => {
     if (!borrador) return
@@ -422,7 +432,12 @@ function Indicadores() {
                 <option value="">Agregar una tarjeta lista…</option>
                 {TARJETAS_LISTAS.map((t, i) => <option key={t.titulo} value={i}>{t.titulo}</option>)}
               </select>
-              <Button variant="outline" onClick={() => { if (window.confirm("¿Volver al tablero de ejemplo? Se reemplazan todas las páginas.")) { setBorrador(plantilla()); setPagina(0) } }}>
+              <Button variant="outline" onClick={() => setPregunta({
+                titulo: "¿Volver al tablero de ejemplo?",
+                texto: "Se reemplazan todas las páginas y tarjetas por las del ejemplo. Hasta que guardes el tablero, Descartar vuelve a las tuyas.",
+                boton: "Volver al ejemplo",
+                accion: () => { setBorrador(plantilla()); setPagina(0) },
+              })}>
                 Volver al ejemplo
               </Button>
               <Button variant="outline" disabled={guardando} onClick={() => { setBorrador(null); setConstructor(null) }}>Descartar</Button>
@@ -517,6 +532,7 @@ function Indicadores() {
               )} />
           )}
         </div>
+        <Confirmar pregunta={pregunta} onCerrar={() => setPregunta(null)} />
         {editando && constructor && (
           <Constructor key={constructor.tarjeta?.id ?? "nueva"} inicial={constructor.tarjeta} estId={listos.estId} rango={rango}
             etiquetaPeriodo={etiquetaPeriodo} generales={generales}
