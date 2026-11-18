@@ -143,7 +143,7 @@ order by 1 desc, 2, 3, 4;
 -- ════════════════════════════════════════════════════════════════════════════
 -- 4. Funciones de public
 -- ════════════════════════════════════════════════════════════════════════════
--- ESPERADO (después de 20261113000100, medidas combinadas del tablero): 169 filas, todas con ok = true.
+-- ESPERADO (después de 20261118000100, última visita al Inicio): 170 filas, todas con ok = true.
 -- (+8 de 20261025000100 a 20261025000400, +4 de 20261027000100 y +3 de 20261028000100: entran _fichas_de_admins,
 -- _guardar_responsables_actividad, _guardar_responsables_entrada y _validar_responsables, sale _exigir_persona;
 -- +2 de 20261028000200: los triggers proteger_nombre_persona y sincronizar_nombre_persona;
@@ -169,7 +169,8 @@ order by 1 desc, 2, 3, 4;
 -- +3 de 20261111000300: registrar_consumo, editar_consumo y la interna _cargar_consumo;
 -- +1 de 20261112000200: tablero_produccion;
 -- +1 de 20261112000600: tablero_gestion;
--- +3 de 20261113000100: guardar_medida, eliminar_medida y tablero_combinada.)
+-- +3 de 20261113000100: guardar_medida, eliminar_medida y tablero_combinada;
+-- +1 de 20261118000100: registrar_visita_inicio.)
 --
 --   funcion                     | security_definer | authenticated | anon  | public
 --   ----------------------------+------------------+---------------+-------+-------
@@ -323,6 +324,7 @@ order by 1 desc, 2, 3, 4;
 --   registrar_sanidad           | true             | true          | false | false
 --   registrar_servicio          | true             | true          | false | false
 --   registrar_venta             | true             | true          | false | false
+--   registrar_visita_inicio     | true             | true          | false | false
 --   restaurar_archivo_lote      | true             | true          | false | false
 --   set_updated_at              | false            | false         | false | false
 --   sincronizar_nombre_persona  | true             | false         | false | false
@@ -404,7 +406,8 @@ select
                                             'editar_personalizada', 'editar_destete', 'guardar_tablero',
                                             'guardar_medida', 'eliminar_medida',
                                             'registrar_consumo', 'editar_consumo',
-                                            'guardar_zona_potrero', 'borrar_zona_potrero'))
+                                            'guardar_zona_potrero', 'borrar_zona_potrero',
+                                            'registrar_visita_inicio'))
   ) as ok
 from f
 order by f.funcion;
