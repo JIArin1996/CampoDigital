@@ -6,15 +6,18 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, Layers, MapPin } from "lucide-react"
 
 import { useEstablecimiento } from "@/lib/context/EstablecimientoContext"
-import { getCategorias, getEspecies, getLotes, getStockLotes } from "@/lib/queries/lotes"
+import { getCategorias, getEspecies, getLotes, getStockAl, getStockLotes } from "@/lib/queries/lotes"
 import { getEstadiasAbiertas, getPotreros } from "@/lib/queries/potreros"
 import { mensajeDeError } from "@/lib/supabase/errores"
 import { PageContainer } from "@/components/layout/PageContainer"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { TarjetaLote } from "@/components/lotes/TarjetaLote"
 import { StockPorEspecie } from "@/components/lotes/StockPorEspecie"
 import { CambiarPotreroDialog } from "@/components/potreros/CambiarPotreroDialog"
 import { ORDEN_CLASE, claseDeLote, colorDeEspecie, ordenarEspecies, separarCrias } from "@/components/lotes/agrupacion"
+import { fechaCorta, hoyLocal } from "@/components/lotes/formato"
+import { CAMPO } from "@/components/shared/estilos"
 import type { Estadia, Potrero } from "@/types/database"
 import type { CategoriaAnimal, Especie, EstadoLote, Lote, StockLote } from "@/types/lotes"
 
@@ -52,6 +55,9 @@ function Lotes() {
   const [moviendo, setMoviendo] = useState<Lote | null>(null)   // lote del diálogo de cambio de potrero
   const [cambiando, setCambiando] = useState(false)              // cambio de potrero eligiendo el lote
   const pedidoDesdeMas = params.get("cambiar") === "potrero"
+  // Stock a otra fecha (stock_al); hoy sale de los lotes activos de arriba
+  const [fechaStock, setFechaStock] = useState(hoyLocal())
+  const [stockAl, setStockAl] = useState<{ clave: string; filas: Awaited<ReturnType<typeof getStockAl>> } | null>(null)
 
   const estId = establecimientoActivo?.id
   const clave = `${estId}:${estado}`
@@ -78,6 +84,17 @@ function Lotes() {
       })
     return () => { vigente = false }
   }, [estId, estado, version])
+
+  const esHoy = fechaStock === hoyLocal()
+  const claveStockAl = `${estId}:${fechaStock}`
+  useEffect(() => {
+    if (!estId || esHoy) return
+    let vigente = true
+    getStockAl(estId, fechaStock)
+      .then(filas => { if (vigente) setStockAl({ clave: `${estId}:${fechaStock}`, filas }) })
+      .catch(err => { if (vigente) setError(mensajeDeError(err, "No se pudo cargar el stock a esa fecha")) })
+    return () => { vigente = false }
+  }, [estId, fechaStock, esHoy])
 
   if (cargandoCtx) return <PageContainer><Esqueleto /></PageContainer>
 
@@ -151,12 +168,30 @@ function Lotes() {
         {/* Stock por especie (solo lotes activos) */}
         {estado === "activo" && (
           <section className="space-y-3">
-            <h2 className="font-semibold">Stock por especie</h2>
-            {!listo ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-semibold">Stock por especie</h2>
+              <div className="flex items-center gap-2">
+                <label htmlFor="lotes-fecha-stock" className="text-sm text-muted-foreground shrink-0">Al</label>
+                <Input id="lotes-fecha-stock" type="date" max={hoyLocal()} className={`${CAMPO} w-auto`}
+                  value={fechaStock} onChange={e => setFechaStock(e.target.value || hoyLocal())} />
+                {!esHoy && (
+                  <button type="button" className="text-sm font-medium text-primary min-h-11 px-2" onClick={() => setFechaStock(hoyLocal())}>
+                    Hoy
+                  </button>
+                )}
+              </div>
+            </div>
+            {!esHoy && (
+              <p className="text-sm text-muted-foreground">
+                Stock al {fechaCorta(fechaStock)}, con los lotes que hoy están cerrados. El potrero se ve solo en el de hoy.
+              </p>
+            )}
+            {!listo || (!esHoy && stockAl?.clave !== claveStockAl) ? (
               <Esqueleto filas={2} />
             ) : (
               <StockPorEspecie lotes={listo.lotes} stock={listo.stockLotes} potreros={listo.potreros}
-                especies={listo.especies} categorias={listo.categorias} />
+                especies={listo.especies} categorias={listo.categorias}
+                alFecha={esHoy ? undefined : stockAl?.filas} />
             )}
           </section>
         )}
