@@ -2856,6 +2856,39 @@ export type Database = {
           },
         ]
       }
+      visitas_inicio: {
+        Row: {
+          establecimiento_id: string
+          user_id: string
+          vista_en: string
+        }
+        Insert: {
+          establecimiento_id: string
+          user_id: string
+          vista_en?: string
+        }
+        Update: {
+          establecimiento_id?: string
+          user_id?: string
+          vista_en?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visitas_inicio_establecimiento_id_fkey"
+            columns: ["establecimiento_id"]
+            isOneToOne: false
+            referencedRelation: "establecimientos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_inicio_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zona_tipos: {
         Row: {
           activo: boolean
@@ -4237,6 +4270,10 @@ export type Database = {
           p_precio?: Json
           p_responsables?: string[]
         }
+        Returns: string
+      }
+      registrar_visita_inicio: {
+        Args: { p_establecimiento_id: string }
         Returns: string
       }
       restaurar_archivo_lote: {

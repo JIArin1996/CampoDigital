@@ -14,7 +14,7 @@ const ha = (n: number) => `${n.toLocaleString("es-UY", { maximumFractionDigits: 
 
 /**
  * Datos del establecimiento activo, bajo el saludo del Inicio: una fila compacta (nombre, sistema
- * productivo y superficie, con el rol) que se expande con "Ver más". Editar, solo el administrador.
+ * productivo y superficie, con el rol); al tocar el nombre se abre la ficha. Editar, solo el administrador.
  */
 export function DatosEstablecimiento({ establecimiento: e, rol, puedeEditar }: {
   establecimiento: Establecimiento
@@ -27,7 +27,7 @@ export function DatosEstablecimiento({ establecimiento: e, rol, puedeEditar }: {
     ? ha(e.superficie_total) + (e.superficie_efectiva_total && Number(e.superficie_efectiva_total) < Number(e.superficie_total)
       ? ` (${ha(e.superficie_efectiva_total)} efectivas)` : "")
     : null
-  const resumen = [e.nombre, e.sistema_productivo, superficie].filter(Boolean).join(" · ")
+  const resumen = [e.sistema_productivo, superficie].filter(Boolean).join(" · ")
   const datos: [string, string | null][] = [
     ["Departamento", e.departamento],
     ["Localidad", e.localidad],
@@ -42,13 +42,13 @@ export function DatosEstablecimiento({ establecimiento: e, rol, puedeEditar }: {
   return (
     <div className="mt-1">
       <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-muted-foreground min-w-0">{resumen}</p>
-        {rol && <Badge variant={rol === "consulta" ? "secondary" : "default"}>{ETIQUETA_ROL[rol]}</Badge>}
         <button type="button" aria-expanded={abierto} onClick={() => setAbierto(v => !v)}
-          className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-medium text-primary">
-          {abierto ? "Ver menos" : "Ver más"}
-          <ChevronDown className={cn("h-4 w-4 transition-transform", abierto && "rotate-180")} />
+          aria-label={`${abierto ? "Cerrar" : "Ver"} la ficha de ${e.nombre}`}
+          className="inline-flex min-h-11 min-w-0 items-center gap-1 text-left text-muted-foreground hover:text-foreground">
+          <span className="min-w-0"><span className="font-medium text-foreground">{e.nombre}</span>{resumen ? ` · ${resumen}` : ""}</span>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", abierto && "rotate-180")} />
         </button>
+        {rol && <Badge variant={rol === "consulta" ? "secondary" : "default"}>{ETIQUETA_ROL[rol]}</Badge>}
       </div>
 
       {abierto && (

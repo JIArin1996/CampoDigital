@@ -39,7 +39,7 @@ interface Props {
   compacta?: boolean            // en el inicio, la ficha de lote y el calendario: los responsables abreviados
 }
 
-const ICONO_TIPO: Record<TipoEntrada, LucideIcon> = { tarea: SquareCheck, decision: Flag, idea: Lightbulb }
+export const ICONO_TIPO: Record<TipoEntrada, LucideIcon> = { tarea: SquareCheck, decision: Flag, idea: Lightbulb }
 const BOTON_TARJETA = "h-11 md:h-9 flex-1 basis-32"
 
 /**
